@@ -1,15 +1,15 @@
 {
-  "name": "server",
+  "name": "stock-app",
   "version": "1.0.0",
   "type": "module",
-  "main": "index.js",
+  "main": "src/index.js",
   "description": "",
   "scripts": {
     "dev": "nodemon src/index.js",
-    "dev:auth": "BASIC_USER=me BASIC_PASS=secret nodemon src/index.js",
     "start": "node src/index.js",
     "backup": "mkdir -p backups && sqlite3 data.db \".backup 'backups/db-$(date +%F-%H%M%S).sqlite3'\"",
-    "postinstall": "echo \"(optional) ready\""
+    "rebuild:sqlite": "npm rebuild better-sqlite3 --build-from-source",
+    "postinstall": "npm run rebuild:sqlite"
   },
   "dependencies": {
     "basic-auth": "^2.0.1",
@@ -20,6 +20,9 @@
   },
   "devDependencies": {
     "nodemon": "^3.1.10"
+  },
+  "engines": {
+    "node": "20.x"
   },
   "license": "ISC",
   "author": ""

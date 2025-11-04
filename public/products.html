@@ -1,0 +1,263 @@
+<!doctype html>
+<html>
+  <head>
+    <meta charset="utf-8" />
+    <title>Add Product</title>
+    <meta name="viewport" content="width=device-width,initial-scale=1" />
+    <link rel="stylesheet" href="/app.css">
+  </head>
+  <body>
+    <div class="page">
+      <h1>Add Product</h1>
+
+      <div class="row">
+        <a href="/products/list"><button type="button">Products list</button></a>
+      </div>
+
+      <form id="form" class="form-grid">
+        <!-- Core fields -->
+        <label for="sku">SKU (scan or type barcode)</label>
+        <div class="row" style="display:flex; gap:8px; align-items:center;">
+        <input id="sku" type="text" required placeholder="e.g. ABC-003" style="text-transform:uppercase; flex:1;">
+        <button type="button" id="scanBtn">Scan</button>
+        <button type="button" id="stopScanBtn">Stop</button>
+        </div>
+
+        <label for="name">Name</label>
+        <input id="name" type="text" required placeholder="Product name">
+
+        <label for="quantity">Quantity</label>
+        <input id="quantity" type="number" step="1" min="0" value="0">
+
+        <div id="scannerWrap" class="full" style="display:none">
+        <video id="video" muted playsinline style="width:100%; max-height:260px; background:#000; border-radius:8px;"></video>
+        <div class="help">Point the barcode at the camera. It will auto-fill and stop.</div>
+        </div>
+
+        <div class="full">
+          <label for="notes">Notes</label>
+          <textarea id="notes" placeholder="Notes (optional)"></textarea>
+        </div>
+
+        <!-- Advanced (collapsed by default) -->
+        <details>
+          <summary>Advanced fields (optional)</summary>
+          <div class="form-grid" style="margin-top:10px">
+            <label for="onEbay">On eBay?</label>
+            <input id="onEbay" type="checkbox" style="justify-self:start">
+
+            <label for="cost">Cost</label>
+            <input id="cost" type="number" step="0.01" min="0" value="0">
+
+            <label for="retail">Retail</label>
+            <input id="retail" type="number" step="0.01" min="0" value="0">
+
+            <label for="fees">Fees</label>
+            <input id="fees" type="number" step="0.01" min="0" value="0">
+
+            <label for="postage">Postage</label>
+            <input id="postage" type="number" step="0.01" min="0" value="0">
+          </div>
+        </details>
+
+        <div class="full">
+          <button id="addBtn" type="button">Add Product</button>
+        </div>
+      </form>
+
+      <p class="help">Tip: Only SKU, Name, Quantity, and Notes are used here.</p>
+    </div>
+
+    <script>
+      // ---------- DOM helpers ----------
+      const $ = id => document.getElementById(id);
+
+      // Toast (one instance)
+      let __toastTimer;
+      function toast(msg, kind = 'error') {
+        let t = document.getElementById('toast');
+        if (!t) {
+          t = document.createElement('div');
+          t.id = 'toast';
+          Object.assign(t.style, {
+            position:'fixed', left:'50%', transform:'translateX(-50%)',
+            bottom:'18px', padding:'10px 14px', borderRadius:'10px',
+            background:'#222', color:'#fff', font:'14px/1.2 system-ui',
+            boxShadow:'0 8px 24px rgba(0,0,0,.35)', zIndex: 9999,
+            transition: 'opacity .2s',
+          });
+          document.body.appendChild(t);
+        }
+        t.style.background = kind === 'ok' ? '#2c7a2c' : '#a52828';
+        t.textContent = msg;
+        t.style.opacity = '1';
+        clearTimeout(__toastTimer);
+        __toastTimer = setTimeout(()=> t.style.opacity = '0', 1800);
+      }
+
+      // Uppercase SKU as you type
+      $('sku').addEventListener('input', function(){ this.value = this.value.toUpperCase(); });
+
+      // ---------- Add Product ----------
+      let busy = false;
+      async function addProduct() {
+        if (busy) return; busy = true;
+        const btn = $('addBtn'); btn.disabled = true; btn.textContent = 'Adding…';
+
+        const body = {
+          sku:      $('sku')?.value.trim(),
+          name:     $('name')?.value.trim(),
+          quantity: Number($('quantity')?.value || 0),
+          
+          notes:    $('notes')?.value.trim() || null
+        };
+
+        // Include advanced if provided (keeps your API compatible)
+        const adv = {
+          onEbay:  $('onEbay')?.checked || false,
+          cost:    Number($('cost')?.value || 0),
+          retail:  Number($('retail')?.value || 0),
+          fees:    Number($('fees')?.value || 0),
+          postage: Number($('postage')?.value || 0),
+        };
+        Object.assign(body, adv);
+
+        if (!body.sku || !body.name) {
+          toast('Please enter SKU and Name');
+          btn.disabled=false; btn.textContent='Add Product'; busy=false; return;
+        }
+
+        try {
+          const res  = await fetch('/api/products', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(body)
+          });
+          const text = await res.text();
+
+          if (res.ok) {
+            let data; try { data = JSON.parse(text); } catch {}
+            toast(`Added ${data?.sku || body.sku} ✓`, 'ok');
+
+            // clear core fields
+            ['sku','name','quantity','notes'].forEach(id => {
+              const el = $(id);
+              if (el) el.value = (id==='quantity' ? '0' : '');
+            });
+            // reset advanced
+            $('onEbay').checked = false;
+            ['cost','retail','fees','postage'].forEach(id => $(id).value = '0');
+
+          } else {
+            // parse error nicely
+            let errMsg = text;
+            try {
+              const j = JSON.parse(text);
+              if (j && j.error) errMsg = j.error;
+            } catch {}
+
+            const lower = (errMsg || '').toLowerCase();
+            if (lower.includes('unique constraint failed')) {
+              if (lower.includes('products.sku')) {
+                errMsg = 'That SKU already exists. Please use a different SKU.';
+                $('sku')?.focus();
+              } else {
+                errMsg = 'Duplicate value — this record already exists.';
+              }
+            }
+            toast(errMsg || 'Could not add product');
+          }
+        } catch (e) {
+          toast(e?.message || 'Request failed');
+        } finally {
+          btn.disabled = false; btn.textContent = 'Add Product'; busy = false;
+        }
+      }
+      $('addBtn').addEventListener('click', addProduct);
+
+      // ---------- Inline scanner (BarcodeDetector) ----------
+      const scanBtn     = $('scanBtn');
+      const stopBtn     = $('stopScanBtn');
+      const skuEl       = $('sku'); 
+      const scannerWrap = $('scannerWrap');
+      const video       = $('video');
+
+      let stream   = null;
+      let detector = null;
+      let raf      = null;
+
+      async function startScan() {
+        try {
+          await stopScan();
+          scannerWrap.style.display = 'block';
+
+          if (!navigator.mediaDevices?.getUserMedia) {
+            toast('Camera API not available'); return;
+          }
+
+          stream = await navigator.mediaDevices.getUserMedia({
+            video: { facingMode: 'environment' }, audio: false
+          });
+
+          video.srcObject = stream;
+          video.setAttribute('playsinline', 'true');
+          video.muted = true;
+          await video.play();
+
+          if ('BarcodeDetector' in window) {
+            detector = new BarcodeDetector({
+              formats: ['ean_13','ean_8','code_128','upc_e','upc_a','code_39','itf']
+            });
+            scanLoop();
+          } else {
+            toast('BarcodeDetector not supported in this browser');
+          }
+        } catch (err) {
+          console.error(err);
+          toast(err.message || 'Unable to start camera');
+          scannerWrap.style.display = 'none';
+        }
+      }
+
+      function stopScan() {
+        if (raf) cancelAnimationFrame(raf);
+        raf = null;
+        detector = null;
+
+        if (video) {
+          video.pause();
+          video.srcObject = null;
+        }
+        if (stream) {
+          stream.getTracks().forEach(t => t.stop());
+          stream = null;
+        }
+        scannerWrap.style.display = 'none';
+      }
+
+      async function scanLoop() {
+        if (!detector || video.readyState < 2) {
+          raf = requestAnimationFrame(scanLoop);
+          return;
+        }
+        try {
+          const codes = await detector.detect(video);
+          if (codes && codes.length) {
+            const c = codes[0];
+            const value = c.rawValue || c.rawValueText || c.value;
+            if (value) {
+              skuEl.value = value;
+              stopScan(); // auto-close
+              return;
+            }
+          }
+        } catch { /* transient detect errors are ok */ }
+        raf = requestAnimationFrame(scanLoop);
+      }
+
+      scanBtn?.addEventListener('click', startScan);
+      stopBtn?.addEventListener('click', stopScan);
+      window.addEventListener('beforeunload', stopScan);
+    </script>
+  </body>
+</html>

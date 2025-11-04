@@ -1,0 +1,25 @@
+{
+  "name": "server",
+  "version": "1.0.0",
+  "type": "module",
+  "main": "index.js",
+  "description": "",
+  "scripts": {
+    "dev": "nodemon src/index.js",
+    "dev:auth": "BASIC_USER=me BASIC_PASS=secret nodemon src/index.js",
+    "start": "node src/index.js",
+    "tunnel:named": "cloudflared tunnel run stock-app",
+  },
+  "dependencies": {
+    "basic-auth": "^2.0.1",
+    "better-sqlite3": "^12.2.0",
+    "cors": "^2.8.5",
+    "express": "^5.1.0"
+  },
+  "devDependencies": {
+    "concurrently": "^9.2.1",
+    "nodemon": "^3.1.10"
+  },
+  "license": "ISC",
+  "author": ""
+}

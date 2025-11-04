@@ -1,0 +1,248 @@
+/* =========================
+   Stock App — clean styles
+   ========================= */
+
+/* ---- Theme vars ---- */
+:root{
+  --bg: #e5e7eb;        /* page background (medium grey) */
+  --text: #111;         /* main text (near black) */
+  --panel: #fff;        /* cards/inputs/table background */
+  --border: #d1d5db;    /* light border */
+  --muted: #6b7280;     /* placeholder / muted text */
+  --head: #f7f7f7;      /* table header background */
+}
+
+/* ---- Base / reset ---- */
+*,
+*::before,
+*::after { box-sizing: border-box; }
+
+html, body {
+  height: 100%;
+}
+
+body{
+  margin: 0;
+  background: var(--bg) !important;
+  color: var(--text) !important;
+  font: 16px/1.45 -apple-system, BlinkMacSystemFont, "Segoe UI",
+        Roboto, Helvetica, Arial, "Apple Color Emoji", "Segoe UI Emoji", sans-serif;
+}
+
+/* Basic headings */
+h1, h2, h3{ margin: 24px 0 12px; font-weight: 800; color: var(--text); }
+
+/* Page container */
+.page{
+  max-width: none;
+  margin: 0;
+  padding: 0 24px 40px;
+}
+
+/* ---- Form grid (labels left, inputs right) ---- */
+.form-grid{
+  display: grid;
+  grid-template-columns: 160px 1fr;     /* label | input */
+  gap: 12px 16px;
+  align-items: center;
+  margin: 16px 0 24px;
+}
+
+.form-grid label{ font-weight: 700; }
+
+.form-grid input[type="text"],
+.form-grid input[type="number"],
+.form-grid input[type="search"],
+.form-grid input[type="email"]{
+  width: 100%;
+  background: var(--panel);
+  color: var(--text);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  padding: .55rem .65rem;
+}
+
+.form-grid input::placeholder{ color: var(--muted); }
+
+/* Inline row (e.g., barcode + buttons) */
+.form-grid .row{ display: flex; gap: 8px; align-items: center; }
+
+/* Rows that should span both columns (e.g., Notes, button row) */
+.form-grid .full{
+  grid-column: 1 / -1;
+  display: grid;
+  grid-template-columns: 160px 1fr;
+  gap: 12px 16px;
+  align-items: center;
+}
+
+/* Checkbox aligned with inputs */
+.form-grid input[type="checkbox"], #onEbay{
+  justify-self: start;
+  align-self: center;
+  margin: 0;
+}
+
+/* ---- Scanner preview (sits under barcode input) ---- */
+#scannerWrap{ grid-column: 2 / -1; }
+#scannerWrap video{
+  width: 100%;
+  max-height: 240px;
+  background: #000;
+  border-radius: 6px;
+}
+
+/* ---- Buttons ---- */
+button{
+  background: #f5f5f5;
+  color: var(--text);
+  border: 1px solid var(--border);
+  padding: .55rem .85rem;
+  border-radius: 6px;
+  cursor: pointer;
+}
+button:hover{ background: #ececec; }
+button:disabled{ opacity: .6; cursor: not-allowed; }
+
+/* ---- Tables ---- */
+.table-wrap{ overflow-x: auto; }  /* safe on small screens */
+
+table{
+  width: 100%;
+  border-collapse: collapse;
+  background: var(--panel);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  overflow: hidden;
+}
+
+th, td{ padding: 10px 12px; }
+th{
+  background: var(--head);
+  color: var(--text);
+  text-align: left;
+  border-bottom: 1px solid var(--border);
+  font-weight: 800;
+}
+td{ border-bottom: 1px solid var(--border); }
+tbody tr:last-child td{ border-bottom: 0; }
+
+/* Optional subtle zebra */
+tbody tr:nth-child(odd){ background: #fafafa; }
+
+/* ---- Misc fixes ---- */
+pre, code{
+  background: var(--panel);
+  color: var(--text);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  padding: 8px;
+}
+
+/* ---- Mobile tweak: stack labels above inputs ---- */
+@media (max-width: 640px){
+  .form-grid{
+    grid-template-columns: 1fr;
+  }
+  .form-grid .full{
+    grid-template-columns: 1fr;
+  }
+  .form-grid label{
+    margin-top: 6px;
+  }
+}
+
+/* ---- App layout with persistent sidebar ---- */
+.layout{ display:grid; grid-template-columns: 220px 1fr; min-height:100vh; }
+.sidebar{
+  background:#f3f4f6;
+  border-right:1px solid var(--border);
+  padding:16px;
+  position:sticky; top:0; height:100vh; overflow:auto;
+}
+.content{ min-width:0; }  /* prevents overflow */
+
+.nav .brand{ margin:0 0 10px; font-size:18px; font-weight:800; }
+.nav a{
+  display:block; padding:8px 10px; border-radius:6px;
+  text-decoration:none; color:var(--text);
+}
+.nav a:hover{ background:#ececec; }
+.nav a.active{ background:#e5e7eb; font-weight:700; }
+.nav .nav-sub{
+  margin:14px 0 6px; color:var(--muted);
+  font-size:12px; text-transform:uppercase; letter-spacing:.04em;
+}
+
+@media (max-width: 900px){
+  .layout{ grid-template-columns: 1fr; }
+  .sidebar{ position:static; height:auto; }
+}
+
+/* ===== Dark sidebar (matches your left example) ===== */
+.layout{ grid-template-columns: 260px 1fr; }          /* a bit wider nav */
+.sidebar{
+  background: #0f1218;                                /* deep slate */
+  border-right: 1px solid #1b2130;
+  padding: 16px;
+  position: sticky; top: 0; height: 100vh; overflow: auto;
+}
+.content{ min-width: 0; }
+
+.nav-dark .brand{
+  color: #e8edf7;
+  margin: 2px 6px 14px;
+  font-size: 20px; font-weight: 800;
+}
+
+.nav-dark .section{
+  margin: 18px 8px 6px;
+  color: #8b93a7;                                     /* muted header */
+  font-size: 11px; letter-spacing: .12em;
+  text-transform: uppercase;
+}
+
+.nav-dark a{
+  display: flex; align-items: center; gap: 10px;
+  padding: 10px 12px; border-radius: 10px;
+  color: #c7cfdf; text-decoration: none;
+}
+.nav-dark a:hover{ background: #151c2f; color: #e8edf7; }
+
+.nav-dark a.active{
+  background: #1f2742;                                /* selected pill */
+  color: #ffffff; font-weight: 600;
+}
+
+.nav-dark .icon{ width: 1.25em; text-align: center; font-size: 16px; }
+
+/* mobile: stack layout */
+@media (max-width: 900px){
+  .layout{ grid-template-columns: 1fr; }
+  .sidebar{ position: static; height: auto; }
+}
+
+/* global row helper (outside the form grid) */
+.row { display:flex; gap:8px; flex-wrap:wrap; align-items:center; margin:12px 0; }
+
+/* ensure left alignment sitewide */
+.page { margin: 0; }        /* we removed auto centering earlier */
+body  { margin: 0; }        /* make sure nothing centers the body */
+
+/* Add Product – inline scanner */
+#scannerWrap { display: none; margin-top: 12px; }
+#video { display: block; width: 100%; max-height: 280px; background: #000; border-radius: 8px; }
+
+/* Center every cell in the products table */
+#tbl th,
+#tbl td {
+  text-align: center !important;
+  vertical-align: middle;
+}
+
+/* Keep action buttons centered and tidy */
+#tbl td.actions {
+  display: flex;
+  justify-content: center;
+  gap: 8px;
+}

@@ -1,0 +1,69 @@
+<!doctype html>
+<html>
+  <head>
+    <meta charset="utf-8" />
+    <title>Stock App</title>
+    <meta name="viewport" content="width=device-width,initial-scale=1" />
+    <style>
+      body { font: 16px/1.4 system-ui, sans-serif; max-width: 800px; margin: 24px auto; padding: 0 12px; }
+      button { padding: 8px 12px; }
+      input { padding: 8px; }
+      .row { display:flex; gap:8px; flex-wrap:wrap; margin: 8px 0; }
+      pre { background:#111; color:#0f0; padding:12px; overflow:auto; }
+    </style>
+  </head>
+  <body>
+    <h1>Stock App</h1>
+
+    <div class="row">
+      <button id="btnHealth">Check API</button>
+      <a href="/api/reports/stock" target="_blank"><button id="openStockReport">Open Stock Report</button></a>
+      <a href="/report/sales" target="_blank"><button>View Sales Log</button></a>
+      <a href="/products.html"><button type="button">Add Product</button></a>
+      <a href="/stocktake.html"><button>Stock Take</button></a>
+      <a href="/import.html"><button>Import CSV</button></a>
+    </div>
+
+    <h2>Products</h2>
+    <div class="row">
+      <button id="btnProducts">List products</button>
+    </div>
+
+    <h2>Scan OUT by Barcode (manual entry for now)</h2>
+    <div class="row">
+      <input id="barcode" placeholder="barcode e.g. 1234567890123" />
+      <input id="qty" type="number" value="1" min="1" />
+      <button id="btnScanOut">Scan OUT</button>
+    </div>
+
+    <pre id="out"></pre>
+
+    <script>
+      const out = document.getElementById('out');
+      const show = (data) => out.textContent = JSON.stringify(data, null, 2);
+
+      document.getElementById('btnHealth').onclick = async () => {
+        const r = await fetch('/api/health'); show(await r.json());
+      };
+        document.getElementById('openStockReport')
+    ?.addEventListener('click', () => {
+      window.location.href = '/report/stock';
+    });
+      document.getElementById('btnProducts').onclick = async () => {
+        const r = await fetch('/api/products'); show(await r.json());
+      };
+      document.getElementById('btnScanOut').onclick = async () => {
+        const barcode = document.getElementById('barcode').value.trim();
+        const quantity = Number(document.getElementById('qty').value);
+        if (!barcode || quantity <= 0) return alert('Enter barcode and quantity > 0');
+        const r = await fetch('/api/scan-out/barcode', {
+          method: 'POST',
+          headers: { 'Content-Type':'application/json' },
+          body: JSON.stringify({ barcode, quantity })
+        });
+        show(await r.json());
+      };
+    </script>
+  </body>
+</html>
+

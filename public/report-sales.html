@@ -1,0 +1,318 @@
+<!doctype html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <title>Sales Log</title>
+  <link rel="stylesheet" href="/app.css">
+  <style>
+    body{font:14px/1.4 -apple-system,BlinkMacSystemFont,Segoe UI,Roboto,Helvetica,Arial,sans-serif;margin:24px}
+    h1{margin:0 0 16px}
+    .toolbar{display:flex;flex-wrap:wrap;gap:8px;align-items:center;margin:12px 0 16px}
+    .toolbar label{font-size:13px}
+    .toolbar input,.toolbar select{padding:6px 8px;font-size:14px}
+    .btn{padding:8px 12px;border:1px solid #ccc;background:#f7f7f7;border-radius:6px;cursor:pointer}
+    .btn:hover{background:#eee}
+    table{border-collapse:collapse;width:100%}
+    th,td{border:1px solid #ddd;padding:8px}
+    th{background:#fafafa;text-align:left}
+    td.num, th.num{text-align:right}
+    tfoot td{font-weight:700}
+    .no-print{margin-bottom:12px}
+    @media print{
+      .no-print{display:none}
+      body{margin:0}
+    }
+    .meta{color:#666;font-size:12px;margin-bottom:12px}
+    .v{position:absolute;right:24px;top:24px;color:#666;font-size:12px}
+  </style>
+</head>
+<body>
+      <div class="page">
+  <div class="v">v1</div>
+  <h1>Sales Log</h1>
+
+  <!-- Quick date filters -->
+<div class="quick-row">
+  <strong>Quick:</strong>
+  <button class="btn quick" data-q="this-week">This week</button>
+  <button class="btn quick" data-q="7">Last 7 days</button>
+  <button class="btn quick" data-q="this-month">This month</button>
+  <button class="btn outline" id="clearRange">Clear</button>
+</div>
+
+  <div class="toolbar no-print">
+    <label>From
+      <input type="date" id="from">
+    </label>
+    <label>To
+      <input type="date" id="to">
+    </label>
+    <label>Channel
+      <select id="channel">
+        <option value="">All</option>
+        <option value="manual">Manual</option>
+        <option value="ebay">eBay</option>
+        <option value="pos">POS</option>
+      </select>
+    </label>
+    <label>Search
+      <input type="text" id="q" placeholder="sku, barcode, order ref, note…">
+    </label>
+    <button class="btn" id="refresh">Refresh</button>
+    <button class="btn" id="exportCsv">Export CSV</button>
+    <button class="btn" onclick="window.print()">Print</button>
+  </div>
+
+  <div class="meta" id="generated"></div>
+
+  <table id="tbl">
+    <thead>
+      <tr>
+        <th>Date/Time</th>
+        <th>SKU</th>
+        <th>Barcode</th>
+        <th class="num">Qty</th>
+        <th class="num">Unit Cost</th>
+        <th class="num">Unit Retail</th>
+        <th class="num">Fees</th>
+        <th class="num">Postage</th>
+        <th>Channel</th>
+        <th>Order Ref</th>
+        <th>Note</th>
+        <th class="num">Line Cost</th>
+        <th class="num">Line Retail</th>
+        <th class="num">Profit</th>
+      </tr>
+    </thead>
+    <tbody id="tbody"></tbody>
+    <tfoot>
+      <tr>
+        <td colspan="3">Totals:</td>
+        <td class="num" id="totQty">0</td>
+        <td class="num"></td>
+        <td class="num"></td>
+        <td class="num" id="totFees">£0.00</td>
+        <td class="num" id="totPostage">£0.00</td>
+        <td></td><td></td><td></td>
+        <td class="num" id="totCost">£0.00</td>
+        <td class="num" id="totRetail">£0.00</td>
+        <td class="num" id="totProfit">£0.00</td>
+      </tr>
+    </tfoot>
+  </table>
+
+<script>
+/* ---------- helpers ---------- */
+const fmtGBP = n => (Number(n ?? 0))
+  .toLocaleString('en-GB', { style: 'currency', currency: 'GBP' });
+
+const pad2 = n => String(n).padStart(2,'0');
+const fromInput = document.getElementById('from');
+const toInput   = document.getElementById('to');
+
+function fmtDateYYYYMMDD(d) {
+  const y = d.getFullYear();
+  const m = pad2(d.getMonth() + 1);
+  const dd = pad2(d.getDate());
+  return `${y}-${m}-${dd}`;
+}
+
+function startOfThisWeek(d = new Date()) {
+  const end = new Date(d.getFullYear(), d.getMonth(), d.getDate()); // today 00:00
+  const day = (end.getDay() + 6) % 7; // Mon=0..Sun=6
+  const start = new Date(end);
+  start.setDate(end.getDate() - day);
+  return { start, end };
+}
+
+function startEndOfThisMonth(d = new Date()) {
+  const start = new Date(d.getFullYear(), d.getMonth(), 1);
+  const end   = new Date(d.getFullYear(), d.getMonth() + 1, 0);
+  return { start, end };
+}
+
+function setRange(start, end) {
+  fromInput.value = start ? fmtDateYYYYMMDD(start) : '';
+  toInput.value   = end   ? fmtDateYYYYMMDD(end)   : '';
+  render();
+}
+
+/* ---------- state ---------- */
+let allSales = [];
+
+/* ---------- init dates ---------- */
+function setDefaultDates() {
+  const now = new Date();
+  const first = new Date(now.getFullYear(), now.getMonth(), 1);
+  fromInput.value = fmtDateYYYYMMDD(first);
+  toInput.value   = fmtDateYYYYMMDD(now);
+}
+
+/* ---------- data ---------- */
+async function fetchSales() {
+  const res = await fetch('/api/sales', { credentials: 'include' });
+  if (!res.ok) {
+    alert('Failed to load sales');
+    return;
+  }
+  allSales = await res.json();
+  render();
+}
+
+/* ---------- render ---------- */
+function render() {
+  document.getElementById('generated').textContent =
+    'Generated: ' + new Date().toLocaleString();
+
+  const fromStr = fromInput.value;
+  const toStr   = toInput.value;
+  const channel = document.getElementById('channel').value.trim().toLowerCase();
+  const q       = document.getElementById('q').value.trim().toLowerCase();
+
+  const from = fromStr ? new Date(fromStr+'T00:00:00') : null;
+  const to   = toStr   ? new Date(toStr+'T23:59:59.999') : null;
+
+  let rows = allSales.slice();
+
+  rows = rows.filter(r => {
+    const t = new Date(r.created_at);
+    if (from && t < from) return false;
+    if (to && t > to) return false;
+    if (channel && String(r.channel||'').toLowerCase() !== channel) return false;
+
+    if (q) {
+      const hay = [r.sku, r.barcode, r.order_ref, r.note, r.channel]
+        .map(x => String(x ?? '').toLowerCase()).join(' ');
+      if (!hay.includes(q)) return false;
+    }
+    return true;
+  });
+
+  const tb = document.getElementById('tbody');
+  tb.innerHTML = '';
+
+  let totQty=0, totFees=0, totPost=0, totCost=0, totRetail=0, totProfit=0;
+
+  for (const r of rows) {
+    const qty = Number(r.quantity)||0;
+    const uCost = Number(r.unit_cost)||0;
+    const uRetail = Number(r.unit_retail)||0;
+    const fees = Number(r.fees)||0;
+    const post = Number(r.postage)||0;
+
+    const lineCost = qty * uCost;
+    const lineRetail = qty * uRetail;
+    const profit = lineRetail - lineCost - fees - post;
+
+    totQty += qty;
+    totFees += fees;
+    totPost += post;
+    totCost += lineCost;
+    totRetail += lineRetail;
+    totProfit += profit;
+
+    const tr = document.createElement('tr');
+    tr.innerHTML = `
+      <td>${new Date(r.created_at).toLocaleString()}</td>
+      <td>${r.sku ?? ''}</td>
+      <td>${r.barcode ?? ''}</td>
+      <td class="num">${qty}</td>
+      <td class="num">${fmtGBP(uCost)}</td>
+      <td class="num">${fmtGBP(uRetail)}</td>
+      <td class="num">${fmtGBP(fees)}</td>
+      <td class="num">${fmtGBP(post)}</td>
+      <td>${r.channel ?? ''}</td>
+      <td>${r.order_ref ?? ''}</td>
+      <td>${r.note ?? ''}</td>
+      <td class="num">${fmtGBP(lineCost)}</td>
+      <td class="num">${fmtGBP(lineRetail)}</td>
+      <td class="num">${fmtGBP(profit)}</td>
+    `;
+    tb.appendChild(tr);
+  }
+
+  document.getElementById('totQty').textContent    = totQty;
+  document.getElementById('totFees').textContent   = fmtGBP(totFees);
+  document.getElementById('totPostage').textContent= fmtGBP(totPost);
+  document.getElementById('totCost').textContent   = fmtGBP(totCost);
+  document.getElementById('totRetail').textContent = fmtGBP(totRetail);
+  document.getElementById('totProfit').textContent = fmtGBP(totProfit);
+}
+
+/* ---------- export ---------- */
+function exportCsv() {
+  const thead = [...document.querySelectorAll('#tbl thead th')].map(th => th.textContent.trim());
+  const rows = [...document.querySelectorAll('#tbl tbody tr')].map(tr =>
+    [...tr.children].map(td => td.textContent.replace(/,/g, ''))
+  );
+  const totals = [
+    'Totals','','', document.getElementById('totQty').textContent, '', '',
+    document.getElementById('totFees').textContent,
+    document.getElementById('totPostage').textContent,'','','',
+    document.getElementById('totCost').textContent,
+    document.getElementById('totRetail').textContent,
+    document.getElementById('totProfit').textContent,
+  ];
+  const all = [thead, ...rows, totals];
+  const csv = all.map(r => r.map(c => `"${c}"`).join(',')).join('\n');
+  const blob = new Blob([csv], {type:'text/csv'});
+  const a = document.createElement('a');
+  const now = new Date();
+  const y = now.getFullYear(), m = pad2(now.getMonth()+1), d = pad2(now.getDate());
+  a.download = `sales_${y}${m}${d}.csv`;
+  a.href = URL.createObjectURL(blob);
+  a.click();
+  URL.revokeObjectURL(a.href);
+}
+
+/* ---------- quick filters + events ---------- */
+document.querySelectorAll('.quick-row .quick').forEach(btn => {
+  btn.addEventListener('click', () => {
+    const now = new Date();
+    const code = btn.dataset.q;
+    let start, end;
+
+    if (code === 'this-week') {
+      ({ start, end } = startOfThisWeek(now));
+    } else if (code === '7') {
+      end = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+      start = new Date(end);
+      start.setDate(end.getDate() - 6); // inclusive: 7 days
+    } else if (code === 'this-month') {
+      ({ start, end } = startEndOfThisMonth(now));
+    }
+
+    setRange(start, end);
+  });
+});
+
+document.getElementById('clearRange').addEventListener('click', () => setRange(null, null));
+
+document.getElementById('refresh').addEventListener('click', refreshSales);
+document.getElementById('exportCsv').addEventListener('click', exportCsv);
+
+['from','to','channel','q'].forEach(id => {
+  const el = document.getElementById(id);
+  el.addEventListener('change', render);
+  el.addEventListener('keyup', e => { if (e.key === 'Enter') render(); });
+});
+
+/* ---------- refresh wrapper ---------- */
+async function refreshSales() {
+  try {
+    await fetchSales();
+    render();
+  } catch (e) {
+    console.error('refreshSales failed:', e);
+  }
+}
+
+/* ---------- boot ---------- */
+setDefaultDates();
+fetchSales();
+</script>
+      </div> <!-- /.page -->
+</body>
+
+</html>
+

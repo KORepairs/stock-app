@@ -1,0 +1,69 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <title>Quick Add Product</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <style>
+    body { font-family: system-ui, sans-serif; max-width: 700px; margin: 2rem auto; padding: 1rem; }
+    label { display:block; margin-top: .75rem; }
+    input { width: 100%; padding: .5rem; margin-top: .25rem; }
+    button { margin-top: 1rem; padding: .6rem 1rem; cursor: pointer; }
+    pre { background:#111; color:#0f0; padding:1rem; overflow:auto; }
+  </style>
+</head>
+<body>
+  <h1>Quick Add Product</h1>
+  <p>Fill the fields and click Add. This posts directly to <code>/api/products</code>.</p>
+
+  <label>SKU <input id="sku" value="DEMO-4001" /></label>
+  <label>Name <input id="name" value="Test Widget" /></label>
+  <label>Barcode <input id="barcode" value="5012345678905" /></label>
+  <label>Quantity <input id="quantity" type="number" value="5" /></label>
+  <label>Notes <input id="notes" value="demo item" /></label>
+  <label>Cost <input id="cost" type="number" step="0.01" value="3.50" /></label>
+  <label>Retail <input id="retail" type="number" step="0.01" value="9.99" /></label>
+  <label>Fees <input id="fees" type="number" step="0.01" value="0.50" /></label>
+  <label>Postage <input id="postage" type="number" step="0.01" value="2.99" /></label>
+
+  <button id="addBtn">Add</button>
+
+  <h2>Result</h2>
+  <pre id="out">Waiting…</pre>
+
+  <script>
+    async function addProduct() {
+      const body = {
+        sku: document.getElementById('sku').value.trim(),
+        name: document.getElementById('name').value.trim(),
+        barcode: document.getElementById('barcode').value.trim(),
+        quantity: Number(document.getElementById('quantity').value || 0),
+        notes: document.getElementById('notes').value.trim(),
+        cost: Number(document.getElementById('cost').value || 0),
+        retail: Number(document.getElementById('retail').value || 0),
+        fees: Number(document.getElementById('fees').value || 0),
+        postage: Number(document.getElementById('postage').value || 0),
+        onEbay: false
+      };
+
+      const res = await fetch('/api/products', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(body)
+      });
+
+      const text = await res.text();
+      // show raw text so we can see exactly what came back
+      document.getElementById('out').textContent = text;
+
+      // try to parse JSON and be nice if it works
+      try {
+        const json = JSON.parse(text);
+        document.getElementById('out').textContent = JSON.stringify(json, null, 2);
+      } catch {}
+    }
+
+    document.getElementById('addBtn').addEventListener('click', addProduct);
+  </script>
+</body>
+</html>

@@ -1,0 +1,228 @@
+<!doctype html>
+<html>
+  <head>
+    <meta charset="utf-8" />
+    <title>Camera Scanner</title>
+    <link rel="stylesheet" href="/app.css">
+    <meta name="viewport" content="width=device-width,initial-scale=1" />
+  </head>
+  <body>
+      <div class="page">
+    <h1>Camera Scanner</h1>
+
+    <div class="row">
+  <select id="cameraSelect"></select>
+  <input id="qty" type="number" value="1" min="1" />
+  <select id="mode">
+    <option value="OUT" selected>OUT (dispatch)</option>
+    <option value="IN">IN (restock)</option>
+  </select>
+  <button id="startBtn">Start</button>
+  <button id="stopBtn">Stop</button>
+</div>
+
+
+    <video id="video" muted playsinline></video>
+
+    <h3>Last scan</h3>
+    <div class="row"><input id="lastCode" readonly style="flex:1" /></div>
+
+    <!-- Manual entry -->
+    <div class="row" style="gap:8px; align-items:center; margin-top:10px;">
+      <label for="manualCode" style="font-weight:600;">Manual entry</label>
+      <input id="manualCode" type="text" placeholder="Type or paste barcode…" style="flex:1; min-width:280px;">
+      <button id="manualSubmit">Apply</button>
+    </div>
+    <p style="margin-top:6px; color:var(--muted,#666); font-size:13px;">
+      Tip: Press <kbd>Enter</kbd> to apply. Uses current Mode and Qty.
+    </p>
+
+    <!-- Use ZXing via ESM from jsDelivr -->
+<script>
+  // ---------- POST logic when a code is detected ----------
+  const $ = s => document.querySelector(s);
+  const last   = $('#lastCode');        // <- fixed
+  const qtyEl  = $('#qty');
+  const modeEl = $('#mode');
+
+  let postBusy = false;
+  let lastSent = '';
+
+  async function onDetected(code) {
+    code = String(code || '').trim();
+    if (!code) return;
+
+    if (last) last.value = code;
+
+    // guard against burst duplicates from the decoder
+    if (postBusy || code === lastSent) return;
+    lastSent = code;
+
+    const qty  = Math.max(1, Number(qtyEl?.value || 1));
+    const mode = (modeEl?.value || 'out').toLowerCase(); // 'out' | 'in'
+    const endpoint = mode === 'in' ? '/api/stock/in' : '/api/stock/out';
+
+    try {
+      postBusy = true;
+      const r = await fetch(endpoint, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ barcode: code, qty, channel: 'camera' })
+      });
+      const text = await r.text();
+      let data; try { data = JSON.parse(text); } catch {}
+      if (!r.ok) throw new Error(data?.error || text || r.statusText);
+
+      toast(`OK ${mode.toUpperCase()} — ${data?.sku || ''} → Qty ${data?.quantity}`);
+      flash('#d6f5d6');
+    } catch (err) {
+      console.error(err);
+      toast(err.message || 'Scan failed');
+      flash('#ffe0e0');
+    } finally {
+      postBusy = false;
+      setTimeout(()=>{ lastSent = ''; }, 600);
+    }
+  }
+  window.onDetected = onDetected;
+
+  function flash(color) {
+    if (!last) return;
+    const prev = last.style.background;
+    last.style.background = color;
+    setTimeout(()=> last.style.background = prev, 250);
+  }
+  let toastTimer;
+  function toast(msg) {
+    let t = document.getElementById('toast');
+    if (!t) {
+      t = document.createElement('div');
+      t.id = 'toast';
+      Object.assign(t.style, {
+        position:'fixed', left:'50%', transform:'translateX(-50%)',
+        bottom:'18px', padding:'8px 12px', borderRadius:'8px',
+        background:'#222', color:'#fff', font:'14px/1.2 system-ui',
+        boxShadow:'0 6px 20px rgba(0,0,0,.3)', zIndex:9999
+      });
+      document.body.appendChild(t);
+    }
+    t.textContent = msg;
+    t.style.opacity = '1';
+    clearTimeout(toastTimer);
+    toastTimer = setTimeout(()=> t.style.opacity = '0', 1400);
+  }
+
+  // ---------- Camera + decoding ----------
+  const video     = $('#video');
+  const cameraSel = $('#cameraSelect');   // <- fixed
+  const startBtn  = $('#startBtn');
+  const stopBtn   = $('#stopBtn');
+
+  let stream;
+  let scanRAF;
+  let detector;
+
+  async function listCameras() {
+    const devices = await navigator.mediaDevices.enumerateDevices();
+    const vids = devices.filter(d => d.kind === 'videoinput');
+    cameraSel.innerHTML = '';
+    vids.forEach((d, i) => {
+      const opt = document.createElement('option');
+      opt.value = d.deviceId;
+      opt.textContent = d.label || `Camera ${i+1}`;
+      cameraSel.appendChild(opt);
+    });
+  }
+
+  async function startCamera() {
+    try {
+      if (!navigator.mediaDevices?.getUserMedia) {
+        toast('Camera API not available');
+        return;
+      }
+
+      await listCameras();
+
+      const deviceId = cameraSel.value || undefined;
+      stream = await navigator.mediaDevices.getUserMedia({
+        video: deviceId ? { deviceId: { exact: deviceId } } : { facingMode: 'environment' },
+        audio: false
+      });
+
+      video.srcObject = stream;
+      video.setAttribute('playsinline', 'true');
+      video.muted = true;
+      await video.play();
+      video.style.display = 'block';
+
+      if ('BarcodeDetector' in window) {
+        detector = new BarcodeDetector({ formats: ['ean_13','ean_8','code_128','upc_e','upc_a','code_39','itf'] });
+        scanLoop();
+      } else {
+        toast('BarcodeDetector not supported in this browser');
+      }
+    } catch (err) {
+      console.error(err);
+      toast(err.message || 'Unable to start camera');
+    }
+  }
+
+  function stopCamera() {
+    if (scanRAF) cancelAnimationFrame(scanRAF);
+    scanRAF = null;
+    detector = null;
+    if (video) { video.pause(); video.srcObject = null; video.style.display = 'none'; }
+    if (stream) {
+      stream.getTracks().forEach(t => t.stop());
+      stream = null;
+    }
+  }
+
+  async function scanLoop() {
+    if (!detector || video.readyState < 2) {
+      scanRAF = requestAnimationFrame(scanLoop);
+      return;
+    }
+    try {
+      const barcodes = await detector.detect(video);
+      if (barcodes && barcodes.length) {
+        const b = barcodes[0];
+        const code = b.rawValue || b.rawValueText || b.value;
+        if (code) onDetected(code);
+      }
+    } catch (e) { /* ignore transient detect errors */ }
+    scanRAF = requestAnimationFrame(scanLoop);
+  }
+
+  startBtn?.addEventListener('click', startCamera);
+  stopBtn?.addEventListener('click', stopCamera);
+
+  // Default: populate camera list on load
+  (async () => { try { await listCameras(); } catch {} })();
+
+  // ---- Manual entry wiring ----
+  const manualBox = document.getElementById('manualCode');
+  const manualBtn = document.getElementById('manualSubmit');
+
+  // Call the same flow as a camera scan.
+  // Clear lastSent so you can apply the same code twice if needed.
+  function applyManualNow() {
+    if (!manualBox) return;
+    const code = String(manualBox.value || '').trim();
+    if (!code) { toast('Enter a barcode'); return; }
+    lastSent = '';                 // allow immediate repeat of same code
+    onDetected(code);              // reuse existing posting logic
+    manualBox.select();            // keep focus for rapid entries
+  }
+
+  manualBtn?.addEventListener('click', applyManualNow);
+  manualBox?.addEventListener('keydown', (e) => {
+    if (e.key === 'Enter') { e.preventDefault(); applyManualNow(); }
+  });
+</script>
+
+       </div> <!-- /.page -->
+</body>
+
+</html>
+

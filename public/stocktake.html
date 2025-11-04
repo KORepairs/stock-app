@@ -1,0 +1,194 @@
+<!doctype html>
+<html>
+  <head>
+    <meta charset="utf-8" />
+    <title>Stock Take</title>
+    <link rel="stylesheet" href="/app.css">
+    <meta name="viewport" content="width=device-width,initial-scale=1" />
+  </head>
+  <body>
+      <div class="page">
+    <h1>Stock Take</h1>
+    
+    <!-- Controls -->
+    <div class="row">
+      <select id="cameraSelect"></select>
+      <button id="startBtn">Start Camera</button>
+      <button id="stopBtn">Stop</button>
+      <input id="barcodeInput" placeholder="type/scan SKU" ...>
+      <button id="lookupBtn">Lookup</button>
+      <span id="msg" class=""></span>
+    </div>
+
+    <video id="video" muted playsinline></video>
+
+    <!-- Product panel -->
+    <div id="panel" class="card" style="display:none">
+      <div><span class="label">SKU:</span> <span id="sku"></span></div>
+      <div><span class="label">Name:</span> <span id="name"></span></div>
+      <div><span class="label">Current Qty:</span> <span id="current"></span></div>
+
+      <div class="row" style="margin-top:12px">
+        <label class="label" for="counted">Counted Qty</label>
+        <input id="counted" type="number" min="0" step="1" value="0" />
+        <button id="setBtn">Set Count</button>
+        <button id="nextBtn" type="button">Next Item</button>
+      </div>
+    </div>
+
+    <h3>Result</h3>
+    <pre id="out"></pre>
+
+    <script type="module">
+      import { BrowserMultiFormatReader } from 'https://cdn.jsdelivr.net/npm/@zxing/browser@latest/+esm';
+
+      const out = document.getElementById('out');
+      const show = (x) => out.textContent = typeof x === 'string' ? x : JSON.stringify(x, null, 2);
+      const msg = (t, cls='') => { const m=document.getElementById('msg'); m.textContent=t; m.className=cls; };
+
+      // Elements
+      const video   = document.getElementById('video');
+      const camSel  = document.getElementById('cameraSelect');
+      const startBt = document.getElementById('startBtn');
+      const stopBt  = document.getElementById('stopBtn');
+      const lookupBt= document.getElementById('lookupBtn');
+      const barcodeInput = document.getElementById('barcodeInput');
+
+      const panel = document.getElementById('panel');
+      const skuEl = document.getElementById('sku');
+      const nameEl= document.getElementById('name');
+      const curEl = document.getElementById('current');
+      const countedEl = document.getElementById('counted');
+      const setBtn = document.getElementById('setBtn');
+      const nextBtn= document.getElementById('nextBtn');
+
+      // Scanner
+      const reader = new BrowserMultiFormatReader();
+      let controls = null;
+      let last = { code:null, at:0 };
+
+      async function ensurePermission() {
+        const st = await navigator.mediaDevices.getUserMedia({ video: true, audio: false });
+        st.getTracks().forEach(t => t.stop());
+      }
+
+      async function listCameras() {
+        const devices = (await navigator.mediaDevices.enumerateDevices()).filter(d => d.kind === 'videoinput');
+        camSel.innerHTML = '';
+        devices.forEach((d,i) => {
+          const opt = document.createElement('option');
+          opt.value = d.deviceId;
+          opt.textContent = d.label || `Camera ${i+1}`;
+          camSel.appendChild(opt);
+        });
+        const back = [...camSel.options].find(o => /back|rear|environment/i.test(o.textContent));
+        camSel.value = back ? back.value : (devices[0]?.value || '');
+      }
+
+      function stop() {
+        try { if (controls) controls.stop(); } catch {}
+        controls = null;
+        msg('Camera stopped', 'warn');
+      }
+
+      async function start() {
+        try {
+          await ensurePermission();
+          await listCameras();
+          stop();
+          controls = await reader.decodeFromVideoDevice(camSel.value, video, onScan);
+          msg('Scanner started. Point at a SKU.', 'ok');
+        } catch (e) {
+          msg('Camera error: ' + e, 'err');
+        }
+      }
+
+      async function onScan(result, err) {
+        if (!result) return;
+        const code = result.getText().trim();
+        const now = Date.now();
+        if (code === last.code && now - last.at < 1200) return;
+        last = { code, at: now };
+        barcodeInput.value = code;
+        await lookupBySKU(code);
+      }
+
+      async function lookupBySKU(code) {
+        try {
+          const r = await fetch('/api/products/lookup/' + encodeURIComponent(code));
+          if (!r.ok) {
+            panel.style.display = 'none';
+            show(await r.json());
+            msg('No product for that SKU', 'err');
+            return;
+          }
+          const p = await r.json();
+          skuEl.textContent = p.sku;
+          nameEl.textContent = p.name;
+          curEl.textContent = p.quantity ?? 0;
+          countedEl.value = p.quantity ?? 0;  // default to current
+          panel.style.display = 'block';
+          countedEl.focus();
+          show(p);
+          msg('Product found', 'ok');
+        } catch (e) {
+          msg('Lookup failed: ' + e, 'err');
+        }
+      }
+
+      async function setCount() {
+        const code = (barcodeInput.value || '').trim();
+        const counted = parseInt(countedEl.value || '0', 10);
+
+        if (!code) { msg('Scan or enter a SKU first', 'err'); return; }
+        if (!Number.isInteger(counted) || counted < 0) {
+          msg('Count must be a whole number ≥ 0', 'err'); return;
+        }
+
+        const r = await fetch('/api/stock/take', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ sku: code, qty: counted })
+        });
+
+        const text = await r.text();
+        let data;
+        try { data = JSON.parse(text); } catch { data = { error: text }; }
+
+        show(data);
+
+        if (r.ok && data && !data.error) {
+          curEl.textContent = data.quantity ?? data.product?.quantity ?? counted;
+          msg('Count set', 'ok');
+        } else {
+          msg('Failed to set count: ' + (data.error || r.status), 'err');
+        }
+      }
+
+
+      function nextItem() {
+        panel.style.display = 'none';
+        barcodeInput.value = '';
+        countedEl.value = 0;
+        msg('Ready for next item', '');
+      }
+
+      // Wire up UI
+      startBt.onclick = start;
+      stopBt.onclick = stop;
+      lookupBt.onclick = () => {
+        const code = (barcodeInput.value || '').trim();
+        if (code) lookupBySKU(code);
+      };
+      setBtn.onclick = setCount;
+      nextBtn.onclick = nextItem;
+      camSel.onchange = () => { if (controls) start(); };
+
+      // Optional: load camera list early
+      navigator.mediaDevices.enumerateDevices().then(() => listCameras()).catch(() => {});
+    </script>
+        </div> <!-- /.page -->
+</body>
+
+</html>
+

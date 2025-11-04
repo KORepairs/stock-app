@@ -1,0 +1,26 @@
+{
+  "name": "server",
+  "version": "1.0.0",
+  "type": "module",
+  "main": "index.js",
+  "description": "",
+  "scripts": {
+    "dev": "nodemon src/index.js",
+    "dev:auth": "BASIC_USER=me BASIC_PASS=secret nodemon src/index.js",
+    "start": "node src/index.js",
+    "backup": "mkdir -p backups && sqlite3 data.db \".backup 'backups/db-$(date +%F-%H%M%S).sqlite3'\"",
+    "postinstall": "echo \"(optional) ready\""
+  },
+  "dependencies": {
+    "basic-auth": "^2.0.1",
+    "better-sqlite3": "^12.2.0",
+    "cors": "^2.8.5",
+    "dotenv": "^17.2.1",
+    "express": "^5.1.0"
+  },
+  "devDependencies": {
+    "nodemon": "^3.1.10"
+  },
+  "license": "ISC",
+  "author": ""
+}

@@ -1,0 +1,269 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <title>Products</title>
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <link rel="stylesheet" href="/app.css">
+  <style>
+    .toolbar{display:flex;gap:8px;align-items:center;margin:12px 0;}
+    .toolbar input{padding:.55rem .65rem;border:1px solid var(--border);border-radius:6px;background:var(--panel);color:var(--text);}
+    dialog.modal{border:0;border-radius:10px;padding:16px;background:var(--panel);color:var(--text);box-shadow:0 20px 50px rgba(0,0,0,.35)}
+    dialog::backdrop{background:rgba(0,0,0,.4)}
+    .grid2{display:grid;grid-template-columns:160px 1fr;gap:12px 16px;align-items:center;margin-top:8px;}
+    .grid2 input,.grid2 textarea{width:100%;border:1px solid var(--border);border-radius:6px;padding:.5rem;background:var(--panel);color:var(--text);}
+    .grid2 textarea{min-height:70px;resize:vertical;}
+    .actions{display:flex;gap:8px;justify-content:flex-end;margin-top:12px;}
+    td.actions button{margin-right:6px}
+  </style>
+</head>
+<body>
+<div class="page">
+  <h1>Products</h1>
+
+  <div class="row" id="prod-filters" style="gap:12px;align-items:center;margin:12px 0;flex-wrap:wrap">
+  <input id="pf-search" type="text" placeholder="Search SKU, name, notes…" style="flex:1;min-width:260px;max-width:420px">
+
+  <label style="display:flex;align-items:center;gap:6px;white-space:nowrap">
+    <input id="pf-qtygt0" type="checkbox"> Quantity &gt; 0
+  </label>
+
+  <label style="display:flex;align-items:center;gap:6px;white-space:nowrap">
+    <input id="pf-notes" type="checkbox"> Notes
+  </label>
+
+  <label style="display:flex;align-items:center;gap:6px;white-space:nowrap">
+    <input id="pf-ebay" type="checkbox"> Not on eBay
+  </label>
+
+  <select id="pf-sort" style="min-width:180px">
+  <option value="sku:asc" selected>SKU (A–Z)</option>
+  <option value="sku:desc">SKU (Z–A)</option>
+  <option value="name:asc">Name (A–Z)</option>
+  <option value="name:desc">Name (Z–A)</option>
+  <option value="qty:desc">Qty (High→Low)</option>
+  <option value="qty:asc">Qty (Low→High)</option>
+</select>
+
+  <button id="pf-refresh">Refresh</button>
+</div>
+
+
+
+  <div class="table-wrap">
+    <table id="tbl">
+      <thead>
+        <tr>
+          <th>SKU</th>
+          <th>Name</th>
+          <th>Quantity</th>
+          <th>Notes</th>
+          <th>eBay</th>
+          <th>Retail</th>
+          <th>Cost</th>
+          <th>Fees</th>
+          <th>Postage</th>
+          <th>Actions</th>
+        </tr>
+      </thead>
+      <tbody id="prodTbody"><tr><td colspan="10" style="padding:8px">Loading…</td></tr></tbody>
+    </table>
+  </div>
+
+  <!-- Edit Modal -->
+  <dialog id="editDlg" class="modal">
+    <h3>Edit product</h3>
+    <form method="dialog" id="editForm">
+      <input type="hidden" id="e_id">
+      <div class="grid2">
+        <label>SKU</label>      <input id="e_sku" type="text">
+        <label>Name</label>     <input id="e_name" type="text">
+        <label>Quantity</label> <input id="e_quantity" type="number" step="1" min="0">
+        <label>On eBay?</label> <input id="e_onEbay" type="checkbox" style="justify-self:start">
+        <label>Retail</label>   <input id="e_retail" type="number" step="0.01" min="0">
+        <label>Cost</label>     <input id="e_cost" type="number" step="0.01" min="0">
+        <label>Fees</label>     <input id="e_fees" type="number" step="0.01" min="0">
+        <label>Postage</label>  <input id="e_postage" type="number" step="0.01" min="0">
+        <label>Notes</label>    <textarea id="e_notes"></textarea>
+      </div>
+      <div class="actions">
+        <button type="button" id="cancelBtn">Cancel</button>
+        <button type="submit" id="saveBtn">Save</button>
+      </div>
+    </form>
+  </dialog>
+
+  <script>
+  // ---------- helpers ----------
+  const $ = (id) => document.getElementById(id);
+  const GBP = (n) => Number(n || 0).toLocaleString('en-GB', { style: 'currency', currency: 'GBP' });
+  const esc = (s) => String(s ?? '').replace(/[&<>"']/g, m => (
+    {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[m]
+  ));
+
+  let all = []; // cache of all products from the server
+
+  // Natural, case-insensitive sorting based on the "Sort by" select
+  function sortRows(list) {
+    const sel = document.getElementById('pf-sort');
+    const [field, dir] = (sel?.value || 'sku:asc').split(':');
+    const mult = dir === 'desc' ? -1 : 1;
+
+    // Text comparison that understands numbers (A2 < A10) and ignores case
+    const cmpText = (a, b) =>
+        mult * String(a || '').localeCompare(String(b || ''), undefined, { numeric: true, sensitivity: 'base' });
+
+    if (field === 'sku')    return list.sort((a, b) => cmpText(a.sku,    b.sku));
+    if (field === 'name')   return list.sort((a, b) => cmpText(a.name,   b.name));
+    if (field === 'qty')    return list.sort((a, b) => mult * ((a.quantity || 0) - (b.quantity || 0)));
+    if (field === 'retail') return list.sort((a, b) => mult * ((a.retail   || 0) - (b.retail   || 0)));
+
+    return list;
+    }
+
+
+  // ---------- fetch once, then render with filters ----------
+  async function fetchAll() {
+    const tbody = $('prodTbody');
+    tbody.innerHTML = '<tr><td colspan="10" style="padding:8px">Loading…</td></tr>';
+    try {
+      const r = await fetch('/api/products');
+      all = await r.json();
+      render();
+    } catch (e) {
+      tbody.innerHTML = `<tr><td colspan="10" style="padding:8px;color:#900">Failed: ${esc(e.message || e)}</td></tr>`;
+    }
+  }
+
+  function render() {
+    const tbody   = $('prodTbody');
+
+    // ----- read filters -----
+    const q           = ($('pf-search')?.value || '').toLowerCase().trim();
+    const onlyQty     = $('pf-qtygt0')?.checked;
+    const onlyNotEbay = $('pf-ebay')?.checked;     // when checked, show ONLY not-on-eBay
+    const onlyNotes   = $('pf-notes')?.checked;    // when checked, show ONLY items with notes
+
+    // ----- filter -----
+    let rows = all.filter(p => {
+      const qty = Number(p.quantity) || 0;
+      const onEbay = (p.on_ebay === 1 || p.on_ebay === true);
+      const notesHasText = String(p.notes || '').trim().length > 0;
+
+      if (onlyQty && !(qty > 0)) return false;
+      if (onlyNotEbay && onEbay) return false;          // exclude eBay ones
+      if (onlyNotes && !notesHasText) return false;     // require notes
+
+      if (q) {
+        const hay = `${p.sku} ${p.name} ${p.notes || ''}`.toLowerCase();
+        if (!hay.includes(q)) return false;
+      }
+      return true;
+    });
+
+    // ----- sort -----
+    rows = sortRows(rows);
+
+
+
+    // ----- render -----
+    if (!rows.length) {
+      tbody.innerHTML = '<tr><td colspan="11" style="padding:8px">No matching products</td></tr>';
+      return;
+    }
+
+    tbody.innerHTML = rows.map(p => `
+    <tr data-id="${p.id}">
+      <td>${esc(p.sku)}</td>
+      <td>${esc(p.name)}</td>
+      <td>${Number(p.quantity) || 0}</td>
+      <td>${esc(p.notes || '')}</td>
+      <td style="text-align:center">${(p.on_ebay === 1 || p.on_ebay === true) ? '✓' : ''}</td>
+      <td>${GBP(p.retail)}</td>
+      <td>${GBP(p.cost)}</td>
+      <td>${GBP(p.fees)}</td>
+      <td>${GBP(p.postage)}</td>
+      <td class="actions">
+        <button data-act="edit" data-id="${p.id}">Edit</button>
+        <button data-act="del"  data-id="${p.id}">Delete</button>
+      </td>
+    </tr>
+  `).join('');
+  }
+
+  // ---------- table actions (edit/delete) ----------
+  $('prodTbody').addEventListener('click', async e => {
+    const btn = e.target.closest('button'); if (!btn) return;
+    const id  = Number(btn.dataset.id);
+    const row = all.find(x => x.id === id); if (!row) return;
+
+    if (btn.dataset.act === 'del') {
+      if (!confirm('Delete this product?')) return;
+      const r = await fetch('/api/products/' + id, { method:'DELETE' });
+      const j = await r.json();
+      if (j.deleted) { all = all.filter(x => x.id !== id); render(); }
+      else alert('Nothing deleted');
+      return;
+    }
+
+    if (btn.dataset.act === 'edit') {
+      $('e_id').value       = row.id;
+      $('e_sku').value      = row.sku || '';
+      $('e_name').value     = row.name || '';
+      $('e_quantity').value = row.quantity || 0;
+      $('e_onEbay').checked = !!row.on_ebay;
+      $('e_retail').value   = row.retail || 0;
+      $('e_cost').value     = row.cost || 0;
+      $('e_fees').value     = row.fees || 0;
+      $('e_postage').value  = row.postage || 0;
+      $('e_notes').value    = row.notes || '';
+      $('editDlg').showModal();
+    }
+  });
+
+  // ---------- save edits ----------
+  $('editForm').addEventListener('submit', async ev => {
+    ev.preventDefault();
+    const id = Number($('e_id').value);
+    const body = {
+      sku: $('e_sku').value.trim(),
+      name: $('e_name').value.trim(),
+      quantity: Number($('e_quantity').value || 0),
+      onEbay: $('e_onEbay').checked,
+      retail: Number($('e_retail').value || 0),
+      cost: Number($('e_cost').value || 0),
+      fees: Number($('e_fees').value || 0),
+      postage: Number($('e_postage').value || 0),
+      notes: $('e_notes').value.trim() || null
+    };
+    const r = await fetch('/api/products/' + id, {
+      method:'PUT',
+      headers:{'Content-Type':'application/json'},
+      body: JSON.stringify(body)
+    });
+    const j = await r.json();
+    if (j.error) { alert(j.error); return; }
+    const i = all.findIndex(x => x.id === id);
+    if (i > -1) all[i] = j;
+    $('editDlg').close();
+    render();
+  });
+
+  $('cancelBtn').addEventListener('click', () => $('editDlg').close());
+
+  // ---------- wire filters ----------
+  $('pf-search') ?.addEventListener('input',  render);
+  $('pf-qtygt0') ?.addEventListener('change', render);
+  $('pf-notes')  ?.addEventListener('change', render);
+  $('pf-ebay')   ?.addEventListener('change', render);
+  $('pf-sort')   ?.addEventListener('change', render);
+  $('pf-refresh')?.addEventListener('click',  fetchAll);
+
+  // initial load
+  document.addEventListener('DOMContentLoaded', fetchAll);
+</script>
+
+
+</div>
+</body>
+</html>

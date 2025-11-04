@@ -1,0 +1,95 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>Stock App</title>
+  <link rel="stylesheet" href="/app.css" />
+  <style>
+    :root { --bg:#0b0b0d; --panel:#141419; --muted:#8a8f98; --brand:#6ea8ff; }
+    * { box-sizing:border-box; }
+    body { margin:0; background:var(--bg); color:#e7e7ea; font:14px/1.4 ui-sans-serif,system-ui,Segoe UI,Roboto,Helvetica,Arial; }
+    .wrap { display:grid; grid-template-columns:260px 1fr; min-height:100vh; }
+    aside { background:var(--panel); border-right:1px solid #1e1e26; padding:20px 16px; }
+    .logo { font-weight:700; letter-spacing:.4px; }
+    nav { margin-top:16px; display:grid; gap:6px; }
+    .group { margin-top:22px; color:var(--muted); font-size:12px; text-transform:uppercase; letter-spacing:.12em; }
+    a.item { display:flex; align-items:center; gap:10px; padding:10px 12px; color:#d7d7db; text-decoration:none; border-radius:10px; }
+    a.item:hover { background:#1b1b24; color:white; }
+    a.item.active { background:#232332; color:white; border:1px solid #2c2c3f; }
+    main { padding:0; display:flex; flex-direction:column; }
+    header.top { display:flex; align-items:center; justify-content:space-between; padding:14px 18px; background:var(--panel); border-bottom:1px solid #1e1e26; }
+    .view { border:0; width:100%; height:calc(100vh - 54px); background:#0e0e11; }
+    .brand { color:var(--brand); font-weight:600; }
+  </style>
+</head>
+<body>
+  <div class="wrap">
+    <aside>
+      <div class="logo">📦 <span class="brand">Stock App</span></div>
+
+      <div class="group">Dashboard</div>
+      <nav>
+        <a href="/dashboard.html" class="item" data-link>🏠 Dashboard</a>
+        <a href="/scan" class="item" data-link>🧾 Scan OUT</a>
+      </nav>
+
+      <div class="group">Sales</div>
+      <nav>
+        <a href="/report/sales" class="item" data-link>📑 Sales Log</a>
+      </nav>
+
+      <div class="group">Stock Management</div>
+<nav>
+  <a href="/report/stock" class="item" data-link>📊 Stock Report</a>
+  <a href="/stocktake" class="item" data-link>🧮 Stock Take</a>
+  <a href="/products/list" class="item" data-link>🗂️ Products</a>  <!-- NEW -->
+  <a href="/products" class="item" data-link>➕ Add Products</a>
+  <a href="/import" class="item" data-link>⬆️ Import CSV</a>
+
+</nav>
+
+    </aside>
+
+    <main>
+      <header class="top">
+        <div>Welcome</div>
+        <div class="brand">amariadigital-stockapp</div>
+      </header>
+      <!-- Default page shown at startup -->
+      <iframe id="view" class="view" src="/report/stock" title="View"
+        allow="camera; microphone"></iframe>
+
+    </main>
+  </div>
+
+  <script>
+  const view  = document.getElementById('view');
+  const items = document.querySelectorAll('a.item[data-link]');
+
+  function setActive(href) {
+    items.forEach(a => a.classList.toggle('active', a.getAttribute('href') === href));
+  }
+
+  function setView(href) {
+    view.src = href;
+    setActive(href);
+    const u = new URL(location.href);
+    u.searchParams.set('view', href);
+    history.replaceState(null, '', u);
+  }
+
+  // initial: use ?view=/path if present, otherwise whatever iframe has
+  const initial = new URLSearchParams(location.search).get('view') || view.getAttribute('src') || '/report/stock';
+  setView(initial);
+
+  items.forEach(a => {
+    a.addEventListener('click', (e) => {
+      e.preventDefault();
+      setView(a.getAttribute('href'));
+    });
+  });
+</script>
+
+</body>
+</html>

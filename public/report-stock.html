@@ -1,0 +1,239 @@
+<!doctype html>
+<html>
+<head>
+  <meta charset="utf-8" />
+  <title>Stock Report</title>
+  <link rel="stylesheet" href="/app.css">
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+</head>
+<body>
+      <div class="page">
+  <h1>Stock Report</h1>
+
+  <div class="controls">
+    <label><input type="checkbox" id="onlyInStock" /> Only with quantity &gt; 0</label>
+    <label><input type="checkbox" id="onlyOnEbay" /> Only “On eBay”</label>
+    <label>
+      Sort by
+      <select id="sr-sort" style="min-width:180px">
+        <option value="sku:asc" selected>SKU (A–Z)</option>
+        <option value="sku:desc">SKU (Z–A)</option>
+        <option value="name:asc">Name (A–Z)</option>
+        <option value="name:desc">Name (Z–A)</option>
+        <option value="qty:desc">Qty (High→Low)</option>
+        <option value="qty:asc">Qty (Low→High)</option>
+        <option value="retail:desc">Retail (High→Low)</option>
+        <option value="retail:asc">Retail (Low→High)</option>
+      </select>
+
+    </label>
+    <label style="margin-left:10px;">
+    From
+    <input type="date" id="fromDate" />
+    </label>
+
+    <label style="margin-left:8px;">
+    To
+    <input type="date" id="toDate" />
+    </label>
+
+    <button class="btn" id="clearDates" style="margin-left:8px;">Clear dates</button>
+
+    <button class="btn" id="refresh">Refresh</button>
+    <button class="btn" id="exportCsv">Export CSV</button>
+    <button class="btn" onclick="window.print()">Print</button>
+    <span class="version">v2</span>
+  </div>
+
+  <table id="tbl">
+    <thead>
+      <tr>
+        <th>SKU</th>
+        <th>Name</th>
+        <th class="right">Qty</th>
+        <th class="right">Cost</th>
+        <th class="right">Retail</th>
+        <th class="right">Fees</th>
+        <th class="right">Postage</th>
+        <th>On eBay</th>
+        <th class="right muted">Value@Cost</th>
+        <th class="right muted">Value@Retail</th>
+      </tr>
+    </thead>
+    <tbody></tbody>
+    <tfoot>
+      <tr>
+        <td colspan="8" class="right">Totals:</td>
+        <td class="right" id="totCost">–</td>
+        <td class="right" id="totRetail">–</td>
+      </tr>
+    </tfoot>
+  </table>
+
+  <script>
+  const $ = (s) => document.querySelector(s);
+  let allProducts = [];
+
+  async function fetchProducts() {
+    const res = await fetch('/api/products');
+    if (!res.ok) throw new Error('Failed to fetch /api/products');
+    allProducts = await res.json();
+  }
+
+  function format(n) {
+    return Number(n || 0).toLocaleString(undefined, {
+      minimumFractionDigits: 2,
+      maximumFractionDigits: 2
+    });
+  }
+
+  function toCsv(rows) {
+    const escape = (v) => {
+      const s = String(v ?? '');
+      return /[",\n]/.test(s) ? `"${s.replace(/"/g, '""')}"` : s;
+    };
+    return rows.map(r => r.map(escape).join(',')).join('\n');
+  }
+
+  // --- natural sorter (same behaviour as Products page) ---
+  function sortRows(list) {
+    const [field, dir] = ($('#sr-sort')?.value || 'sku:asc').split(':');
+    const mult = dir === 'desc' ? -1 : 1;
+    const cmpText = (a, b) =>
+      mult * String(a || '').localeCompare(String(b || ''), undefined, { numeric: true, sensitivity: 'base' });
+
+    if (field === 'sku')    return list.sort((a, b) => cmpText(a.sku, b.sku));
+    if (field === 'name')   return list.sort((a, b) => cmpText(a.name, b.name));
+    if (field === 'qty')    return list.sort((a, b) => mult * ((a.quantity || 0) - (b.quantity || 0)));
+    if (field === 'retail') return list.sort((a, b) => mult * ((a.retail   || 0) - (b.retail   || 0)));
+    return list;
+  }
+
+  function render() {
+    const onlyInStock = $('#onlyInStock').checked;
+    const onlyOnEbay  = $('#onlyOnEbay').checked;
+
+    // --- Date range controls ---
+    const fromVal = $('#fromDate')?.value || '';
+    const toVal   = $('#toDate')?.value   || '';
+    const fromTs  = fromVal ? new Date(fromVal + 'T00:00:00')        : null;
+    const toTs    = toVal   ? new Date(toVal   + 'T23:59:59.999')     : null;
+
+    function parseCreatedAt(s) {
+      if (!s) return null;
+      return new Date(String(s).replace(' ', 'T')); // "YYYY-MM-DD HH:MM:SS" -> ISO-ish
+    }
+
+    // filter
+    let rows = allProducts.slice();
+    if (onlyInStock) rows = rows.filter(p => Number(p.quantity) > 0);
+    if (onlyOnEbay)  rows = rows.filter(p => Number(p.on_ebay) === 1);
+    if (fromTs || toTs) {
+      rows = rows.filter(p => {
+        const d = parseCreatedAt(p.created_at);
+        if (!d) return false;
+        if (fromTs && d < fromTs) return false;
+        if (toTs   && d > toTs)   return false;
+        return true;
+      });
+    }
+
+    // sort (natural)
+    rows = sortRows(rows);
+
+    // render table
+    const tbody = $('#tbl tbody');
+    tbody.innerHTML = '';
+    let totalCost = 0, totalRetail = 0;
+
+    for (const p of rows) {
+      const qty    = Number(p.quantity) || 0;
+      const cost   = Number(p.cost) || 0;
+      const retail = Number(p.retail) || 0;
+      totalCost   += qty * cost;
+      totalRetail += qty * retail;
+
+      const tr = document.createElement('tr');
+      tr.innerHTML = `
+        <td>${p.sku ?? ''}</td>
+        <td>${p.name ?? ''}</td>
+        <td class="right">${qty}</td>
+        <td class="right">${format(cost)}</td>
+        <td class="right">${format(retail)}</td>
+        <td class="right">${format(Number(p.fees) || 0)}</td>
+        <td class="right">${format(Number(p.postage) || 0)}</td>
+        <td>${Number(p.on_ebay) === 1 ? 'Yes' : 'No'}</td>
+        <td class="right muted">${format(qty * cost)}</td>
+        <td class="right muted">${format(qty * retail)}</td>
+      `;
+      tbody.appendChild(tr);
+    }
+
+    $('#totCost').textContent = format(totalCost);
+    $('#totRetail').textContent = format(totalRetail);
+  }
+
+  function exportCsv() {
+    const onlyInStock = $('#onlyInStock').checked;
+    const onlyOnEbay  = $('#onlyOnEbay').checked;
+
+    let rows = allProducts.slice();
+    if (onlyInStock) rows = rows.filter(p => Number(p.quantity) > 0);
+    if (onlyOnEbay)  rows = rows.filter(p => Number(p.on_ebay) === 1);
+    rows = sortRows(rows); // use the same sorter
+
+    const header = ['SKU','Name','Qty','Cost','Retail','Fees','Postage','OnEbay','Value@Cost','Value@Retail'];
+    const data = rows.map(p => {
+      const qty = Number(p.quantity) || 0;
+      const cost = Number(p.cost) || 0;
+      const retail = Number(p.retail) || 0;
+      return [
+        p.sku ?? '',
+        p.name ?? '',
+        qty,
+        (Number(p.cost) || 0),
+        (Number(p.retail) || 0),
+        (Number(p.fees) || 0),
+        (Number(p.postage) || 0),
+        Number(p.on_ebay) === 1 ? 'Yes' : 'No',
+        qty * cost,
+        qty * retail
+      ];
+    });
+
+    const csv = toCsv([header, ...data]);
+    const url = URL.createObjectURL(new Blob([csv], { type: 'text/csv;charset=utf-8;' }));
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `stock-report-${new Date().toISOString().slice(0,10)}.csv`;
+    document.body.appendChild(a);
+    a.click();
+    a.remove();
+    URL.revokeObjectURL(url);
+  }
+
+  // listeners (note: sr-sort, not sortBy)
+  $('#onlyInStock').addEventListener('change', render);
+  $('#onlyOnEbay').addEventListener('change', render);
+  $('#sr-sort').addEventListener('change', render);
+  $('#refresh').addEventListener('click', async () => { await fetchProducts(); render(); });
+  $('#exportCsv').addEventListener('click', exportCsv);
+  $('#fromDate')?.addEventListener('change', render);
+  $('#toDate')?.addEventListener('change', render);
+  $('#clearDates')?.addEventListener('click', () => {
+    if ($('#fromDate')) $('#fromDate').value = '';
+    if ($('#toDate'))  $('#toDate').value  = '';
+    render();
+  });
+
+  (async () => {
+    try { await fetchProducts(); render(); }
+    catch (e) { alert('Failed to load products. Are you logged in?\n' + e.message); }
+  })();
+</script>
+
+      </div> <!-- /.page -->
+</body>
+
+</html>
+

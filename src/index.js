@@ -1,6 +1,7 @@
 // src/index.js
 import 'dotenv/config';
 
+
 import path from 'node:path';
 import fs from 'node:fs';
 import express from 'express';
@@ -8,6 +9,10 @@ import cors from 'cors';
 import auth from 'basic-auth';
 import Database from 'better-sqlite3';
 import { fileURLToPath } from 'url';
+import { pgQuery } from './pg.js';
+import pool from './pg.js';
+
+
 
 /* ---------- Paths ---------- */
 const __filename = fileURLToPath(import.meta.url);
@@ -40,6 +45,8 @@ app.use((req, res, next) => {
 app.use(cors());
 app.use(express.json());
 
+
+
 /* ---------- Static / Pages ---------- */
 const PUBLIC_DIR = path.join(__dirname, '..', 'public');
 app.use(express.static(PUBLIC_DIR));
@@ -56,6 +63,35 @@ app.get('/quick-add',      (req, res) => res.sendFile(path.join(PUBLIC_DIR, 'qui
 
 /* Health once */
 app.get('/api/health', (req, res) => res.json({ ok: true }));
+
+// Check database connection
+app.get('/api/health/db', async (req, res) => {
+  try {
+    const result = await pool.query('SELECT NOW() AS now');
+    res.json({
+      ok: true,
+      now: result.rows[0].now
+    });
+  } catch (err) {
+    console.error('DB health check failed:', err);
+    res.status(500).json({
+      ok: false,
+      error: err.message
+    });
+  }
+});
+
+
+app.get('/api/health/db', async (req, res) => {
+  try {
+    const { rows } = await pgQuery('select now() as now');
+    res.json({ ok: true, db: true, now: rows[0].now });
+  } catch (err) {
+    console.error('[PG health]', err);
+    res.status(500).json({ ok: true, db: false, error: err.message });
+  }
+});
+
 
 /* ---------- DB ---------- */
 const db = new Database(DB_FILE);

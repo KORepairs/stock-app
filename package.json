@@ -13,6 +13,7 @@
   },
   "dependencies": {
     "basic-auth": "^2.0.1",
+    "better-sqlite3": "^12.4.1",
     "cors": "^2.8.5",
     "dotenv": "^17.2.1",
     "express": "^5.1.0",

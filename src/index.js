@@ -10,7 +10,8 @@ import auth from 'basic-auth';
 import Database from 'better-sqlite3';
 import { fileURLToPath } from 'url';
 import { pgQuery } from './pg.js';
-import pool from './pg.js';
+import { pool } from './pg.js';
+
 
 
 

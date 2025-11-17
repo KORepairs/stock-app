@@ -36,8 +36,13 @@ const USER = process.env.BASIC_USER || '';
 const PASS = process.env.BASIC_PASS || '';
 
 app.use((req, res, next) => {
+  if (req.path.startsWith('/api/health')) {
+    return next();
+  }
   if (!USER || !PASS) return next();
+
   const creds = auth(req);
+
   if (creds && creds.name === USER && creds.pass === PASS) return next();
   res.set('WWW-Authenticate', 'Basic realm="stock-app"');
   return res.status(401).send('Authentication required');
@@ -64,6 +69,25 @@ app.get('/quick-add',      (req, res) => res.sendFile(path.join(PUBLIC_DIR, 'qui
 
 /* Health once */
 app.get('/api/health', (req, res) => res.json({ ok: true }));
+
+// Health check for Postgres
+app.get('/api/health/db', async (req, res) => {
+  try {
+    const result = await pgQuery('SELECT 1 AS ok');
+    res.json({
+      ok: true,
+      db: 'postgres',
+      row: result.rows[0],
+    });
+  } catch (err) {
+    console.error('[health/db] Postgres error:', err.message);
+    res.status(500).json({
+      ok: false,
+      error: err.message,
+    });
+  }
+});
+
 
 // Check database connection
 app.get('/api/health/db', async (req, res) => {

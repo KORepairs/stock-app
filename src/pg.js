@@ -1,40 +1,40 @@
-// src/pg.js — simple Postgres helper
+// src/pg.js
 
-import pkg from 'pg';
-const { Pool } = pkg;
+// 1) Load .env here so DATABASE_URL is ready
+import dotenv from 'dotenv';
+dotenv.config();
+
+// 2) Postgres setup
+import pg from 'pg';
+const { Pool } = pg;
 
 const connectionString = process.env.DATABASE_URL;
 
-// We'll hold the pool here (or null if no DATABASE_URL)
-let pool = null;
-
 if (!connectionString) {
   console.warn('[PG] No DATABASE_URL found. Postgres disabled.');
-} else {
-  pool = new Pool({
-    connectionString,
-    ssl: process.env.NODE_ENV === 'production'
-      ? { rejectUnauthorized: false }
-      : false,
-  });
 }
 
-// Export the pool so other files can use it
-export { pool };
+// Only create a pool if we actually have a URL
+export const pool = connectionString
+  ? new Pool({
+      connectionString,
+      ssl:
+        process.env.NODE_ENV === 'production'
+          ? { rejectUnauthorized: false }
+          : false,
+    })
+  : null;
 
-// Optional helper
 export async function pgQuery(text, params = []) {
-  if (!pool) {
-    throw new Error('DATABASE_URL missing: Postgres not configured');
-  }
+  if (!pool) throw new Error('DATABASE_URL missing: Postgres not configured');
   return pool.query(text, params);
 }
 
-// Optional: clean shutdown (mainly useful on some hosts)
+// Optional: clean shutdown
 process.on('SIGTERM', async () => {
   try {
-    if (pool) await pool.end();
-  } catch (_) {
+    await pool?.end();
+  } catch {
     // ignore
   }
 });

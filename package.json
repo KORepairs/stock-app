@@ -9,7 +9,10 @@
     "start": "node src/index.js",
     "backup": "mkdir -p backups && sqlite3 data.db \".backup 'backups/db-$(date +%F-%H%M%S).sqlite3'\"",
     "rebuild:sqlite": "npm rebuild better-sqlite3 --build-from-source",
-    "postinstall": "npm run rebuild:sqlite"
+    "postinstall": "npm run rebuild:sqlite",
+
+    "dev:auth": "BASIC_USER=me BASIC_PASS=secret nodemon src/index.js",
+    "migrate": "node src/migrate.js"
   },
   "dependencies": {
     "basic-auth": "^2.0.1",

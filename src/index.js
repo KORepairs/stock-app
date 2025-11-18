@@ -271,7 +271,7 @@ app.get('/api/products/lookup/:code', async (req, res) => {
   const code = String(req.params.code || '').trim().toUpperCase();
 
   try {
-    const row = await getProductBySkuPG(code);
+    const row = await getProductByCodePG(code);   
     if (!row) return res.status(404).json({ error: 'not found' });
     res.json(row);
   } catch (err) {

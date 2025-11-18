@@ -12,7 +12,8 @@ import { fileURLToPath } from 'url';
 import { pgQuery } from './pg.js';
 import { pool } from './pg.js';
 import { initDb } from './db.js'
-import { listProductsPG, createProductPG, getProductByIdPG } from './pgProducts.js';
+import { listProductsPG, createProductPG, getProductByIdPG, stockInPG } from './pgProducts.js';
+
 
 
 
@@ -317,17 +318,31 @@ app.post('/api/products', async (req, res) => {
 
 /* ---------- API: Stock ops ---------- */
 
-// Stock IN by barcode
-app.post('/api/stock/in', (req, res) => {
+// 🔼 Stock IN (Postgres)
+app.post('/api/stock/in', async (req, res) => {
   const { sku, barcode, qty = 1 } = req.body || {};
   const code = String(sku || barcode || '').trim();
-  const product = getProductByBarcode.get(code);
-  if (!product) return res.status(404).json({ error: 'product not found' });
 
-  updateQtyById.run({ id: product.id, delta: Number(qty) || 1 });
-  const updated = getProductBySku.get(product.sku);
-  res.json(updated);
+  if (!code) {
+    return res.status(400).json({ error: 'sku or barcode is required' });
+  }
+
+  const delta = Number(qty) || 1;
+
+  try {
+    const row = await stockInPG({ code, delta });
+
+    if (!row) {
+      return res.status(404).json({ error: 'product not found' });
+    }
+
+    res.json(row); // same shape as other product responses
+  } catch (err) {
+    console.error('PG stock IN error:', err);
+    res.status(500).json({ error: err.message });
+  }
 });
+
 
 // Stock OUT by barcode, log sale
 app.post('/api/stock/out', (req, res) => {

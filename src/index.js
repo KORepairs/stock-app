@@ -479,63 +479,96 @@ function dateRangeFromQuery(q) {
 }
 
 /* API: stock report data */
-app.get('/api/reports/stock', (req, res) => {
-  const rows = db.prepare(`
-    SELECT id, sku, name, on_ebay, cost, retail, fees, postage, quantity,
-           (quantity*cost)   AS value_cost,
-           (quantity*retail) AS value_retail,
-           (quantity*(retail - cost - fees - postage)) AS potential_profit
-    FROM products
-    ORDER BY sku COLLATE NOCASE
-  `).all();
+/* API: stock report data (Postgres) */
+app.get('/api/reports/stock', async (req, res) => {
+  try {
+    const { rows } = await pgQuery(`
+      SELECT id, sku, name, on_ebay, cost, retail, fees, postage, quantity,
+             quantity * cost   AS value_cost,
+             quantity * retail AS value_retail,
+             quantity * (retail - cost - fees - postage) AS potential_profit
+      FROM products
+      ORDER BY sku ASC
+    `);
 
-  const totals = db.prepare(`
-    SELECT SUM(quantity) AS qty_total,
-           SUM(quantity*cost) AS total_cost_value,
-           SUM(quantity*retail) AS total_retail_value,
-           SUM(quantity*(retail - cost - fees - postage)) AS total_potential_profit
-    FROM products
-  `).get();
+    const { rows: totalRows } = await pgQuery(`
+      SELECT
+        SUM(quantity)                       AS qty_total,
+        SUM(quantity * cost)                AS total_cost_value,
+        SUM(quantity * retail)              AS total_retail_value,
+        SUM(quantity * (retail - cost - fees - postage)) AS total_potential_profit
+      FROM products
+    `);
 
-  res.json({ rows, totals });
+    const totals = totalRows[0] || {
+      qty_total: 0,
+      total_cost_value: 0,
+      total_retail_value: 0,
+      total_potential_profit: 0,
+    };
+
+    res.json({ rows, totals });
+  } catch (err) {
+    console.error('PG stock report error:', err);
+    res.status(500).json({ error: err.message });
+  }
 });
 
+
 /* Printable cash reconciliation */
-app.get('/report/cash', (req, res) => {
+app.get('/report/cash', async (req, res) => {
   const dr = dateRangeFromQuery(req.query);
 
-  const rows = db.prepare(`
-    SELECT channel, sku, quantity, unit_cost, unit_retail, fees, postage, created_at
-    FROM sales
-    WHERE created_at BETWEEN ? AND ?
-    ORDER BY created_at, channel, sku
-  `).all(dr.fromTs, dr.toTs);
+  try {
+    const { rows } = await pgQuery(
+      `
+      SELECT channel, sku, quantity, unit_cost, unit_retail, fees, postage, created_at
+      FROM sales
+      WHERE created_at BETWEEN $1 AND $2
+      ORDER BY created_at, channel, sku
+      `,
+      [dr.fromTs, dr.toTs]
+    );
 
-  const byChannel = db.prepare(`
-    SELECT channel,
-           SUM(quantity)                               AS qty,
-           SUM(unit_retail * quantity)                 AS revenue,
-           SUM(unit_cost   * quantity)                 AS cost,
-           SUM(fees        * quantity)                 AS fees,
-           SUM(postage     * quantity)                 AS postage
-    FROM sales
-    WHERE created_at BETWEEN ? AND ?
-    GROUP BY channel
-    ORDER BY channel
-  `).all(dr.fromTs, dr.toTs);
+    const { rows: byChannel } = await pgQuery(
+      `
+      SELECT channel,
+             SUM(quantity)                       AS qty,
+             SUM(unit_retail * quantity)         AS revenue,
+             SUM(unit_cost   * quantity)         AS cost,
+             SUM(fees        * quantity)         AS fees,
+             SUM(postage     * quantity)         AS postage
+      FROM sales
+      WHERE created_at BETWEEN $1 AND $2
+      GROUP BY channel
+      ORDER BY channel
+      `,
+      [dr.fromTs, dr.toTs]
+    );
 
-  const totals = db.prepare(`
-    SELECT
-      SUM(quantity)                           AS qty,
-      SUM(unit_retail * quantity)             AS revenue,
-      SUM(unit_cost   * quantity)             AS cost,
-      SUM(fees        * quantity)             AS fees,
-      SUM(postage     * quantity)             AS postage
-    FROM sales
-    WHERE created_at BETWEEN ? AND ?
-  `).get(dr.fromTs, dr.toTs);
+    const { rows: totalsRows } = await pgQuery(
+      `
+      SELECT
+        SUM(quantity)                   AS qty,
+        SUM(unit_retail * quantity)     AS revenue,
+        SUM(unit_cost   * quantity)     AS cost,
+        SUM(fees        * quantity)     AS fees,
+        SUM(postage     * quantity)     AS postage
+      FROM sales
+      WHERE created_at BETWEEN $1 AND $2
+      `,
+      [dr.fromTs, dr.toTs]
+    );
 
-  const html = `<!doctype html>
+    const totals = totalsRows[0] || {
+      qty: 0,
+      revenue: 0,
+      cost: 0,
+      fees: 0,
+      postage: 0,
+    };
+
+    const html = `<!doctype html>
 <html>
 <head>
   <meta charset="utf-8"/>
@@ -595,9 +628,12 @@ app.get('/report/cash', (req, res) => {
       <thead><tr><th>Time</th><th>Channel</th><th>SKU</th><th class="right">Qty</th><th class="right">Retail</th><th class="right">Cost</th><th class="right">Fees</th><th class="right">Postage</th><th class="right">Line Net</th></tr></thead>
       <tbody>
         ${rows.map(r=>{
-          const net = (r.unit_retail*r.quantity) - (r.unit_cost*r.quantity) - (r.fees*r.quantity) - (r.postage*r.quantity);
+          const net = (r.unit_retail*r.quantity) -
+                      (r.unit_cost*r.quantity) -
+                      (r.fees*r.quantity) -
+                      (r.postage*r.quantity);
           return `<tr>
-            <td>${esc(r.created_at.slice(0,16))}</td>
+            <td>${esc(r.created_at.toISOString().slice(0,16))}</td>
             <td>${esc(r.channel||'–')}</td>
             <td class="mono">${esc(r.sku||'')}</td>
             <td class="right">${r.quantity}</td>
@@ -615,8 +651,13 @@ app.get('/report/cash', (req, res) => {
   <p class="meta">Note: fees & postage are treated as per-unit in this report (multiplied by quantity).</p>
 </body>
 </html>`;
-  res.type('html').send(html);
+    res.type('html').send(html);
+  } catch (err) {
+    console.error('PG cash report error:', err);
+    res.status(500).send('Error generating report');
+  }
 });
+
 
 // ---- START SERVER ----
 const PORT = process.env.PORT || 4100;

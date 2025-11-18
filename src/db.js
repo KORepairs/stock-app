@@ -1,28 +1,20 @@
-// src/db.js — Postgres version of your old SQLite db.js
-
+// src/db.js
 import { pgQuery } from './pg.js';
 
-/**
- * Called once when the app starts.
- * Creates the products + sales tables in Postgres if they don't exist.
- * (Safe to run multiple times.)
- */
 export async function initDb() {
   // Products table
   await pgQuery(`
     CREATE TABLE IF NOT EXISTS products (
-      id          SERIAL PRIMARY KEY,
-      sku         TEXT UNIQUE NOT NULL,
-      name        TEXT NOT NULL,
-      notes       TEXT,
-      on_ebay     BOOLEAN DEFAULT FALSE,
-      cost        NUMERIC DEFAULT 0,
-      retail      NUMERIC DEFAULT 0,
-      fees        NUMERIC DEFAULT 0,
-      postage     NUMERIC DEFAULT 0,
-      quantity    INTEGER DEFAULT 0,
-      barcode     TEXT UNIQUE,
-      created_at  TIMESTAMPTZ DEFAULT now()
+      id        SERIAL PRIMARY KEY,
+      sku       TEXT UNIQUE NOT NULL,
+      name      TEXT NOT NULL,
+      notes     TEXT,
+      on_ebay   INTEGER DEFAULT 0,
+      cost      NUMERIC DEFAULT 0,
+      retail    NUMERIC DEFAULT 0,
+      fees      NUMERIC DEFAULT 0,
+      postage   NUMERIC DEFAULT 0,
+      quantity  INTEGER DEFAULT 0
     );
   `);
 
@@ -30,9 +22,8 @@ export async function initDb() {
   await pgQuery(`
     CREATE TABLE IF NOT EXISTS sales (
       id          SERIAL PRIMARY KEY,
-      product_id  INTEGER NOT NULL REFERENCES products(id) ON DELETE CASCADE,
+      product_id  INTEGER REFERENCES products(id),
       sku         TEXT NOT NULL,
-      barcode     TEXT,
       quantity    INTEGER NOT NULL,
       unit_cost   NUMERIC,
       unit_retail NUMERIC,
@@ -40,15 +31,18 @@ export async function initDb() {
       postage     NUMERIC DEFAULT 0,
       channel     TEXT,
       order_ref   TEXT,
-      note        TEXT,
-      created_at  TIMESTAMPTZ DEFAULT now()
+      note        TEXT
     );
   `);
+
+  // Make sure created_at exists on both tables
+  await pgQuery(`
+    ALTER TABLE products
+    ADD COLUMN IF NOT EXISTS created_at TIMESTAMPTZ DEFAULT NOW();
+  `);
+
+  await pgQuery(`
+    ALTER TABLE sales
+    ADD COLUMN IF NOT EXISTS created_at TIMESTAMPTZ DEFAULT NOW();
+  `);
 }
-
-// Re-export pgQuery so the rest of your app can use it
-export { pgQuery };
-
-// Optional default export so existing `import db from './db.js'` keeps working
-const db = { initDb, pgQuery };
-export default db;

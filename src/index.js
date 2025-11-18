@@ -318,30 +318,47 @@ app.post('/api/products', async (req, res) => {
 
 /* ---------- API: Stock ops ---------- */
 
-// 🔼 Stock IN (Postgres)
+// Stock IN (Postgres)
 app.post('/api/stock/in', async (req, res) => {
-  const { sku, barcode, qty = 1 } = req.body || {};
-  const code = String(sku || barcode || '').trim();
-
-  if (!code) {
-    return res.status(400).json({ error: 'sku or barcode is required' });
-  }
-
-  const delta = Number(qty) || 1;
-
   try {
-    const row = await stockInPG({ code, delta });
+    const { sku, barcode, qty = 1 } = req.body || {};
+    const code = String(sku || barcode || '').trim();
 
-    if (!row) {
+    console.log('[stock/in] body =', req.body);
+    console.log('[stock/in] code  =', code);
+
+    if (!code) {
+      return res.status(400).json({ error: 'sku (or barcode) is required' });
+    }
+
+    // 1) Try to find the product by SKU, case-insensitive
+    const { rows: productRows } = await pgQuery(
+      'SELECT * FROM products WHERE sku ILIKE $1',
+      [code]
+    );
+
+    console.log('[stock/in] found rows =', productRows.length);
+
+    const product = productRows[0];
+    if (!product) {
       return res.status(404).json({ error: 'product not found' });
     }
 
-    res.json(row); // same shape as other product responses
+    const amount = Number(qty) || 1;
+
+    // 2) Increase quantity and return the updated row
+    const { rows: updatedRows } = await pgQuery(
+      'UPDATE products SET quantity = quantity + $2 WHERE id = $1 RETURNING *',
+      [product.id, amount]
+    );
+
+    res.json(updatedRows[0]);
   } catch (err) {
     console.error('PG stock IN error:', err);
     res.status(500).json({ error: err.message });
   }
 });
+
 
 
 // Stock OUT by barcode, log sale

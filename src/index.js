@@ -11,6 +11,8 @@ import Database from 'better-sqlite3';
 import { fileURLToPath } from 'url';
 import { pgQuery } from './pg.js';
 import { pool } from './pg.js';
+import { initDb } from './db.js'
+
 
 
 
@@ -71,16 +73,18 @@ app.get('/quick-add',      (req, res) => res.sendFile(path.join(PUBLIC_DIR, 'qui
 app.get('/api/health', (req, res) => res.json({ ok: true }));
 
 // Health check for Postgres
-app.get('/api/health/db', async (req, res) => {
+app.get('/api/test-items', async (req, res) => {
   try {
-    const result = await pgQuery('SELECT 1 AS ok');
+    const result = await pgQuery(
+      'SELECT id, name FROM test_items ORDER BY id ASC'
+    );
+
     res.json({
       ok: true,
-      db: 'postgres',
-      row: result.rows[0],
+      rows: result.rows,
     });
   } catch (err) {
-    console.error('[health/db] Postgres error:', err.message);
+    console.error('Error fetching test_items:', err);
     res.status(500).json({
       ok: false,
       error: err.message,
@@ -88,23 +92,6 @@ app.get('/api/health/db', async (req, res) => {
   }
 });
 
-
-// Check database connection
-app.get('/api/health/db', async (req, res) => {
-  try {
-    const result = await pool.query('SELECT NOW() AS now');
-    res.json({
-      ok: true,
-      now: result.rows[0].now
-    });
-  } catch (err) {
-    console.error('DB health check failed:', err);
-    res.status(500).json({
-      ok: false,
-      error: err.message
-    });
-  }
-});
 
 
 app.get('/api/health/db', async (req, res) => {
@@ -177,11 +164,18 @@ const deleteProductStmt    = db.prepare(`DELETE FROM products WHERE id = ?`);
 
 /* ---------- API: Products ---------- */
 
-// List
-app.get('/api/products', (req, res) => {
-  const rows = listProductsStmt.all();
-  res.json(rows);
+import { listProductsPG, createProductPG, getProductByIdPG } from './pgProducts.js';
+
+app.get('/api/products', async (req, res) => {
+  try {
+    const rows = await listProductsPG();
+    res.json(rows);
+  } catch (err) {
+    console.error('PG listProducts error:', err);
+    res.status(500).json({ error: err.message });
+  }
 });
+
 
 // Get one
 app.get('/api/products/:id', (req, res) => {
@@ -545,8 +539,14 @@ app.get('/report/cash', (req, res) => {
 
 // ---- START SERVER ----
 const PORT = process.env.PORT || 4100;
+
+// 1) Initialise Postgres tables
+await initDb();   // ✅ this runs the CREATE TABLE IF NOT EXISTS in db.js
+
+// 2) Start the server
 app.listen(PORT, () => {
   console.log(`Server running on port ${PORT}`);
 });
+
 
 

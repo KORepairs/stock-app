@@ -141,6 +141,33 @@ export async function getProductBySkuPG(code) {
   return rows[0] || null;
 }
 
+import { pgQuery } from './pg.js';
+
+// ...your existing PG helpers (listProductsPG, createProductPG, etc.)
+
+export async function listSalesPG() {
+  const { rows } = await pgQuery(`
+    SELECT
+      id,
+      product_id,
+      sku,
+      quantity,
+      unit_cost,
+      unit_retail,
+      fees,
+      postage,
+      channel,
+      order_ref,
+      note,
+      created_at
+    FROM sales
+    ORDER BY created_at DESC
+  `);
+
+  return rows;
+}
+
+
 // 🔼 Stock IN helper – increase quantity for a SKU and return updated row
 export async function stockInPG({ code, delta }) {
   const skuNorm = code.trim().toUpperCase();

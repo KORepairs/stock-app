@@ -22,6 +22,7 @@ import {
   adjustQtyPG,
   setQtyPG,
   insertSalePG,
+  listSalesPG,
 } from './pgProducts.js';
 
 
@@ -441,11 +442,17 @@ app.post('/api/stock/take', async (req, res) => {
 
 
 
-/* ---------- API: Sales list ---------- */
-app.get('/api/sales', (req, res) => {
-  const rows = listSalesStmt.all();
-  res.json(rows);
+/* ---------- API: Sales list (Postgres) ---------- */
+app.get('/api/sales', async (req, res) => {
+  try {
+    const rows = await listSalesPG();
+    res.json(rows);
+  } catch (err) {
+    console.error('PG listSales error:', err);
+    res.status(500).json({ error: err.message });
+  }
 });
+
 
 /* ========= Reports ========= */
 

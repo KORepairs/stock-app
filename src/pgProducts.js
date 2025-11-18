@@ -1,54 +1,70 @@
+// src/pgProducts.js
 import { pgQuery } from './pg.js';
 
-// --- Products CRUD for Postgres ---
-
+// Get all products
 export async function listProductsPG() {
-  const result = await pgQuery(`SELECT * FROM products ORDER BY sku ASC`);
-  return result.rows;
+  const { rows } = await pgQuery(`
+    SELECT
+      id,
+      sku,
+      name,
+      notes,
+      on_ebay,
+      cost,
+      retail,
+      fees,
+      postage,
+      quantity
+    FROM products
+    ORDER BY sku ASC
+  `);
+  return rows;
 }
 
+// Get a single product by ID
 export async function getProductByIdPG(id) {
-  const result = await pgQuery(`SELECT * FROM products WHERE id = $1`, [id]);
-  return result.rows[0];
+  const { rows } = await pgQuery(
+    `SELECT
+       id,
+       sku,
+       name,
+       notes,
+       on_ebay,
+       cost,
+       retail,
+       fees,
+       postage,
+       quantity
+     FROM products
+     WHERE id = $1`,
+    [id]
+  );
+  return rows[0] || null;
 }
 
-export async function createProductPG(product) {
+// Create a new product
+export async function createProductPG(data) {
   const {
     sku,
     name,
-    notes,
-    on_ebay,
-    cost,
-    retail,
-    fees,
-    postage,
-    quantity
-  } = product;
+    notes = null,
+    on_ebay = 0,
+    cost = 0,
+    retail = 0,
+    fees = 0,
+    postage = 0,
+    quantity = 0,
+  } = data;
 
-  const result = await pgQuery(
+  const { rows } = await pgQuery(
     `INSERT INTO products
        (sku, name, notes, on_ebay, cost, retail, fees, postage, quantity)
      VALUES
-       ($1,$2,$3,$4,$5,$6,$7,$8,$9)
-     RETURNING *`,
+       ($1,  $2,   $3,   $4,      $5,   $6,    $7,   $8,      $9)
+     RETURNING
+       id, sku, name, notes, on_ebay, cost, retail, fees, postage, quantity`,
     [sku, name, notes, on_ebay, cost, retail, fees, postage, quantity]
   );
 
-  return result.rows[0];
-}
-
-
-export async function createProductPG(product) {
-  const {
-    sku, name, notes, on_ebay, cost, retail, fees, postage, quantity
-  } = product;
-
-  const result = await pgQuery(
-    `INSERT INTO products (sku, name, notes, on_ebay, cost, retail, fees, postage, quantity)
-     VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9)
-     RETURNING *`,
-    [sku, name, notes, on_ebay, cost, retail, fees, postage, quantity]
-  );
-
-  return result.rows[0];
+  return rows[0];
 }

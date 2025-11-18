@@ -166,8 +166,6 @@ const deleteProductStmt    = db.prepare(`DELETE FROM products WHERE id = ?`);
 
 /* ---------- API: Products ---------- */
 
-import { listProductsPG, createProductPG, getProductByIdPG } from './pgProducts.js';
-
 app.get('/api/products', async (req, res) => {
   try {
     const rows = await listProductsPG();

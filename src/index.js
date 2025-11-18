@@ -12,7 +12,16 @@ import { fileURLToPath } from 'url';
 import { pgQuery } from './pg.js';
 import { pool } from './pg.js';
 import { initDb } from './db.js'
-import { listProductsPG, createProductPG, getProductByIdPG, stockInPG } from './pgProducts.js';
+import {
+  listProductsPG,
+  createProductPG,
+  getProductByIdPG,
+  getProductByCodePG,
+  adjustQtyPG,
+  setQtyPG,
+  insertSalePG,
+} from './pgProducts.js';
+
 
 
 
@@ -318,64 +327,64 @@ app.post('/api/products', async (req, res) => {
 
 /* ---------- API: Stock ops ---------- */
 
-// Stock IN (Postgres)
+// Stock IN by barcode / SKU  (Postgres)
 app.post('/api/stock/in', async (req, res) => {
   try {
     const { sku, barcode, qty = 1 } = req.body || {};
-    const code = String(sku || barcode || '').trim();
-
-    console.log('[stock/in] body =', req.body);
-    console.log('[stock/in] code  =', code);
-
+    const code = String(sku || barcode || '').trim().toUpperCase();
     if (!code) {
-      return res.status(400).json({ error: 'sku (or barcode) is required' });
+      return res.status(400).json({ error: 'sku or barcode is required' });
     }
 
-    // 1) Try to find the product by SKU, case-insensitive
-    const { rows: productRows } = await pgQuery(
-      'SELECT * FROM products WHERE sku ILIKE $1',
-      [code]
-    );
-
-    console.log('[stock/in] found rows =', productRows.length);
-
-    const product = productRows[0];
+    const product = await getProductByCodePG(code);
     if (!product) {
       return res.status(404).json({ error: 'product not found' });
     }
 
     const amount = Number(qty) || 1;
+    const updated = await adjustQtyPG(product.id, amount);
 
-    // 2) Increase quantity and return the updated row
-    const { rows: updatedRows } = await pgQuery(
-      'UPDATE products SET quantity = quantity + $2 WHERE id = $1 RETURNING *',
-      [product.id, amount]
-    );
-
-    res.json(updatedRows[0]);
+    res.json(updated);
   } catch (err) {
-    console.error('PG stock IN error:', err);
+    console.error('PG stock/in error:', err);
     res.status(500).json({ error: err.message });
   }
 });
 
 
 
-// Stock OUT by barcode, log sale
-app.post('/api/stock/out', (req, res) => {
-  const { sku, barcode, qty = 1, channel = 'manual', order_ref = null, note = null } = req.body || {};
-  const code = String(sku || barcode || '').trim();
-  const product = getProductByBarcode.get(code);
-  if (!product) return res.status(404).json({ error: 'product not found' });
+// Stock OUT by barcode / SKU, log sale (Postgres)
+app.post('/api/stock/out', async (req, res) => {
+  try {
+    const {
+      sku,
+      barcode,
+      qty = 1,
+      channel = 'manual',
+      order_ref = null,
+      note = null,
+    } = req.body || {};
 
-  const amount = Number(qty) || 1;
-  if (product.quantity - amount < 0) {
-    return res.status(400).json({ error: 'insufficient stock' });
-  }
+    const code = String(sku || barcode || '').trim().toUpperCase();
+    if (!code) {
+      return res.status(400).json({ error: 'sku or barcode is required' });
+    }
 
-  const tx = db.transaction(() => {
-    updateQtyById.run({ id: product.id, delta: -amount });
-    insertSaleStmt.run({
+    const product = await getProductByCodePG(code);
+    if (!product) {
+      return res.status(404).json({ error: 'product not found' });
+    }
+
+    const amount = Number(qty) || 1;
+    if (product.quantity - amount < 0) {
+      return res.status(400).json({ error: 'insufficient stock' });
+    }
+
+    // 1) Update quantity
+    const updated = await adjustQtyPG(product.id, -amount);
+
+    // 2) Insert sale record
+    await insertSalePG({
       product_id: product.id,
       sku: product.sku,
       quantity: amount,
@@ -385,29 +394,43 @@ app.post('/api/stock/out', (req, res) => {
       postage: product.postage || 0,
       channel,
       order_ref,
-      note
+      note,
     });
-  });
-  tx();
 
-  const updated = getProductBySku.get(product.sku);
-  res.json(updated);
-});
-
-// Stock TAKE (set quantity)
-app.post('/api/stock/take', (req, res) => {
-  const { sku, barcode, qty } = req.body || {};
-  if (qty === undefined || qty === null) {
-    return res.status(400).json({ error: 'qty is required' });
+    res.json(updated);
+  } catch (err) {
+    console.error('PG stock/out error:', err);
+    res.status(500).json({ error: err.message });
   }
-  const code = String(sku || barcode || '').trim();
-  const product = getProductByBarcode.get(code);
-  if (!product) return res.status(404).json({ error: 'product not found' });
-
-  setQtyById.run({ id: product.id, qty: Number(qty) || 0 });
-  const updated = getProductBySku.get(product.sku);
-  res.json(updated);
 });
+
+
+// Stock TAKE (set quantity exactly) – Postgres
+app.post('/api/stock/take', async (req, res) => {
+  try {
+    const { sku, barcode, qty } = req.body || {};
+    if (qty === undefined || qty === null) {
+      return res.status(400).json({ error: 'qty is required' });
+    }
+
+    const code = String(sku || barcode || '').trim().toUpperCase();
+    if (!code) {
+      return res.status(400).json({ error: 'sku or barcode is required' });
+    }
+
+    const product = await getProductByCodePG(code);
+    if (!product) {
+      return res.status(404).json({ error: 'product not found' });
+    }
+
+    const updated = await setQtyPG(product.id, Number(qty) || 0);
+    res.json(updated);
+  } catch (err) {
+    console.error('PG stock/take error:', err);
+    res.status(500).json({ error: err.message });
+  }
+});
+
 
 
 /* ---------- API: Sales list ---------- */

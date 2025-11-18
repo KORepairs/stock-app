@@ -51,6 +51,88 @@ export async function createProductPG(data) {
   return rows[0];
 }
 
+// Look up a product by SKU / barcode (we treat them the same for now)
+export async function getProductByCodePG(code) {
+  const codeNorm = String(code || '').trim().toUpperCase();
+  if (!codeNorm) return null;
+
+  const { rows } = await pgQuery(
+    'SELECT * FROM products WHERE sku = $1',
+    [codeNorm]
+  );
+  return rows[0] || null;
+}
+
+// Increase/decrease quantity by a delta
+export async function adjustQtyPG(productId, delta) {
+  const { rows } = await pgQuery(
+    `
+    UPDATE products
+    SET quantity = quantity + $1
+    WHERE id = $2
+    RETURNING *;
+    `,
+    [Number(delta) || 0, productId]
+  );
+  return rows[0] || null;
+}
+
+// Set quantity to an exact number
+export async function setQtyPG(productId, qty) {
+  const { rows } = await pgQuery(
+    `
+    UPDATE products
+    SET quantity = $1
+    WHERE id = $2
+    RETURNING *;
+    `,
+    [Number(qty) || 0, productId]
+  );
+  return rows[0] || null;
+}
+
+// Insert a sale record
+export async function insertSalePG(sale) {
+  const {
+    product_id,
+    sku,
+    quantity,
+    unit_cost,
+    unit_retail,
+    fees = 0,
+    postage = 0,
+    channel = 'manual',
+    order_ref = null,
+    note = null,
+  } = sale;
+
+  const { rows } = await pgQuery(
+    `
+    INSERT INTO sales
+      (product_id, sku, quantity, unit_cost, unit_retail,
+       fees, postage, channel, order_ref, note)
+    VALUES
+      ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10)
+    RETURNING *;
+    `,
+    [
+      product_id,
+      sku,
+      quantity,
+      unit_cost,
+      unit_retail,
+      fees,
+      postage,
+      channel,
+      order_ref,
+      note,
+    ]
+  );
+
+  return rows[0] || null;
+}
+
+
 // 🔼 Stock IN helper – increase quantity for a SKU and return updated row
 export async function stockInPG({ code, delta }) {
   const skuNorm = code.trim().toUpperCase();

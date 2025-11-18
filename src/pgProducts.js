@@ -133,6 +133,14 @@ export async function insertSalePG(sale) {
 }
 
 
+export async function getProductBySkuPG(code) {
+  const { rows } = await pgQuery(
+    'SELECT * FROM products WHERE sku = $1',
+    [code]
+  );
+  return rows[0] || null;
+}
+
 // 🔼 Stock IN helper – increase quantity for a SKU and return updated row
 export async function stockInPG({ code, delta }) {
   const skuNorm = code.trim().toUpperCase();

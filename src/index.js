@@ -266,12 +266,18 @@ app.put('/api/products/:id', (req, res) => {
   }
 });
 
-// Lookup a product by code (SKU)
-app.get('/api/products/lookup/:code', (req, res) => {
+// Lookup a product by code (SKU) using Postgres
+app.get('/api/products/lookup/:code', async (req, res) => {
   const code = String(req.params.code || '').trim().toUpperCase();
-  const row = getProductBySku.get(code);   // uses your existing prepared statement
-  if (!row) return res.status(404).json({ error: 'not found' });
-  res.json(row);
+
+  try {
+    const row = await getProductBySkuPG(code);
+    if (!row) return res.status(404).json({ error: 'not found' });
+    res.json(row);
+  } catch (err) {
+    console.error('PG lookup error:', err);
+    res.status(500).json({ error: err.message });
+  }
 });
 
 

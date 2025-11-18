@@ -12,6 +12,8 @@ import { fileURLToPath } from 'url';
 import { pgQuery } from './pg.js';
 import { pool } from './pg.js';
 import { initDb } from './db.js'
+import { listProductsPG, createProductPG, getProductByIdPG } from './pgProducts.js';
+
 
 
 
@@ -177,12 +179,20 @@ app.get('/api/products', async (req, res) => {
 });
 
 
-// Get one
-app.get('/api/products/:id', (req, res) => {
-  const row = getProductById.get(Number(req.params.id));
-  if (!row) return res.status(404).json({ error: 'not found' });
-  res.json(row);
+app.get('/api/products/:id', async (req, res) => {
+  const id = Number(req.params.id);
+  if (!id) return res.status(400).json({ error: 'invalid id' });
+
+  try {
+    const row = await getProductByIdPG(id);
+    if (!row) return res.status(404).json({ error: 'not found' });
+    res.json(row);
+  } catch (err) {
+    console.error('PG getProduct error:', err);
+    res.status(500).json({ error: err.message });
+  }
 });
+
 
 // Update (normalized, clears notes when blank)
 app.put('/api/products/:id', (req, res) => {
@@ -261,15 +271,14 @@ app.delete('/api/products/:id', (req, res) => {
   res.json({ deleted: info.changes > 0 });
 });
 
-// CREATE (for CSV/import & Add Product page)
-app.post('/api/products', (req, res) => {
+app.post('/api/products', async (req, res) => {
   try {
     const {
       sku,
       name,
       quantity = 0,
       notes = null,
-      onEbay = false,   // CSV header: onEbay (0/1 or true/false)
+      onEbay = false,   // CSV / form uses onEbay
       cost = 0,
       retail = 0,
       fees = 0,
@@ -281,14 +290,17 @@ app.post('/api/products', (req, res) => {
     }
 
     const skuNorm   = String(sku).trim().toUpperCase();
-    const notesNorm = (notes == null || String(notes).trim() === '') ? null : String(notes).trim();
+    const notesNorm = (notes == null || String(notes).trim() === '')
+      ? null
+      : String(notes).trim();
 
-    // ✅ use incoming values instead of zeroing them out
     const data = {
       sku: skuNorm,
       name: String(name).trim(),
       notes: notesNorm,
-      on_ebay: (onEbay === true || onEbay === 1 || onEbay === '1' || /^yes|y|true$/i.test(String(onEbay))) ? 1 : 0,
+      on_ebay: (onEbay === true || onEbay === 1 || onEbay === '1' ||
+                /^yes|y|true$/i.test(String(onEbay)))
+                ? 1 : 0,
       cost:     Number(cost)     || 0,
       retail:   Number(retail)   || 0,
       fees:     Number(fees)     || 0,
@@ -296,13 +308,14 @@ app.post('/api/products', (req, res) => {
       quantity: Number(quantity) || 0,
     };
 
-    const info = insertProductStmt.run(data);
-    const row  = getProductById.get(info.lastInsertRowid);
+    const row = await createProductPG(data);
     return res.status(201).json(row);
   } catch (err) {
+    console.error('PG createProduct error:', err);
     return res.status(400).json({ error: err.message });
   }
 });
+
 
 /* ---------- API: Stock ops ---------- */
 

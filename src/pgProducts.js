@@ -141,10 +141,6 @@ export async function getProductBySkuPG(code) {
   return rows[0] || null;
 }
 
-import { pgQuery } from './pg.js';
-
-// ...your existing PG helpers (listProductsPG, createProductPG, etc.)
-
 export async function listSalesPG() {
   const { rows } = await pgQuery(`
     SELECT

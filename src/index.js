@@ -5,14 +5,11 @@ import 'dotenv/config';
 
 
 import path from 'node:path';
-import fs from 'node:fs';
 import express from 'express';
 import cors from 'cors';
 import auth from 'basic-auth';
-import Database from 'better-sqlite3';
 import { fileURLToPath } from 'url';
 import { pgQuery } from './pg.js';
-import { pool } from './pg.js';
 import { initDb } from './db.js'
 import {
   listProductsPG,
@@ -35,10 +32,6 @@ import {
 /* ---------- Paths ---------- */
 const __filename = fileURLToPath(import.meta.url);
 const __dirname  = path.dirname(__filename);
-
-const DB_FILE = process.env.DB_FILE || path.join(process.env.DB_DIR || '.', 'data.db');
-const DB_DIR = path.dirname(DB_FILE);
-if (!fs.existsSync(DB_DIR)) fs.mkdirSync(DB_DIR, { recursive: true });
 
 /* ---------- App ---------- */
 const app = express();
@@ -119,64 +112,6 @@ app.get('/api/health/db', async (req, res) => {
   }
 });
 
-
-/* ---------- DB ---------- */
-const db = new Database(DB_FILE);
-db.pragma('journal_mode = wal');
-
-db.exec(`
-CREATE TABLE IF NOT EXISTS products (
-  id         INTEGER PRIMARY KEY AUTOINCREMENT,
-  sku        TEXT UNIQUE,
-  name       TEXT NOT NULL,
-  notes      TEXT,
-  on_ebay    INTEGER DEFAULT 0,
-  cost       REAL DEFAULT 0,
-  retail     REAL DEFAULT 0,
-  fees       REAL DEFAULT 0,
-  postage    REAL DEFAULT 0,
-  quantity   INTEGER DEFAULT 0,
-    created_at TEXT DEFAULT (datetime('now'))
-);
-
-CREATE TABLE IF NOT EXISTS sales (
-  id           INTEGER PRIMARY KEY AUTOINCREMENT,
-  product_id   INTEGER,
-  sku          TEXT,
-    quantity     INTEGER,
-  unit_cost    REAL,
-  unit_retail  REAL,
-  fees         REAL,
-  postage      REAL,
-  channel      TEXT,
-  order_ref    TEXT,
-  note         TEXT,
-  created_at   TEXT DEFAULT (datetime('now'))
-);
-`);
-
-/* ---------- Statements ---------- */
-const getProductById       = db.prepare(`SELECT * FROM products WHERE id = ?`);
-const getProductByBarcode  = db.prepare(`SELECT * FROM products WHERE sku = ?`);
-const getProductBySku      = db.prepare(`SELECT * FROM products WHERE sku = ?`);
-const listProductsStmt = db.prepare(`SELECT * FROM products ORDER BY sku COLLATE NOCASE ASC`);
-const insertProductStmt    = db.prepare(`
-  INSERT INTO products
-    (sku, name, notes, on_ebay, cost, retail, fees, postage, quantity)
-  VALUES
-    (@sku, @name, @notes, @on_ebay, @cost, @retail, @fees, @postage, @quantity)
-`);
-const updateQtyById        = db.prepare(`UPDATE products SET quantity = quantity + @delta WHERE id = @id`);
-const setQtyById           = db.prepare(`UPDATE products SET quantity = @qty WHERE id = @id`);
-const listSalesStmt        = db.prepare(`SELECT * FROM sales ORDER BY created_at DESC`);
-const insertSaleStmt       = db.prepare(`
-  INSERT INTO sales
-    (product_id, sku, quantity, unit_cost, unit_retail, fees, postage, channel, order_ref, note)
-  VALUES
-    (@product_id, @sku, @quantity, @unit_cost, @unit_retail, @fees, @postage, @channel, @order_ref, @note)
-`);
-const deleteProductStmt    = db.prepare(`DELETE FROM products WHERE id = ?`);
-
 /* ---------- API: Products ---------- */
 
 app.get('/api/products', async (req, res) => {
@@ -205,8 +140,8 @@ app.get('/api/products/:id', async (req, res) => {
 });
 
 
-// Update (normalized, clears notes when blank)
-app.put('/api/products/:id', (req, res) => {
+// Update (normalized, clears notes when blank) - Postgres
+app.put('/api/products/:id', async (req, res) => {
   try {
     const id = Number(req.params.id);
     if (!id) return res.status(400).json({ error: 'invalid id' });
@@ -220,10 +155,10 @@ app.put('/api/products/:id', (req, res) => {
       cost = 0,
       fees = 0,
       postage = 0,
-      notes = null
+      notes = null,
     } = req.body || {};
 
-    const skuNorm  = String(sku || '').trim().toUpperCase();
+    const skuNorm   = String(sku || '').trim().toUpperCase();
     const notesNorm = (notes == null || String(notes).trim() === '')
       ? null
       : String(notes).trim();
@@ -233,7 +168,10 @@ app.put('/api/products/:id', (req, res) => {
       sku: skuNorm,
       name: String(name || '').trim(),
       notes: notesNorm,
-      on_ebay: (onEbay === true || onEbay === 'yes' || onEbay === 1) ? 1 : 0,
+      on_ebay:
+        onEbay === true || onEbay === 'yes' || onEbay === 1
+          ? 1
+          : 0,
       cost: Number(cost) || 0,
       retail: Number(retail) || 0,
       fees: Number(fees) || 0,
@@ -241,31 +179,46 @@ app.put('/api/products/:id', (req, res) => {
       quantity: Number(quantity) || 0,
     };
 
-    const info = db.prepare(`
+    const { rows } = await pgQuery(
+      `
       UPDATE products
       SET
-        sku=@sku,
-        name=@name,
-        notes=@notes,
-        on_ebay=@on_ebay,
-        cost=@cost,
-        retail=@retail,
-        fees=@fees,
-        postage=@postage,
-        quantity=@quantity
-      WHERE id=@id
-    `).run(data);
+        sku = $1,
+        name = $2,
+        notes = $3,
+        on_ebay = $4,
+        cost = $5,
+        retail = $6,
+        fees = $7,
+        postage = $8,
+        quantity = $9
+      WHERE id = $10
+      RETURNING *;
+      `,
+      [
+        data.sku,
+        data.name,
+        data.notes,
+        data.on_ebay,
+        data.cost,
+        data.retail,
+        data.fees,
+        data.postage,
+        data.quantity,
+        data.id,
+      ]
+    );
 
+    const row = rows[0];
+    if (!row) return res.status(404).json({ error: 'not found' });
 
-    if (info.changes === 0) return res.status(404).json({ error: 'not found' });
-
-    const row = getProductById.get(id);
     res.json(row);
   } catch (err) {
-    // e.g. UNIQUE constraint failed: products.sku / products.barcode
+    console.error('PG updateProduct error:', err);
     res.status(400).json({ error: err.message });
   }
 });
+
 
 // Lookup a product by code (SKU) using Postgres
 app.get('/api/products/lookup/:code', async (req, res) => {
@@ -282,11 +235,25 @@ app.get('/api/products/lookup/:code', async (req, res) => {
 });
 
 
-// Delete
-app.delete('/api/products/:id', (req, res) => {
-  const info = deleteProductStmt.run(Number(req.params.id));
-  res.json({ deleted: info.changes > 0 });
+// Delete (Postgres)
+app.delete('/api/products/:id', async (req, res) => {
+  try {
+    const id = Number(req.params.id);
+    if (!id) return res.status(400).json({ error: 'invalid id' });
+
+    const result = await pgQuery(
+      'DELETE FROM products WHERE id = $1',
+      [id]
+    );
+
+    // pgQuery returns result.rowCount
+    res.json({ deleted: result.rowCount > 0 });
+  } catch (err) {
+    console.error('PG deleteProduct error:', err);
+    res.status(500).json({ error: err.message });
+  }
 });
+
 
 app.post('/api/products', async (req, res) => {
   try {

@@ -300,6 +300,70 @@ app.post('/api/products', async (req, res) => {
   }
 });
 
+/* ---------- API: Refurb items ---------- */
+
+// Get all refurb items
+app.get('/api/refurb', async (req, res) => {
+  try {
+    const result = await pgQuery(
+      'SELECT * FROM refurb_items ORDER BY id DESC;'
+    );
+    res.json(result.rows);
+  } catch (err) {
+    console.error('Error fetching refurb items:', err);
+    res.status(500).json({ error: 'Failed to fetch refurb items' });
+  }
+});
+
+// Create a new refurb item
+app.post('/api/refurb', async (req, res) => {
+  const {
+    sku,
+    serial,
+    description,
+    status,
+    parts_status,
+    supplier,
+    cost,
+    retail,
+    notes,
+  } = req.body || {};
+
+  if (!description) {
+    return res.status(400).json({ error: 'description is required' });
+  }
+
+  try {
+    const query = `
+      INSERT INTO refurb_items (
+        sku, serial, description, status, parts_status,
+        supplier, cost, retail, notes
+      )
+      VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9)
+      RETURNING *;
+    `;
+
+    const values = [
+      sku || null,
+      serial || null,
+      description,
+      status || 'refurb',        // default
+      parts_status || 'none',    // default
+      supplier || null,
+      cost ?? 0,
+      retail ?? 0,
+      notes || null,
+    ];
+
+    const result = await pgQuery(query, values);
+    res.json(result.rows[0]);
+  } catch (err) {
+    console.error('Error creating refurb item:', err);
+    res.status(500).json({ error: 'Failed to create refurb item' });
+  }
+});
+
+
 
 /* ---------- API: Stock ops ---------- */
 

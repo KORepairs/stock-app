@@ -35,6 +35,23 @@ export async function initDb() {
     );
   `);
 
+  // Refurb items table
+  await pgQuery(`
+    CREATE TABLE IF NOT EXISTS refurb_items (
+      id           SERIAL PRIMARY KEY,
+      sku          TEXT,                    -- optional: link to a stock SKU if you want
+      serial       TEXT,                    -- device serial / IMEI
+      description  TEXT NOT NULL,           -- e.g. "iPhone 11 128GB Black"
+      status       TEXT NOT NULL DEFAULT 'refurb',         -- strip / refurb / scrap / complete
+      parts_status TEXT NOT NULL DEFAULT 'none',           -- none / needs_parts / awaiting_parts / has_parts
+      supplier     TEXT,                    -- where it came from
+      cost         NUMERIC DEFAULT 0,       -- what you paid
+      retail       NUMERIC DEFAULT 0,       -- target resale price
+      notes        TEXT,
+      created_at   TIMESTAMPTZ DEFAULT NOW()
+    );
+  `);
+
   // Make sure created_at exists on both tables
   await pgQuery(`
     ALTER TABLE products
@@ -43,6 +60,12 @@ export async function initDb() {
 
   await pgQuery(`
     ALTER TABLE sales
+    ADD COLUMN IF NOT EXISTS created_at TIMESTAMPTZ DEFAULT NOW();
+  `);
+
+  // Make sure created_at exists on refurb_items too (safe even if already there)
+  await pgQuery(`
+    ALTER TABLE refurb_items
     ADD COLUMN IF NOT EXISTS created_at TIMESTAMPTZ DEFAULT NOW();
   `);
 }

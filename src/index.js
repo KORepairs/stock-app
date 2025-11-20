@@ -76,6 +76,8 @@ app.get('/stocktake',      (req, res) => res.sendFile(path.join(PUBLIC_DIR, 'sto
 app.get('/report/sales',   (req, res) => res.sendFile(path.join(PUBLIC_DIR, 'report-sales.html')));
 app.get('/report/stock',   (req, res) => res.sendFile(path.join(PUBLIC_DIR, 'report-stock.html')));
 app.get('/quick-add',      (req, res) => res.sendFile(path.join(PUBLIC_DIR, 'quick-add.html')));
+app.get('/refurb',         (req, res) => res.sendFile(path.join(PUBLIC_DIR, 'refurb.html')));
+
 
 /* Health once */
 app.get('/api/health', (req, res) => res.json({ ok: true }));

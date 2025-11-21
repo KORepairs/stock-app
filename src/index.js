@@ -365,6 +365,35 @@ app.post('/api/refurb', async (req, res) => {
   }
 });
 
+// Update refurb item (status, parts_status)
+app.put('/api/refurb/:id', async (req, res) => {
+  const { id } = req.params;
+  const { status, parts_status } = req.body;
+
+  try {
+    const query = `
+      UPDATE refurb_items
+      SET
+        status = COALESCE($1, status),
+        parts_status = COALESCE($2, parts_status)
+      WHERE id = $3
+      RETURNING *;
+    `;
+    const values = [status || null, parts_status || null, id];
+
+    const result = await pgQuery(query, values);
+
+    if (result.rows.length === 0) {
+      return res.status(404).json({ error: 'Refurb item not found' });
+    }
+
+    res.json(result.rows[0]);
+  } catch (err) {
+    console.error('Error updating refurb:', err);
+    res.status(500).json({ error: 'Failed to update refurb item' });
+  }
+});
+
 
 
 /* ---------- API: Stock ops ---------- */

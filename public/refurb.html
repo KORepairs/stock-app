@@ -122,19 +122,35 @@
           return;
         }
         tbody.innerHTML = items.map(item => {
-          const created = item.created_at ? new Date(item.created_at).toLocaleString('en-GB') : '';
-          return `<tr>
-            <td>${item.id}</td>
-            <td>${esc(item.description)}</td>
-            <td>${esc(item.status)}</td>
-            <td>${esc(item.parts_status)}</td>
-            <td>${esc(item.supplier)}</td>
-            <td>${fmtMoney(item.cost)}</td>
-            <td>${fmtMoney(item.retail)}</td>
-            <td>${esc(created)}</td>
-            <td>${esc(item.notes)}</td>
-          </tr>`;
+            const created = item.created_at ? new Date(item.created_at).toLocaleString('en-GB') : '';
+
+            return `<tr>
+                <td>${item.id}</td>
+                <td>${esc(item.description)}</td>
+                <td>
+                    <select data-id="${item.id}" class="statusSel">
+                        <option value="strip" ${item.status==='strip'?'selected':''}>Strip</option>
+                        <option value="refurb" ${item.status==='refurb'?'selected':''}>Refurb</option>
+                        <option value="scrap" ${item.status==='scrap'?'selected':''}>Scrap</option>
+                        <option value="complete" ${item.status==='complete'?'selected':''}>Complete</option>
+                    </select>
+                </td>
+                <td>
+                    <select data-id="${item.id}" class="partsSel">
+                        <option value="none" ${item.parts_status==='none'?'selected':''}>None</option>
+                        <option value="needs_parts" ${item.parts_status==='needs_parts'?'selected':''}>Needs parts</option>
+                        <option value="awaiting_parts" ${item.parts_status==='awaiting_parts'?'selected':''}>Awaiting parts</option>
+                        <option value="has_parts" ${item.parts_status==='has_parts'?'selected':''}>Has parts</option>
+                    </select>
+                </td>
+                <td>${esc(item.supplier)}</td>
+                <td>${fmtMoney(item.cost)}</td>
+                <td>${fmtMoney(item.retail)}</td>
+                <td>${esc(created)}</td>
+                <td>${esc(item.notes)}</td>
+            </tr>`;
         }).join('');
+
       } catch (e) {
         console.error(e);
         tbody.innerHTML = '<tr><td colspan="9" style="padding:8px;color:#900">Failed to load refurb items</td></tr>';

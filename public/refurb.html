@@ -1,10 +1,50 @@
 <!doctype html>
 <html lang="en">
+    
 <head>
   <meta charset="utf-8">
   <title>Refurb Items</title>
   <meta name="viewport" content="width=device-width,initial-scale=1">
   <link rel="stylesheet" href="/app.css">
+    <style>
+    /* Status colours */
+    .refurb-status-strip td,
+    td.refurb-status-strip {
+      background-color: #4b3b16;  /* brownish */
+    }
+    .refurb-status-refurb td,
+    td.refurb-status-refurb {
+      background-color: #12324a;  /* blue-ish */
+    }
+    .refurb-status-scrap td,
+    td.refurb-status-scrap {
+      background-color: #5a1a1a;  /* dark red */
+    }
+    .refurb-status-complete td,
+    td.refurb-status-complete {
+      background-color: #1f4d2a;  /* green-ish */
+    }
+
+    /* Parts status colours (lighter) */
+    .refurb-parts-none td,
+    td.refurb-parts-none {
+      background-color: transparent;
+    }
+    .refurb-parts-needs_parts td,
+    td.refurb-parts-needs_parts {
+      background-color: #5a3a1a;  /* amber-ish */
+    }
+    .refurb-parts-awaiting_parts td,
+    td.refurb-parts-awaiting_parts {
+      background-color: #5a4a1a;  /* yellow-brown */
+    }
+    .refurb-parts-has_parts td,
+    td.refurb-parts-has_parts {
+      background-color: #1f3f2a;  /* dark green */
+    }
+  </style>
+</head>
+
 </head>
 <body>
   <div class="page">
@@ -112,6 +152,27 @@
     __toastTimer = setTimeout(()=> t.style.opacity='0', 1800);
   }
 
+    function statusClass(status) {
+    switch (status) {
+      case 'strip':     return 'refurb-status-strip';
+      case 'refurb':    return 'refurb-status-refurb';
+      case 'scrap':     return 'refurb-status-scrap';
+      case 'complete':  return 'refurb-status-complete';
+      default:          return '';
+    }
+  }
+
+  function partsClass(partsStatus) {
+    switch (partsStatus) {
+      case 'needs_parts':    return 'refurb-parts-needs_parts';
+      case 'awaiting_parts': return 'refurb-parts-awaiting_parts';
+      case 'has_parts':      return 'refurb-parts-has_parts';
+      case 'none':
+      default:               return 'refurb-parts-none';
+    }
+  }
+
+
   // -----------------------
 // Load refurb items
 // -----------------------
@@ -135,7 +196,7 @@ async function loadRefurb() {
         <td>${item.id}</td>
         <td>${esc(item.description)}</td>
 
-        <td>
+                <td class="${statusClass(item.status)}">
           <select data-id="${item.id}" class="statusSel">
             <option value="strip" ${item.status==='strip'?'selected':''}>Strip</option>
             <option value="refurb" ${item.status==='refurb'?'selected':''}>Refurb</option>
@@ -144,7 +205,7 @@ async function loadRefurb() {
           </select>
         </td>
 
-        <td>
+        <td class="${partsClass(item.parts_status)}">
           <select data-id="${item.id}" class="partsSel">
             <option value="none" ${item.parts_status==='none'?'selected':''}>None</option>
             <option value="needs_parts" ${item.parts_status==='needs_parts'?'selected':''}>Needs parts</option>
@@ -152,6 +213,7 @@ async function loadRefurb() {
             <option value="has_parts" ${item.parts_status==='has_parts'?'selected':''}>Has parts</option>
           </select>
         </td>
+
 
         <td>
           <input

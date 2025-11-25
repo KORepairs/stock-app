@@ -365,7 +365,7 @@ app.post('/api/refurb', async (req, res) => {
   }
 });
 
-// Update refurb item (status, parts_status, supplier, cost, retail, notes)
+// Update refurb item + if marked complete, add back to stock by SKU
 app.put('/api/refurb/:id', async (req, res) => {
   const { id } = req.params;
   const {
@@ -378,6 +378,20 @@ app.put('/api/refurb/:id', async (req, res) => {
   } = req.body || {};
 
   try {
+    // 1) Get the existing refurb row so we know its current status + SKU
+    const existing = await pgQuery(
+      'SELECT id, status, sku FROM refurb_items WHERE id = $1',
+      [id]
+    );
+
+    if (existing.rows.length === 0) {
+      return res.status(404).json({ error: 'Refurb item not found' });
+    }
+
+    const oldStatus = existing.rows[0].status;
+    const refurbSku = existing.rows[0].sku;
+
+    // 2) Update refurb row
     const query = `
       UPDATE refurb_items
       SET
@@ -402,12 +416,32 @@ app.put('/api/refurb/:id', async (req, res) => {
     ];
 
     const result = await pgQuery(query, values);
+    const updated = result.rows[0];
 
-    if (result.rows.length === 0) {
-      return res.status(404).json({ error: 'Refurb item not found' });
+    // 3) If status changed to 'complete' and we have a SKU, add 1 to stock
+    if (
+      status === 'complete' &&               // new status requested
+      oldStatus !== 'complete' &&            // wasn't complete before
+      refurbSku                              // we actually have a SKU
+    ) {
+      try {
+        await pgQuery(
+          `
+          UPDATE products
+          SET qty = COALESCE(qty, 0) + 1
+          WHERE sku = $1;
+          `,
+          [refurbSku]
+        );
+        console.log(`Stock incremented by 1 for SKU ${refurbSku} due to refurb complete.`);
+      } catch (stockErr) {
+        console.error('Failed to update stock after refurb complete:', stockErr);
+        // we don't fail the whole request if stock update fails
+      }
     }
 
-    res.json(result.rows[0]);
+    res.json(updated);
+
   } catch (err) {
     console.error('Error updating refurb:', err);
     res.status(500).json({ error: 'Failed to update refurb item' });

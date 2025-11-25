@@ -215,6 +215,43 @@
 
     $('saveBtn').addEventListener('click', createRefurb);
     window.addEventListener('DOMContentLoaded', loadRefurb);
-  </script>
+  
+  
+  document.addEventListener('change', async (e) => {
+    if (e.target.classList.contains('statusSel') || e.target.classList.contains('partsSel')) {
+
+        console.log("CHANGE FIRED", e.target.className, e.target.getAttribute("data-id"));
+        
+        const id = e.target.getAttribute('data-id');
+
+        
+
+        const row = e.target.closest('tr');
+        const statusSel = row.querySelector('.statusSel');
+        const partsSel = row.querySelector('.partsSel');
+
+        const body = {
+            status: statusSel.value,
+            parts_status: partsSel.value
+        };
+
+        try {
+            const res = await fetch(`/api/refurb/${id}`, {
+                method: 'PUT',
+                headers: {'Content-Type': 'application/json'},
+                body: JSON.stringify(body)
+        });
+
+        if (!res.ok) throw new Error('Update failed');
+
+        toast('Updated ✔️', 'ok');
+    } catch (err) {
+        console.error(err);
+        toast('Failed to update');
+    }
+    }
+});
+</script>
+
 </body>
 </html>

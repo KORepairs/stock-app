@@ -76,10 +76,11 @@
             <th>Retail</th>
             <th>Created</th>
             <th>Notes</th>
+            <th>Actions</th>
           </tr>
         </thead>
         <tbody id="refurbTbody">
-          <tr><td colspan="9" style="padding:8px">Loading…</td></tr>
+          <tr><td colspan="10" style="padding:8px">Loading…</td></tr>
         </tbody>
       </table>
     </div>
@@ -112,62 +113,104 @@
   }
 
   // -----------------------
-  // Load refurb items
-  // -----------------------
-  async function loadRefurb() {
-    const tbody = $('refurbTbody');
-    tbody.innerHTML = '<tr><td colspan="9" style="padding:8px">Loading…</td></tr>';
+// Load refurb items
+// -----------------------
+async function loadRefurb() {
+  const tbody = $('refurbTbody');
+  tbody.innerHTML = '<tr><td colspan="10" style="padding:8px">Loading…</td></tr>';
 
-    try {
-      const res = await fetch('/api/refurb');
-      const items = await res.json();
+  try {
+    const res = await fetch('/api/refurb');
+    const items = await res.json();
 
-      if (!Array.isArray(items) || !items.length) {
-        tbody.innerHTML = '<tr><td colspan="9" style="padding:8px">No refurb items yet.</td></tr>';
-        return;
-      }
-
-      tbody.innerHTML = items.map(item => {
-        const created = item.created_at ? new Date(item.created_at).toLocaleString('en-GB') : '';
-
-        return `<tr>
-          <td>${item.id}</td>
-          <td>${esc(item.description)}</td>
-
-          <td>
-            <select data-id="${item.id}" class="statusSel">
-              <option value="strip" ${item.status==='strip'?'selected':''}>Strip</option>
-              <option value="refurb" ${item.status==='refurb'?'selected':''}>Refurb</option>
-              <option value="scrap" ${item.status==='scrap'?'selected':''}>Scrap</option>
-              <option value="complete" ${item.status==='complete'?'selected':''}>Complete</option>
-            </select>
-          </td>
-
-          <td>
-            <select data-id="${item.id}" class="partsSel">
-              <option value="none" ${item.parts_status==='none'?'selected':''}>None</option>
-              <option value="needs_parts" ${item.parts_status==='needs_parts'?'selected':''}>Needs parts</option>
-              <option value="awaiting_parts" ${item.parts_status==='awaiting_parts'?'selected':''}>Awaiting parts</option>
-              <option value="has_parts" ${item.parts_status==='has_parts'?'selected':''}>Has parts</option>
-            </select>
-          </td>
-
-          <td>${esc(item.supplier)}</td>
-          <td>${fmtMoney(item.cost)}</td>
-          <td>${fmtMoney(item.retail)}</td>
-          <td>${esc(created)}</td>
-          <td>${esc(item.notes)}</td>
-        </tr>`;
-      }).join('');
-
-      // Wire dropdown listeners NOW that rows exist
-      wireRefurbDropdowns();
-
-    } catch (e) {
-      console.error(e);
-      tbody.innerHTML = '<tr><td colspan="9" style="padding:8px;color:#900">Failed to load refurb items</td></tr>';
+    if (!Array.isArray(items) || !items.length) {
+      tbody.innerHTML = '<tr><td colspan="10" style="padding:8px">No refurb items yet.</td></tr>';
+      return;
     }
+
+    tbody.innerHTML = items.map(item => {
+      const created = item.created_at ? new Date(item.created_at).toLocaleString('en-GB') : '';
+
+      return `<tr>
+        <td>${item.id}</td>
+        <td>${esc(item.description)}</td>
+
+        <td>
+          <select data-id="${item.id}" class="statusSel">
+            <option value="strip" ${item.status==='strip'?'selected':''}>Strip</option>
+            <option value="refurb" ${item.status==='refurb'?'selected':''}>Refurb</option>
+            <option value="scrap" ${item.status==='scrap'?'selected':''}>Scrap</option>
+            <option value="complete" ${item.status==='complete'?'selected':''}>Complete</option>
+          </select>
+        </td>
+
+        <td>
+          <select data-id="${item.id}" class="partsSel">
+            <option value="none" ${item.parts_status==='none'?'selected':''}>None</option>
+            <option value="needs_parts" ${item.parts_status==='needs_parts'?'selected':''}>Needs parts</option>
+            <option value="awaiting_parts" ${item.parts_status==='awaiting_parts'?'selected':''}>Awaiting parts</option>
+            <option value="has_parts" ${item.parts_status==='has_parts'?'selected':''}>Has parts</option>
+          </select>
+        </td>
+
+        <td>
+          <input
+            data-id="${item.id}"
+            class="supplierInp"
+            type="text"
+            value="${esc(item.supplier)}"
+          >
+        </td>
+
+        <td>
+          <input
+            data-id="${item.id}"
+            class="costInp"
+            type="number"
+            step="0.01"
+            value="${item.cost ?? 0}"
+          >
+        </td>
+
+        <td>
+          <input
+            data-id="${item.id}"
+            class="retailInp"
+            type="number"
+            step="0.01"
+            value="${item.retail ?? 0}"
+          >
+        </td>
+
+        <td>${esc(created)}</td>
+
+        <td>
+          <input
+            data-id="${item.id}"
+            class="notesInp"
+            type="text"
+            value="${esc(item.notes)}"
+          >
+        </td>
+
+        <td>
+          <button type="button" class="saveRowBtn" data-id="${item.id}">
+            Save
+          </button>
+        </td>
+      </tr>`;
+    }).join('');
+
+    // ✅ Wire both dropdowns AND Save buttons now that rows exist
+    wireRefurbDropdowns();
+    wireRefurbRowSaves();
+
+  } catch (e) {
+    console.error(e);
+    tbody.innerHTML = '<tr><td colspan="10" style="padding:8px;color:#900">Failed to load refurb items</td></tr>';
   }
+}
+
 
   // -----------------------
   // Create refurb item
@@ -266,6 +309,52 @@
         } catch (err) {
           console.error(err);
           toast('Failed to update');
+        }
+      });
+    });
+  }
+
+    function wireRefurbRowSaves() {
+    document.querySelectorAll('.saveRowBtn').forEach(btn => {
+      btn.addEventListener('click', async () => {
+        const id = btn.getAttribute('data-id');
+        const row = btn.closest('tr');
+
+        const statusSel  = row.querySelector('.statusSel');
+        const partsSel   = row.querySelector('.partsSel');
+        const supplierEl = row.querySelector('.supplierInp');
+        const costEl     = row.querySelector('.costInp');
+        const retailEl   = row.querySelector('.retailInp');
+        const notesEl    = row.querySelector('.notesInp');
+
+        const body = {
+          status: statusSel.value,
+          parts_status: partsSel.value,
+          supplier: supplierEl.value.trim() || null,
+          cost: Number(costEl.value || 0),
+          retail: Number(retailEl.value || 0),
+          notes: notesEl.value.trim() || null,
+        };
+
+        btn.disabled = true;
+        btn.textContent = 'Saving…';
+
+        try {
+          const res = await fetch(`/api/refurb/${id}`, {
+            method: 'PUT',
+            headers: {'Content-Type':'application/json'},
+            body: JSON.stringify(body),
+          });
+
+          if (!res.ok) throw new Error('Failed to save row');
+
+          toast('Row updated ✔️', 'ok');
+        } catch (err) {
+          console.error(err);
+          toast('Failed to update row');
+        } finally {
+          btn.disabled = false;
+          btn.textContent = 'Save';
         }
       });
     });

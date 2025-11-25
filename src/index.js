@@ -365,21 +365,41 @@ app.post('/api/refurb', async (req, res) => {
   }
 });
 
-// Update refurb item (status, parts_status)
+// Update refurb item (status, parts_status, supplier, cost, retail, notes)
 app.put('/api/refurb/:id', async (req, res) => {
   const { id } = req.params;
-  const { status, parts_status } = req.body;
+  const {
+    status,
+    parts_status,
+    supplier,
+    cost,
+    retail,
+    notes,
+  } = req.body || {};
 
   try {
     const query = `
       UPDATE refurb_items
       SET
-        status = COALESCE($1, status),
-        parts_status = COALESCE($2, parts_status)
-      WHERE id = $3
+        status       = COALESCE($1, status),
+        parts_status = COALESCE($2, parts_status),
+        supplier     = COALESCE($3, supplier),
+        cost         = COALESCE($4, cost),
+        retail       = COALESCE($5, retail),
+        notes        = COALESCE($6, notes)
+      WHERE id = $7
       RETURNING *;
     `;
-    const values = [status || null, parts_status || null, id];
+
+    const values = [
+      status ?? null,
+      parts_status ?? null,
+      supplier ?? null,
+      cost ?? null,
+      retail ?? null,
+      notes ?? null,
+      id,
+    ];
 
     const result = await pgQuery(query, values);
 

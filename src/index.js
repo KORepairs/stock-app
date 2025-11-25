@@ -428,7 +428,7 @@ app.put('/api/refurb/:id', async (req, res) => {
         await pgQuery(
           `
           UPDATE products
-          SET qty = COALESCE(qty, 0) + 1
+          SET quantity = COALESCE(qty, 0) + 1
           WHERE sku = $1;
           `,
           [refurbSku]

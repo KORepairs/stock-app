@@ -335,6 +335,8 @@ app.post('/api/refurb', async (req, res) => {
     return res.status(400).json({ error: 'description is required' });
   }
 
+  const skuNorm = sku ? String(sku).trim().toUpperCase() : null;
+
   try {
     const query = `
       INSERT INTO refurb_items (
@@ -346,7 +348,7 @@ app.post('/api/refurb', async (req, res) => {
     `;
 
     const values = [
-      sku || null,
+      skuNorm,
       serial || null,
       description,
       status || 'refurb',        // default
@@ -375,10 +377,14 @@ app.put('/api/refurb/:id', async (req, res) => {
     cost,
     retail,
     notes,
+    sku,            // we accept sku too (for later editing)
   } = req.body || {};
 
+  const skuNorm = sku ? String(sku).trim().toUpperCase() : null;
+
+
   try {
-    // 1) Get the existing refurb row so we know its current status + SKU
+    // 1) Get the existing refurb row so we know its previous status
     const existing = await pgQuery(
       'SELECT id, status, sku FROM refurb_items WHERE id = $1',
       [id]
@@ -389,7 +395,6 @@ app.put('/api/refurb/:id', async (req, res) => {
     }
 
     const oldStatus = existing.rows[0].status;
-    const refurbSku = existing.rows[0].sku;
 
     // 2) Update refurb row
     const query = `
@@ -400,8 +405,9 @@ app.put('/api/refurb/:id', async (req, res) => {
         supplier     = COALESCE($3, supplier),
         cost         = COALESCE($4, cost),
         retail       = COALESCE($5, retail),
-        notes        = COALESCE($6, notes)
-      WHERE id = $7
+        notes        = COALESCE($6, notes),
+        sku          = COALESCE($7, sku)
+      WHERE id = $8
       RETURNING *;
     `;
 
@@ -412,31 +418,39 @@ app.put('/api/refurb/:id', async (req, res) => {
       cost ?? null,
       retail ?? null,
       notes ?? null,
+      skuNorm ?? null,
       id,
     ];
 
     const result = await pgQuery(query, values);
     const updated = result.rows[0];
 
+    const newStatus = updated.status;
+    const skuToUse  = updated.sku;
+
+    console.log('REFURB UPDATE',
+      { id, oldStatus, newStatus, skuToUse }
+    );
+
     // 3) If status changed to 'complete' and we have a SKU, add 1 to stock
     if (
-      status === 'complete' &&               // new status requested
-      oldStatus !== 'complete' &&            // wasn't complete before
-      refurbSku                              // we actually have a SKU
+      oldStatus !== 'complete' &&
+      newStatus === 'complete' &&
+      skuToUse
     ) {
       try {
-        await pgQuery(
+        const upd = await pgQuery(
           `
           UPDATE products
-          SET quantity = COALESCE(qty, 0) + 1
-          WHERE sku = $1;
+          SET quantity = COALESCE(quantity, 0) + 1
+          WHERE sku = $1
+          RETURNING id, sku, quantity;
           `,
-          [refurbSku]
+          [skuToUse]
         );
-        console.log(`Stock incremented by 1 for SKU ${refurbSku} due to refurb complete.`);
+        console.log('STOCK BUMP RESULT', upd.rows);
       } catch (stockErr) {
         console.error('Failed to update stock after refurb complete:', stockErr);
-        // we don't fail the whole request if stock update fails
       }
     }
 

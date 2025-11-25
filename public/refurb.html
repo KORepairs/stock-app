@@ -86,171 +86,193 @@
   </div>
 
   <script>
-    function $(id){ return document.getElementById(id); }
-    function esc(s){ return String(s || '').replace(/[&<>"']/g, m => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[m]||m)); }
-    function fmtMoney(v){ return '£' + Number(v || 0).toFixed(2); }
+  function $(id){ return document.getElementById(id); }
+  function esc(s){ return String(s || '').replace(/[&<>"']/g, m => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[m]||m)); }
+  function fmtMoney(v){ return '£' + Number(v || 0).toFixed(2); }
 
-    let __toastTimer;
-    function toast(msg, kind='err') {
-      let t = document.getElementById('__toast');
-      if (!t) {
-        t = document.createElement('div');
-        t.id = '__toast';
-        Object.assign(t.style, {
-          position:'fixed',left:'50%',top:'14px',transform:'translateX(-50%)',
-          padding:'8px 14px',borderRadius:'999px',fontSize:'13px',
-          background:'#a52828',color:'#fff',opacity:'0',transition:'opacity .2s',
-          boxShadow:'0 8px 24px rgba(0,0,0,.35)',zIndex:9999,
-        });
-        document.body.appendChild(t);
-      }
-      t.style.background = kind==='ok' ? '#2c7a2c' : '#a52828';
-      t.textContent = msg;
-      t.style.opacity = '1';
-      clearTimeout(__toastTimer);
-      __toastTimer = setTimeout(()=> t.style.opacity='0', 1800);
+  let __toastTimer;
+  function toast(msg, kind='err') {
+    let t = document.getElementById('__toast');
+    if (!t) {
+      t = document.createElement('div');
+      t.id = '__toast';
+      Object.assign(t.style, {
+        position:'fixed',left:'50%',top:'14px',transform:'translateX(-50%)',
+        padding:'8px 14px',borderRadius:'999px',fontSize:'13px',
+        background:'#a52828',color:'#fff',opacity:'0',transition:'opacity .2s',
+        boxShadow:'0 8px 24px rgba(0,0,0,.35)',zIndex:9999,
+      });
+      document.body.appendChild(t);
     }
+    t.style.background = kind==='ok' ? '#2c7a2c' : '#a52828';
+    t.textContent = msg;
+    t.style.opacity = '1';
+    clearTimeout(__toastTimer);
+    __toastTimer = setTimeout(()=> t.style.opacity='0', 1800);
+  }
 
-    async function loadRefurb() {
-      const tbody = $('refurbTbody');
-      tbody.innerHTML = '<tr><td colspan="9" style="padding:8px">Loading…</td></tr>';
-      try {
-        const res = await fetch('/api/refurb');
-        const items = await res.json();
-        if (!Array.isArray(items) || !items.length) {
-          tbody.innerHTML = '<tr><td colspan="9" style="padding:8px">No refurb items yet.</td></tr>';
-          return;
-        }
-        tbody.innerHTML = items.map(item => {
-            const created = item.created_at ? new Date(item.created_at).toLocaleString('en-GB') : '';
+  // -----------------------
+  // Load refurb items
+  // -----------------------
+  async function loadRefurb() {
+    const tbody = $('refurbTbody');
+    tbody.innerHTML = '<tr><td colspan="9" style="padding:8px">Loading…</td></tr>';
 
-            return `<tr>
-                <td>${item.id}</td>
-                <td>${esc(item.description)}</td>
-                <td>
-                    <select data-id="${item.id}" class="statusSel">
-                        <option value="strip" ${item.status==='strip'?'selected':''}>Strip</option>
-                        <option value="refurb" ${item.status==='refurb'?'selected':''}>Refurb</option>
-                        <option value="scrap" ${item.status==='scrap'?'selected':''}>Scrap</option>
-                        <option value="complete" ${item.status==='complete'?'selected':''}>Complete</option>
-                    </select>
-                </td>
-                <td>
-                    <select data-id="${item.id}" class="partsSel">
-                        <option value="none" ${item.parts_status==='none'?'selected':''}>None</option>
-                        <option value="needs_parts" ${item.parts_status==='needs_parts'?'selected':''}>Needs parts</option>
-                        <option value="awaiting_parts" ${item.parts_status==='awaiting_parts'?'selected':''}>Awaiting parts</option>
-                        <option value="has_parts" ${item.parts_status==='has_parts'?'selected':''}>Has parts</option>
-                    </select>
-                </td>
-                <td>${esc(item.supplier)}</td>
-                <td>${fmtMoney(item.cost)}</td>
-                <td>${fmtMoney(item.retail)}</td>
-                <td>${esc(created)}</td>
-                <td>${esc(item.notes)}</td>
-            </tr>`;
-        }).join('');
+    try {
+      const res = await fetch('/api/refurb');
+      const items = await res.json();
 
-      } catch (e) {
-        console.error(e);
-        tbody.innerHTML = '<tr><td colspan="9" style="padding:8px;color:#900">Failed to load refurb items</td></tr>';
-      }
-    }
-
-    async function createRefurb() {
-      const description = $('description').value.trim();
-      if (!description) {
-        toast('Description is required');
-        $('description').focus();
+      if (!Array.isArray(items) || !items.length) {
+        tbody.innerHTML = '<tr><td colspan="9" style="padding:8px">No refurb items yet.</td></tr>';
         return;
       }
-      const body = {
-        description,
-        sku: $('sku').value.trim() || null,
-        serial: $('serial').value.trim() || null,
-        status: $('status').value,
-        parts_status: $('parts_status').value,
-        supplier: $('supplier').value.trim() || null,
-        cost: Number($('cost').value || 0),
-        retail: Number($('retail').value || 0),
-        notes: $('notes').value.trim() || null,
-      };
 
-      const btn = $('saveBtn');
-      btn.disabled = true;
-      btn.textContent = 'Saving…';
+      tbody.innerHTML = items.map(item => {
+        const created = item.created_at ? new Date(item.created_at).toLocaleString('en-GB') : '';
 
-      try {
-        const res = await fetch('/api/refurb', {
-          method: 'POST',
-          headers: {'Content-Type':'application/json'},
-          body: JSON.stringify(body),
-        });
-        const text = await res.text();
-        if (!res.ok) {
-          let errMsg = 'Failed to save';
-          try { const j = JSON.parse(text); errMsg = j.error || errMsg; } catch {}
-          throw new Error(errMsg);
-        }
-        toast('Refurb item added', 'ok');
+        return `<tr>
+          <td>${item.id}</td>
+          <td>${esc(item.description)}</td>
 
-        // reset main fields
-        $('description').value = '';
-        $('sku').value = '';
-        $('serial').value = '';
-        $('supplier').value = '';
-        $('cost').value = '0';
-        $('retail').value = '0';
-        $('notes').value = '';
+          <td>
+            <select data-id="${item.id}" class="statusSel">
+              <option value="strip" ${item.status==='strip'?'selected':''}>Strip</option>
+              <option value="refurb" ${item.status==='refurb'?'selected':''}>Refurb</option>
+              <option value="scrap" ${item.status==='scrap'?'selected':''}>Scrap</option>
+              <option value="complete" ${item.status==='complete'?'selected':''}>Complete</option>
+            </select>
+          </td>
 
-        await loadRefurb();
-      } catch (e) {
-        console.error(e);
-        toast(e.message || 'Failed to save');
-      } finally {
-        btn.disabled = false;
-        btn.textContent = 'Add Refurb Item';
-      }
+          <td>
+            <select data-id="${item.id}" class="partsSel">
+              <option value="none" ${item.parts_status==='none'?'selected':''}>None</option>
+              <option value="needs_parts" ${item.parts_status==='needs_parts'?'selected':''}>Needs parts</option>
+              <option value="awaiting_parts" ${item.parts_status==='awaiting_parts'?'selected':''}>Awaiting parts</option>
+              <option value="has_parts" ${item.parts_status==='has_parts'?'selected':''}>Has parts</option>
+            </select>
+          </td>
+
+          <td>${esc(item.supplier)}</td>
+          <td>${fmtMoney(item.cost)}</td>
+          <td>${fmtMoney(item.retail)}</td>
+          <td>${esc(created)}</td>
+          <td>${esc(item.notes)}</td>
+        </tr>`;
+      }).join('');
+
+      // Wire dropdown listeners NOW that rows exist
+      wireRefurbDropdowns();
+
+    } catch (e) {
+      console.error(e);
+      tbody.innerHTML = '<tr><td colspan="9" style="padding:8px;color:#900">Failed to load refurb items</td></tr>';
+    }
+  }
+
+  // -----------------------
+  // Create refurb item
+  // -----------------------
+  async function createRefurb() {
+    const description = $('description').value.trim();
+    if (!description) {
+      toast('Description is required');
+      $('description').focus();
+      return;
     }
 
-    $('saveBtn').addEventListener('click', createRefurb);
-    window.addEventListener('DOMContentLoaded', loadRefurb);
-  
-  
-  document.addEventListener('change', async (e) => {
-    if (e.target.classList.contains('statusSel') || e.target.classList.contains('partsSel')) {
+    const body = {
+      description,
+      sku: $('sku').value.trim() || null,
+      serial: $('serial').value.trim() || null,
+      status: $('status').value,
+      parts_status: $('parts_status').value,
+      supplier: $('supplier').value.trim() || null,
+      cost: Number($('cost').value || 0),
+      retail: Number($('retail').value || 0),
+      notes: $('notes').value.trim() || null,
+    };
 
-        console.log("CHANGE FIRED", e.target.className, e.target.getAttribute("data-id"));
-        
-        const id = e.target.getAttribute('data-id');
+    const btn = $('saveBtn');
+    btn.disabled = true;
+    btn.textContent = 'Saving…';
 
-        
+    try {
+      const res = await fetch('/api/refurb', {
+        method: 'POST',
+        headers: {'Content-Type':'application/json'},
+        body: JSON.stringify(body),
+      });
 
-        const row = e.target.closest('tr');
+      const text = await res.text();
+      if (!res.ok) {
+        let errMsg = 'Failed to save';
+        try { const j = JSON.parse(text); errMsg = j.error || errMsg; } catch {}
+        throw new Error(errMsg);
+      }
+
+      toast('Refurb item added', 'ok');
+
+      // Reset form
+      $('description').value = '';
+      $('sku').value = '';
+      $('serial').value = '';
+      $('supplier').value = '';
+      $('cost').value = '0';
+      $('retail').value = '0';
+      $('notes').value = '';
+
+      await loadRefurb();
+
+    } catch (e) {
+      console.error(e);
+      toast(e.message || 'Failed to save');
+    } finally {
+      btn.disabled = false;
+      btn.textContent = 'Add Refurb Item';
+    }
+  }
+
+  $('saveBtn').addEventListener('click', createRefurb);
+
+  // -----------------------
+  // Wire dropdown updates
+  // -----------------------
+  function wireRefurbDropdowns() {
+    document.querySelectorAll('.statusSel, .partsSel').forEach(sel => {
+      sel.addEventListener('change', async () => {
+
+        const id = sel.getAttribute('data-id');
+        const row = sel.closest('tr');
+
         const statusSel = row.querySelector('.statusSel');
-        const partsSel = row.querySelector('.partsSel');
+        const partsSel  = row.querySelector('.partsSel');
 
         const body = {
-            status: statusSel.value,
-            parts_status: partsSel.value
+          status: statusSel.value,
+          parts_status: partsSel.value
         };
 
         try {
-            const res = await fetch(`/api/refurb/${id}`, {
-                method: 'PUT',
-                headers: {'Content-Type': 'application/json'},
-                body: JSON.stringify(body)
-        });
+          const res = await fetch(`/api/refurb/${id}`, {
+            method: 'PUT',
+            headers: {'Content-Type':'application/json'},
+            body: JSON.stringify(body)
+          });
 
-        if (!res.ok) throw new Error('Update failed');
+          if (!res.ok) throw new Error('Update failed');
 
-        toast('Updated ✔️', 'ok');
-    } catch (err) {
-        console.error(err);
-        toast('Failed to update');
-    }
-    }
-});
+          toast('Updated ✔️', 'ok');
+
+        } catch (err) {
+          console.error(err);
+          toast('Failed to update');
+        }
+      });
+    });
+  }
+
+  // Load table on page open
+  window.addEventListener('DOMContentLoaded', loadRefurb);
 </script>
 
 </body>

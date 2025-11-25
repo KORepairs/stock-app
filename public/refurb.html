@@ -109,6 +109,7 @@
           <tr>
             <th>ID</th>
             <th>Description</th>
+            <th>SKU</th>
             <th>Status</th>
             <th>Parts</th>
             <th>Supplier</th>
@@ -120,7 +121,7 @@
           </tr>
         </thead>
         <tbody id="refurbTbody">
-          <tr><td colspan="10" style="padding:8px">Loading…</td></tr>
+          <tr><td colspan="11" style="padding:8px">Loading…</td></tr>
         </tbody>
       </table>
     </div>
@@ -192,11 +193,20 @@ async function loadRefurb() {
     tbody.innerHTML = items.map(item => {
       const created = item.created_at ? new Date(item.created_at).toLocaleString('en-GB') : '';
 
-      return `<tr>
+            return `<tr>
         <td>${item.id}</td>
         <td>${esc(item.description)}</td>
 
-                <td class="${statusClass(item.status)}">
+        <td>
+          <input
+            data-id="${item.id}"
+            class="skuInp"
+            type="text"
+            value="${esc(item.sku)}"
+          >
+        </td>
+
+        <td class="${statusClass(item.status)}">
           <select data-id="${item.id}" class="statusSel">
             <option value="strip" ${item.status==='strip'?'selected':''}>Strip</option>
             <option value="refurb" ${item.status==='refurb'?'selected':''}>Refurb</option>
@@ -382,6 +392,7 @@ async function loadRefurb() {
         const id = btn.getAttribute('data-id');
         const row = btn.closest('tr');
 
+        const skuEl      = row.querySelector('.skuInp');
         const statusSel  = row.querySelector('.statusSel');
         const partsSel   = row.querySelector('.partsSel');
         const supplierEl = row.querySelector('.supplierInp');
@@ -390,13 +401,15 @@ async function loadRefurb() {
         const notesEl    = row.querySelector('.notesInp');
 
         const body = {
-          status: statusSel.value,
-          parts_status: partsSel.value,
-          supplier: supplierEl.value.trim() || null,
-          cost: Number(costEl.value || 0),
-          retail: Number(retailEl.value || 0),
-          notes: notesEl.value.trim() || null,
+            sku: skuEl.value.trim() || null,
+        status: statusSel.value,
+        parts_status: partsSel.value,
+        supplier: supplierEl.value.trim() || null,
+        cost: Number(costEl.value || 0),
+        retail: Number(retailEl.value || 0),
+        notes: notesEl.value.trim() || null,
         };
+
 
         btn.disabled = true;
         btn.textContent = 'Saving…';

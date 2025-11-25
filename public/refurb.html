@@ -265,17 +265,22 @@ async function loadRefurb() {
           >
         </td>
 
-        <td>
+                <td>
           <button type="button" class="saveRowBtn" data-id="${item.id}">
             Save
           </button>
+          <button type="button" class="deleteRowBtn" data-id="${item.id}" style="margin-left:6px;">
+            Delete
+          </button>
         </td>
+
       </tr>`;
     }).join('');
 
     // ✅ Wire both dropdowns AND Save buttons now that rows exist
     wireRefurbDropdowns();
     wireRefurbRowSaves();
+    wireRefurbDeletes();
 
   } catch (e) {
     console.error(e);
@@ -434,6 +439,39 @@ async function loadRefurb() {
       });
     });
   }
+
+    function wireRefurbDeletes() {
+    document.querySelectorAll('.deleteRowBtn').forEach(btn => {
+      btn.addEventListener('click', async () => {
+        const id = btn.getAttribute('data-id');
+        if (!confirm('Delete this refurb item?')) return;
+
+        btn.disabled = true;
+        btn.textContent = 'Deleting…';
+
+        try {
+          const res = await fetch(`/api/refurb/${id}`, {
+            method: 'DELETE'
+          });
+
+          if (!res.ok) throw new Error('Failed to delete refurb');
+
+          const data = await res.json();
+          if (!data.deleted) throw new Error('Refurb not found / not deleted');
+
+          // Remove the row from the table
+          const row = btn.closest('tr');
+          if (row) row.remove();
+
+          toast('Refurb deleted ✔️', 'ok');
+        } catch (err) {
+          console.error(err);
+          toast(err.message || 'Failed to delete refurb');
+        }
+      });
+    });
+  }
+
 
   // Load table on page open
   window.addEventListener('DOMContentLoaded', loadRefurb);

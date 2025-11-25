@@ -21,11 +21,8 @@ import {
   insertSalePG,
   listSalesPG,
 } from './pgProducts.js';
-
-
-
-
-
+import fs from 'node:fs';
+import multer from 'multer';
 
 
 
@@ -35,6 +32,26 @@ const __dirname  = path.dirname(__filename);
 
 /* ---------- App ---------- */
 const app = express();
+
+// ----- File uploads for Trade-ins -----
+const uploadDir = path.join(__dirname, '..', 'uploads');
+if (!fs.existsSync(uploadDir)) {
+  fs.mkdirSync(uploadDir, { recursive: true });
+}
+
+const storage = multer.diskStorage({
+  destination: (req, file, cb) => cb(null, uploadDir),
+  filename: (req, file, cb) => {
+    const safeName = file.originalname.replace(/\s+/g, '_');
+    cb(null, Date.now() + '-' + safeName);
+  },
+});
+
+const upload = multer({ storage });
+
+// Serve uploaded ID images
+app.use('/uploads', express.static(uploadDir));
+
 
 console.log('[startup] BASIC_USER:',
   process.env.BASIC_USER ? '(set)' : '(missing)',
@@ -77,6 +94,8 @@ app.get('/report/sales',   (req, res) => res.sendFile(path.join(PUBLIC_DIR, 'rep
 app.get('/report/stock',   (req, res) => res.sendFile(path.join(PUBLIC_DIR, 'report-stock.html')));
 app.get('/quick-add',      (req, res) => res.sendFile(path.join(PUBLIC_DIR, 'quick-add.html')));
 app.get('/refurb',         (req, res) => res.sendFile(path.join(PUBLIC_DIR, 'refurb.html')));
+app.get('/tradein',        (req, res) => res.sendFile(path.join(PUBLIC_DIR, 'tradein.html')));
+
 
 
 /* Health once */
@@ -462,6 +481,111 @@ app.put('/api/refurb/:id', async (req, res) => {
   }
 });
 
+// Delete a refurb item
+app.delete('/api/refurb/:id', async (req, res) => {
+  const { id } = req.params;
+  try {
+    const result = await pgQuery(
+      'DELETE FROM refurb_items WHERE id = $1',
+      [id]
+    );
+    res.json({ deleted: result.rowCount > 0 });
+  } catch (err) {
+    console.error('Error deleting refurb item:', err);
+    res.status(500).json({ error: 'Failed to delete refurb item' });
+  }
+});
+
+
+/* ---------- API: Trade-ins ---------- */
+
+// List trade-ins
+app.get('/api/tradein', async (req, res) => {
+  try {
+    const { rows } = await pgQuery(
+      'SELECT * FROM trade_ins ORDER BY id DESC;'
+    );
+    res.json(rows);
+  } catch (err) {
+    console.error('Error fetching trade-ins:', err);
+    res.status(500).json({ error: 'Failed to fetch trade-ins' });
+  }
+});
+
+// Create trade-in + auto-create refurb item
+app.post('/api/tradein', upload.single('id_image'), async (req, res) => {
+  try {
+    const {
+      customer_name,
+      customer_phone,
+      customer_email,
+      serial,
+      device_desc,
+      valuation,
+      agreed_value,
+      create_refurb,  // "on" when checkbox ticked
+    } = req.body || {};
+
+    if (!customer_name || !device_desc) {
+      return res.status(400).json({ error: 'Customer name and device description are required' });
+    }
+
+    const valuationNum = valuation ? Number(valuation) : null;
+    const agreedNum    = agreed_value ? Number(agreed_value) : null;
+
+    const idImagePath = req.file ? `/uploads/${req.file.filename}` : null;
+
+    let refurbId = null;
+
+    // Auto-create refurb row if requested (or just always – tweak if you like)
+    if (create_refurb === 'on' || create_refurb === 'true' || create_refurb === '1') {
+      const refurbNotes = `Trade-in from ${customer_name}${agreedNum != null ? `, agreed £${agreedNum}` : ''}`;
+      const refurbCost  = agreedNum != null ? agreedNum : (valuationNum || 0);
+
+      const refurbRes = await pgQuery(
+        `
+        INSERT INTO refurb_items (
+          sku, serial, description, status, parts_status,
+          supplier, cost, retail, notes
+        )
+        VALUES (NULL, $1, $2, 'refurb', 'none', 'Trade-in', $3, NULL, $4)
+        RETURNING id;
+        `,
+        [serial || null, device_desc, refurbCost, refurbNotes]
+      );
+
+      refurbId = refurbRes.rows[0]?.id || null;
+    }
+
+    const tradeRes = await pgQuery(
+      `
+      INSERT INTO trade_ins (
+        customer_name, customer_phone, customer_email,
+        serial, device_desc, valuation, agreed_value,
+        id_image_path, refurb_id
+      )
+      VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9)
+      RETURNING *;
+      `,
+      [
+        customer_name,
+        customer_phone || null,
+        customer_email || null,
+        serial || null,
+        device_desc,
+        valuationNum,
+        agreedNum,
+        idImagePath,
+        refurbId,
+      ]
+    );
+
+    res.status(201).json(tradeRes.rows[0]);
+  } catch (err) {
+    console.error('Error creating trade-in:', err);
+    res.status(500).json({ error: 'Failed to create trade-in' });
+  }
+});
 
 
 /* ---------- API: Stock ops ---------- */

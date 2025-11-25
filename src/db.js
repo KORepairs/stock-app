@@ -68,4 +68,22 @@ export async function initDb() {
     ALTER TABLE refurb_items
     ADD COLUMN IF NOT EXISTS created_at TIMESTAMPTZ DEFAULT NOW();
   `);
+
+  // Trade-in records
+await pgQuery(`
+  CREATE TABLE IF NOT EXISTS trade_ins (
+    id SERIAL PRIMARY KEY,
+    customer_name   TEXT NOT NULL,
+    customer_phone  TEXT,
+    customer_email  TEXT,
+    serial          TEXT,
+    device_desc     TEXT NOT NULL,
+    valuation       NUMERIC(10,2),
+    agreed_value    NUMERIC(10,2),
+    id_image_path   TEXT,
+    refurb_id       INTEGER,
+    created_at      TIMESTAMPTZ DEFAULT NOW()
+  );
+`);
+
 }

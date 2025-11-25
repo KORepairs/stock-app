@@ -10,7 +10,6 @@
     "backup": "mkdir -p backups && sqlite3 data.db \".backup 'backups/db-$(date +%F-%H%M%S).sqlite3'\"",
     "rebuild:sqlite": "npm rebuild better-sqlite3 --build-from-source",
     "postinstall": "npm run rebuild:sqlite",
-
     "dev:auth": "BASIC_USER=me BASIC_PASS=secret nodemon src/index.js"
   },
   "dependencies": {
@@ -18,6 +17,7 @@
     "cors": "^2.8.5",
     "dotenv": "^17.2.1",
     "express": "^5.1.0",
+    "multer": "^2.0.2",
     "pg": "^8.16.3"
   },
   "devDependencies": {

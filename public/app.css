@@ -266,3 +266,9 @@ body  { margin: 0; }        /* make sure nothing centers the body */
 .btnLetter:hover {
   filter: brightness(1.1);
 }
+
+    tr.totals-row td {
+      border-top: 2px solid var(--border);
+      font-weight: 600;
+      background: rgba(255,255,255,0.03);
+    }

@@ -215,7 +215,7 @@
     }
   }
 
-  function render() {
+    function render() {
     const tbody   = $('prodTbody');
 
     // ----- read existing filters -----
@@ -247,13 +247,35 @@
     // 3) sort
     rows = sortRows(rows);
 
-    // 4) render
+    // 4) if nothing left, show message and no totals
     if (!rows.length) {
       tbody.innerHTML = '<tr><td colspan="11" style="padding:8px">No matching products</td></tr>';
       return;
     }
 
-    tbody.innerHTML = rows.map(p => `
+    // 5) compute totals based on FILTERED rows
+    let totalQty      = 0;
+    let totalCost     = 0;
+    let totalRetail   = 0;
+    let totalFees     = 0;
+    let totalPostage  = 0;
+
+    rows.forEach(p => {
+      const qty     = Number(p.quantity) || 0;
+      const cost    = Number(p.cost)     || 0;
+      const retail  = Number(p.retail)   || 0;
+      const fees    = Number(p.fees)     || 0;
+      const postage = Number(p.postage)  || 0;
+
+      totalQty     += qty;
+      totalCost    += qty * cost;
+      totalRetail  += qty * retail;
+      totalFees    += qty * fees;
+      totalPostage += qty * postage;
+    });
+
+    // 6) render normal rows
+    const rowsHtml = rows.map(p => `
       <tr data-id="${p.id}">
         <td>${esc(p.sku)}</td>
         <td>${esc(p.name)}</td>
@@ -270,7 +292,25 @@
         </td>
       </tr>
     `).join('');
+
+    // 7) append totals row as the last row
+    const totalsRow = `
+      <tr class="totals-row">
+        <td colspan="2"><strong>Totals</strong></td>
+        <td><strong>${totalQty}</strong></td>
+        <td></td> <!-- Notes -->
+        <td></td> <!-- eBay -->
+        <td><strong>${GBP(totalRetail)}</strong></td>
+        <td><strong>${GBP(totalCost)}</strong></td>
+        <td><strong>${GBP(totalFees)}</strong></td>
+        <td><strong>${GBP(totalPostage)}</strong></td>
+        <td></td> <!-- Actions -->
+      </tr>
+    `;
+
+    tbody.innerHTML = rowsHtml + totalsRow;
   }
+
 
   // ---------- table actions (edit/delete) ----------
   $('prodTbody').addEventListener('click', async e => {

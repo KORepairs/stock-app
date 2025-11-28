@@ -388,7 +388,7 @@ app.post('/api/refurb', async (req, res) => {
   }
 });
 
-// Update refurb item + if marked complete, add back to stock by SKU
+// Update refurb item + if marked complete, sync with products by SKU
 app.put('/api/refurb/:id', async (req, res) => {
   const { id } = req.params;
   const {
@@ -398,11 +398,11 @@ app.put('/api/refurb/:id', async (req, res) => {
     cost,
     retail,
     notes,
-    sku,            // we accept sku too (for later editing)
+    sku, // allow editing SKU from the table
   } = req.body || {};
 
+  // normalise SKU to uppercase like products
   const skuNorm = sku ? String(sku).trim().toUpperCase() : null;
-
 
   try {
     // 1) Get the existing refurb row so we know its previous status
@@ -443,38 +443,65 @@ app.put('/api/refurb/:id', async (req, res) => {
       id,
     ];
 
-    const result = await pgQuery(query, values);
+    const result  = await pgQuery(query, values);
     const updated = result.rows[0];
 
     const newStatus = updated.status;
     const skuToUse  = updated.sku;
 
-    console.log('REFURB UPDATE',
-      { id, oldStatus, newStatus, skuToUse }
-    );
+    console.log('REFURB UPDATE', { id, oldStatus, newStatus, skuToUse });
 
-    // 3) If status changed to 'complete' and we have a SKU, add 1 to stock
+    // 3) If status changed to 'complete' and we have a SKU, either:
+    //    - bump existing product quantity
+    //    - or create a new product with qty = 1
     if (
       oldStatus !== 'complete' &&
       newStatus === 'complete' &&
       skuToUse
     ) {
       try {
-        const upd = await pgQuery(
-          `
-          UPDATE products
-          SET quantity = COALESCE(quantity, 0) + 1
-          WHERE sku = $1
-          RETURNING id, sku, quantity;
-          `,
-          [skuToUse]
-        );
-        console.log('STOCK BUMP RESULT', upd.rows);
+        // Look up existing product by SKU
+        const existingProduct = await getProductByCodePG(skuToUse);
+
+        if (existingProduct) {
+          // If it exists, just bump quantity
+          const bumped = await adjustQtyPG(existingProduct.id, 1);
+          console.log(
+            'Stock incremented by 1 for SKU',
+            skuToUse,
+            '→ product id',
+            existingProduct.id,
+            'new qty:',
+            bumped.quantity
+          );
+        } else {
+          // If it doesn't exist, create a new product with qty = 1
+          const data = {
+            sku: skuToUse,
+            name: updated.description || `Refurb item #${updated.id}`,
+            notes: `Auto-created from refurb #${updated.id}`,
+            on_ebay: 0,
+            cost: Number(updated.cost) || 0,
+            retail: Number(updated.retail) || 0,
+            fees: 0,
+            postage: 0,
+            quantity: 1,
+          };
+
+          const created = await createProductPG(data);
+          console.log('Created new product from refurb complete:', {
+            id: created.id,
+            sku: created.sku,
+            quantity: created.quantity,
+          });
+        }
       } catch (stockErr) {
-        console.error('Failed to update stock after refurb complete:', stockErr);
+        console.error('Failed to sync stock after refurb complete:', stockErr);
+        // Don't fail the refurb update if stock sync fails
       }
     }
 
+    // 4) Return the updated refurb row
     res.json(updated);
 
   } catch (err) {
@@ -482,6 +509,7 @@ app.put('/api/refurb/:id', async (req, res) => {
     res.status(500).json({ error: 'Failed to update refurb item' });
   }
 });
+
 
 // Delete a refurb item
 app.delete('/api/refurb/:id', async (req, res) => {

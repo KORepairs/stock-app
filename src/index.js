@@ -514,6 +514,7 @@ app.get('/api/tradein', async (req, res) => {
 
 // Create trade-in + auto-create refurb item
 app.post('/api/tradein', upload.single('id_image'), async (req, res) => {
+  console.log('HIT POST /api/tradein');
   try {
     const {
       customer_name,

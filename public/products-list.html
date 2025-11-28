@@ -21,6 +21,49 @@
 <div class="page">
   <h1>Products</h1>
 
+  <!-- Stock type filter -->
+<div class="toolbar" style="margin:8px 0 8px; display:flex; gap:8px; flex-wrap:wrap;">
+  <button type="button"
+          id="filterAll"
+          class="btnFilter btnFilter-active">
+    All stock
+  </button>
+  <button type="button"
+          id="filterEbay"
+          class="btnFilter">
+    eBay stock
+  </button>
+  <button type="button"
+          id="filterRefurb"
+          class="btnFilter">
+    Refurb / Shop stock
+  </button>
+</div>
+
+<!-- SKU letter filter -->
+<div class="toolbar" style="margin:0 0 16px; display:flex; gap:4px; flex-wrap:wrap; align-items:center;">
+  <span style="font-size:13px;opacity:.8;margin-right:4px;">SKU starts with:</span>
+  <button type="button" data-letter="all" class="btnLetter btnLetter-active">All</button>
+
+  <!-- eBay prefixes -->
+  <button type="button" data-letter="A" class="btnLetter">A</button>
+  <button type="button" data-letter="B" class="btnLetter">B</button>
+  <button type="button" data-letter="C" class="btnLetter">C</button>
+  <button type="button" data-letter="D" class="btnLetter">D</button>
+  <button type="button" data-letter="E" class="btnLetter">E</button>
+  <button type="button" data-letter="F" class="btnLetter">F</button>
+  <button type="button" data-letter="G" class="btnLetter">G</button>
+  <button type="button" data-letter="P" class="btnLetter">P</button>
+  <button type="button" data-letter="R" class="btnLetter">R</button>
+  <button type="button" data-letter="S" class="btnLetter">S</button>
+
+  <!-- Refurb / shop prefixes -->
+  <button type="button" data-letter="H" class="btnLetter">H</button>
+  <button type="button" data-letter="L" class="btnLetter">L</button>
+  <button type="button" data-letter="M" class="btnLetter">M</button>
+  <button type="button" data-letter="V" class="btnLetter">V</button>
+</div>
+
   <div class="row" id="prod-filters" style="gap:12px;align-items:center;margin:12px 0;flex-wrap:wrap">
   <input id="pf-search" type="text" placeholder="Search SKU, name, notes…" style="flex:1;min-width:260px;max-width:420px">
 
@@ -93,7 +136,7 @@
     </form>
   </dialog>
 
-  <script>
+    <script>
   // ---------- helpers ----------
   const $ = (id) => document.getElementById(id);
   const GBP = (n) => Number(n || 0).toLocaleString('en-GB', { style: 'currency', currency: 'GBP' });
@@ -101,7 +144,46 @@
     {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[m]
   ));
 
-  let all = []; // cache of all products from the server
+  // cache of all products from the server
+  let all = [];
+
+  // new filter state
+  let currentStockFilter  = 'all';   // 'all' | 'ebay' | 'refurb'
+  let currentPrefixFilter = 'all';   // 'all' | 'A' | 'B' | 'H' | 'L' | ...
+
+  function getCategoryFromSKU(sku) {
+    if (!sku) return 'unknown';
+
+    const s = String(sku).trim().toUpperCase();
+    const first = s[0];
+
+    const ebayPrefixes   = ['A','B','C','D','E','F','G','P','R','S'];
+    const refurbPrefixes = ['H','L','M','V'];
+
+    if (ebayPrefixes.includes(first))   return 'ebay';
+    if (refurbPrefixes.includes(first)) return 'refurb';
+
+    return 'other';
+  }
+
+  function applyProductFilter(items) {
+    return items.filter(item => {
+      const sku = item.sku || '';
+      const cat = getCategoryFromSKU(sku);
+
+      // 1) filter by stock type first
+      if (currentStockFilter === 'ebay'   && cat !== 'ebay')   return false;
+      if (currentStockFilter === 'refurb' && cat !== 'refurb') return false;
+
+      // 2) filter by starting letter, if set
+      if (currentPrefixFilter !== 'all') {
+        const first = String(sku).trim().toUpperCase()[0] || '';
+        if (first !== currentPrefixFilter) return false;
+      }
+
+      return true;
+    });
+  }
 
   // Natural, case-insensitive sorting based on the "Sort by" select
   function sortRows(list) {
@@ -109,9 +191,8 @@
     const [field, dir] = (sel?.value || 'sku:asc').split(':');
     const mult = dir === 'desc' ? -1 : 1;
 
-    // Text comparison that understands numbers (A2 < A10) and ignores case
     const cmpText = (a, b) =>
-        mult * String(a || '').localeCompare(String(b || ''), undefined, { numeric: true, sensitivity: 'base' });
+      mult * String(a || '').localeCompare(String(b || ''), undefined, { numeric: true, sensitivity: 'base' });
 
     if (field === 'sku')    return list.sort((a, b) => cmpText(a.sku,    b.sku));
     if (field === 'name')   return list.sort((a, b) => cmpText(a.name,   b.name));
@@ -119,8 +200,7 @@
     if (field === 'retail') return list.sort((a, b) => mult * ((a.retail   || 0) - (b.retail   || 0)));
 
     return list;
-    }
-
+  }
 
   // ---------- fetch once, then render with filters ----------
   async function fetchAll() {
@@ -138,14 +218,17 @@
   function render() {
     const tbody   = $('prodTbody');
 
-    // ----- read filters -----
+    // ----- read existing filters -----
     const q           = ($('pf-search')?.value || '').toLowerCase().trim();
     const onlyQty     = $('pf-qtygt0')?.checked;
     const onlyNotEbay = $('pf-ebay')?.checked;     // when checked, show ONLY not-on-eBay
     const onlyNotes   = $('pf-notes')?.checked;    // when checked, show ONLY items with notes
 
-    // ----- filter -----
-    let rows = all.filter(p => {
+    // 1) apply new stock-type + prefix filters
+    let rows = applyProductFilter(all);
+
+    // 2) apply your existing filters on top
+    rows = rows.filter(p => {
       const qty = Number(p.quantity) || 0;
       const onEbay = (p.on_ebay === 1 || p.on_ebay === true);
       const notesHasText = String(p.notes || '').trim().length > 0;
@@ -161,34 +244,32 @@
       return true;
     });
 
-    // ----- sort -----
+    // 3) sort
     rows = sortRows(rows);
 
-
-
-    // ----- render -----
+    // 4) render
     if (!rows.length) {
       tbody.innerHTML = '<tr><td colspan="11" style="padding:8px">No matching products</td></tr>';
       return;
     }
 
     tbody.innerHTML = rows.map(p => `
-    <tr data-id="${p.id}">
-      <td>${esc(p.sku)}</td>
-      <td>${esc(p.name)}</td>
-      <td>${Number(p.quantity) || 0}</td>
-      <td>${esc(p.notes || '')}</td>
-      <td style="text-align:center">${(p.on_ebay === 1 || p.on_ebay === true) ? '✓' : ''}</td>
-      <td>${GBP(p.retail)}</td>
-      <td>${GBP(p.cost)}</td>
-      <td>${GBP(p.fees)}</td>
-      <td>${GBP(p.postage)}</td>
-      <td class="actions">
-        <button data-act="edit" data-id="${p.id}">Edit</button>
-        <button data-act="del"  data-id="${p.id}">Delete</button>
-      </td>
-    </tr>
-  `).join('');
+      <tr data-id="${p.id}">
+        <td>${esc(p.sku)}</td>
+        <td>${esc(p.name)}</td>
+        <td>${Number(p.quantity) || 0}</td>
+        <td>${esc(p.notes || '')}</td>
+        <td style="text-align:center">${(p.on_ebay === 1 || p.on_ebay === true) ? '✓' : ''}</td>
+        <td>${GBP(p.retail)}</td>
+        <td>${GBP(p.cost)}</td>
+        <td>${GBP(p.fees)}</td>
+        <td>${GBP(p.postage)}</td>
+        <td class="actions">
+          <button data-act="edit" data-id="${p.id}">Edit</button>
+          <button data-act="del"  data-id="${p.id}">Delete</button>
+        </td>
+      </tr>
+    `).join('');
   }
 
   // ---------- table actions (edit/delete) ----------
@@ -251,7 +332,7 @@
 
   $('cancelBtn').addEventListener('click', () => $('editDlg').close());
 
-  // ---------- wire filters ----------
+  // ---------- wire existing filters ----------
   $('pf-search') ?.addEventListener('input',  render);
   $('pf-qtygt0') ?.addEventListener('change', render);
   $('pf-notes')  ?.addEventListener('change', render);
@@ -259,9 +340,60 @@
   $('pf-sort')   ?.addEventListener('change', render);
   $('pf-refresh')?.addEventListener('click',  fetchAll);
 
+  // ---------- NEW: wire stock-type & letter filters ----------
+  function setupProductFilters() {
+    const btnAll    = document.getElementById('filterAll');
+    const btnEbay   = document.getElementById('filterEbay');
+    const btnRefurb = document.getElementById('filterRefurb');
+    const letterButtons = Array.from(document.querySelectorAll('.btnLetter'));
+
+    function setStockFilter(filter) {
+      currentStockFilter = filter;
+
+      [btnAll, btnEbay, btnRefurb].forEach(btn => {
+        btn.classList.remove('btnFilter-active');
+      });
+
+      if (filter === 'all')    btnAll.classList.add('btnFilter-active');
+      if (filter === 'ebay')   btnEbay.classList.add('btnFilter-active');
+      if (filter === 'refurb') btnRefurb.classList.add('btnFilter-active');
+
+      render();
+    }
+
+    function setLetterFilter(letter) {
+      currentPrefixFilter = letter;
+
+      letterButtons.forEach(btn => {
+        btn.classList.remove('btnLetter-active');
+        const bLetter = btn.dataset.letter || 'all';
+        if (bLetter === letter) {
+          btn.classList.add('btnLetter-active');
+        }
+      });
+
+      render();
+    }
+
+    btnAll   ?.addEventListener('click', () => setStockFilter('all'));
+    btnEbay  ?.addEventListener('click', () => setStockFilter('ebay'));
+    btnRefurb?.addEventListener('click', () => setStockFilter('refurb'));
+
+    letterButtons.forEach(btn => {
+      btn.addEventListener('click', () => {
+        const letter = btn.dataset.letter || 'all';
+        setLetterFilter(letter);
+      });
+    });
+  }
+
   // initial load
-  document.addEventListener('DOMContentLoaded', fetchAll);
-</script>
+  document.addEventListener('DOMContentLoaded', () => {
+    setupProductFilters();
+    fetchAll();
+  });
+  </script>
+
 
 
 </div>

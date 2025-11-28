@@ -246,3 +246,23 @@ body  { margin: 0; }        /* make sure nothing centers the body */
   justify-content: center;
   gap: 8px;
 }
+
+.btnFilter,
+.btnLetter {
+  padding: 3px 10px;
+  border-radius: 999px;
+  border: 1px solid rgba(255,255,255,0.2);
+  background: #222;
+  color: #fff;
+  font-size: 13px;
+  cursor: pointer;
+}
+.btnFilter-active,
+.btnLetter-active {
+  background: #2c7a2c;
+  border-color: #2c7a2c;
+}
+.btnFilter:hover,
+.btnLetter:hover {
+  filter: brightness(1.1);
+}

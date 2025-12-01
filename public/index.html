@@ -25,45 +25,7 @@
 </head>
 <body>
   <div class="wrap">
-    <aside>
-  <div class="logo">Stock App</div>
-
-  <!-- DASHBOARD -->
-  <div class="group">Dashboard</div>
-  <nav>
-    <a href="/">Dashboard</a>
-  </nav>
-
-  <!-- QUICK ACTIONS -->
-  <div class="group">Quick Actions</div>
-  <nav>
-    <a href="/tradein">Add Trade-In</a>
-    <a href="/refurb">Add Refurb Item</a>
-    <a href="/quick-add">Add eBay Item</a>
-  </nav>
-
-  <!-- SALES -->
-  <div class="group">Sales</div>
-  <nav>
-    <a href="/report-sales">Sales Log</a>
-  </nav>
-
-  <!-- STOCK MANAGEMENT -->
-  <div class="group">Stock Management</div>
-  <nav>
-    <a href="/report/stock">Stock Report</a>
-    <a href="/stocktake">Stock Take</a>
-    <a href="/import">Import CSV</a>
-  </nav>
-
-  <!-- STOCK -->
-  <div class="group">Stock</div>
-  <nav>
-    <a href="/products">Products</a>
-    <a href="/refurb">Refurb Items</a>
-    <a href="/tradeins">Trade-Ins</a>
-  </nav>
-</aside>
+    <aside id="sidebar"></aside>
 
     <main>
       <header class="top">
@@ -104,6 +66,6 @@
     });
   });
 </script>
-
+<script src="/js/sidebar.js"></script>
 </body>
 </html>

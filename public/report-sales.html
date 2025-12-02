@@ -3,106 +3,150 @@
 <head>
   <meta charset="utf-8">
   <title>Sales Log</title>
+  <meta name="viewport" content="width=device-width,initial-scale=1">
   <link rel="stylesheet" href="/app.css">
   <style>
-    body{font:14px/1.4 -apple-system,BlinkMacSystemFont,Segoe UI,Roboto,Helvetica,Arial,sans-serif;margin:24px}
-    h1{margin:0 0 16px}
-    .toolbar{display:flex;flex-wrap:wrap;gap:8px;align-items:center;margin:12px 0 16px}
-    .toolbar label{font-size:13px}
-    .toolbar input,.toolbar select{padding:6px 8px;font-size:14px}
-    .btn{padding:8px 12px;border:1px solid #ccc;background:#f7f7f7;border-radius:6px;cursor:pointer}
-    .btn:hover{background:#eee}
-    table{border-collapse:collapse;width:100%}
-    th,td{border:1px solid #ddd;padding:8px}
-    th{background:#fafafa;text-align:left}
-    td.num, th.num{text-align:right}
-    tfoot td{font-weight:700}
-    .no-print{margin-bottom:12px}
-    @media print{
-      .no-print{display:none}
-      body{margin:0}
+    .sales-wrap {
+      max-width: 1100px;
     }
-    .meta{color:#666;font-size:12px;margin-bottom:12px}
-    .v{position:absolute;right:24px;top:24px;color:#666;font-size:12px}
+    .toolbar{
+      display:flex;
+      flex-wrap:wrap;
+      gap:8px;
+      align-items:center;
+      margin:12px 0 16px;
+    }
+    .toolbar label{font-size:13px;}
+    .toolbar input,
+    .toolbar select{
+      padding:6px 8px;
+      font-size:14px;
+    }
+    .btn{
+      padding:8px 12px;
+      border:1px solid #ccc;
+      background:#f7f7f7;
+      border-radius:6px;
+      cursor:pointer;
+    }
+    .btn:hover{ background:#eee; }
+    table{
+      border-collapse:collapse;
+      width:100%;
+      background:var(--panel);
+      border:1px solid var(--border);
+      border-radius:8px;
+      overflow:hidden;
+    }
+    th,td{border:1px solid var(--border);padding:8px;}
+    th{
+      background:var(--head);
+      text-align:left;
+      font-weight:700;
+    }
+    td.num, th.num{text-align:right;}
+    tfoot td{font-weight:700;}
+    .no-print{margin-bottom:12px;}
+    .meta{color:#666;font-size:12px;margin-bottom:12px;}
+    .v{position:absolute;right:24px;top:24px;color:#666;font-size:12px;}
+    .quick-row{
+      display:flex;
+      flex-wrap:wrap;
+      gap:8px;
+      align-items:center;
+      margin-bottom:8px;
+    }
+    .btn.outline{
+      background:transparent;
+      border-style:dashed;
+    }
+    @media print{
+      .no-print{display:none;}
+      body{margin:0;}
+    }
   </style>
 </head>
 <body>
   <div class="wrap">
     <aside id="sidebar"></aside>
-      <main class="page">
-  <div class="v">v1</div>
-  <h1>Sales Log</h1>
 
-  <!-- Quick date filters -->
-<div class="quick-row">
-  <strong>Quick:</strong>
-  <button class="btn quick" data-q="this-week">This week</button>
-  <button class="btn quick" data-q="7">Last 7 days</button>
-  <button class="btn quick" data-q="this-month">This month</button>
-  <button class="btn outline" id="clearRange">Clear</button>
-</div>
+    <main class="page">
+      <div class="sales-wrap">
+        <div class="v">v1</div>
+        <h1>Sales Log</h1>
 
-  <div class="toolbar no-print">
-    <label>From
-      <input type="date" id="from">
-    </label>
-    <label>To
-      <input type="date" id="to">
-    </label>
-    <label>Channel
-      <select id="channel">
-        <option value="">All</option>
-        <option value="manual">Manual</option>
-        <option value="ebay">eBay</option>
-        <option value="pos">POS</option>
-      </select>
-    </label>
-    <label>Search
-      <input type="text" id="q" placeholder="sku, barcode, order ref, note…">
-    </label>
-    <button class="btn" id="refresh">Refresh</button>
-    <button class="btn" id="exportCsv">Export CSV</button>
-    <button class="btn" onclick="window.print()">Print</button>
+        <!-- Quick date filters -->
+        <div class="quick-row no-print">
+          <strong>Quick:</strong>
+          <button class="btn quick" data-q="this-week">This week</button>
+          <button class="btn quick" data-q="7">Last 7 days</button>
+          <button class="btn quick" data-q="this-month">This month</button>
+          <button class="btn outline" id="clearRange">Clear</button>
+        </div>
+
+        <div class="toolbar no-print">
+          <label>From
+            <input type="date" id="from">
+          </label>
+          <label>To
+            <input type="date" id="to">
+          </label>
+          <label>Channel
+            <select id="channel">
+              <option value="">All</option>
+              <option value="manual">Manual</option>
+              <option value="ebay">eBay</option>
+              <option value="pos">POS</option>
+            </select>
+          </label>
+          <label>Search
+            <input type="text" id="q" placeholder="sku, barcode, order ref, note…">
+          </label>
+          <button class="btn" id="refresh">Refresh</button>
+          <button class="btn" id="exportCsv">Export CSV</button>
+          <button class="btn" onclick="window.print()">Print</button>
+        </div>
+
+        <div class="meta" id="generated"></div>
+
+        <table id="tbl">
+          <thead>
+            <tr>
+              <th>Date/Time</th>
+              <th>SKU</th>
+              <th>Barcode</th>
+              <th class="num">Qty</th>
+              <th class="num">Unit Cost</th>
+              <th class="num">Unit Retail</th>
+              <th class="num">Fees</th>
+              <th class="num">Postage</th>
+              <th>Channel</th>
+              <th>Order Ref</th>
+              <th>Note</th>
+              <th class="num">Line Cost</th>
+              <th class="num">Line Retail</th>
+              <th class="num">Profit</th>
+            </tr>
+          </thead>
+          <tbody id="tbody"></tbody>
+          <tfoot>
+            <tr>
+              <td colspan="3">Totals:</td>
+              <td class="num" id="totQty">0</td>
+              <td class="num"></td>
+              <td class="num"></td>
+              <td class="num" id="totFees">£0.00</td>
+              <td class="num" id="totPostage">£0.00</td>
+              <td></td><td></td><td></td>
+              <td class="num" id="totCost">£0.00</td>
+              <td class="num" id="totRetail">£0.00</td>
+              <td class="num" id="totProfit">£0.00</td>
+            </tr>
+          </tfoot>
+        </table>
+      </div>
+    </main>
   </div>
-
-  <div class="meta" id="generated"></div>
-
-  <table id="tbl">
-    <thead>
-      <tr>
-        <th>Date/Time</th>
-        <th>SKU</th>
-        <th>Barcode</th>
-        <th class="num">Qty</th>
-        <th class="num">Unit Cost</th>
-        <th class="num">Unit Retail</th>
-        <th class="num">Fees</th>
-        <th class="num">Postage</th>
-        <th>Channel</th>
-        <th>Order Ref</th>
-        <th>Note</th>
-        <th class="num">Line Cost</th>
-        <th class="num">Line Retail</th>
-        <th class="num">Profit</th>
-      </tr>
-    </thead>
-    <tbody id="tbody"></tbody>
-    <tfoot>
-      <tr>
-        <td colspan="3">Totals:</td>
-        <td class="num" id="totQty">0</td>
-        <td class="num"></td>
-        <td class="num"></td>
-        <td class="num" id="totFees">£0.00</td>
-        <td class="num" id="totPostage">£0.00</td>
-        <td></td><td></td><td></td>
-        <td class="num" id="totCost">£0.00</td>
-        <td class="num" id="totRetail">£0.00</td>
-        <td class="num" id="totProfit">£0.00</td>
-      </tr>
-    </tfoot>
-  </table>
-  </main>
 
 <script>
 /* ---------- helpers ---------- */
@@ -314,9 +358,6 @@ async function refreshSales() {
 setDefaultDates();
 fetchSales();
 </script>
-      </div> <!-- /.page -->
 <script src="/js/sidebar.js"></script>
 </body>
-
 </html>
-

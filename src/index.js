@@ -96,6 +96,7 @@ app.get('/quick-add',      (req, res) => res.sendFile(path.join(PUBLIC_DIR, 'qui
 app.get('/refurb',         (req, res) => res.sendFile(path.join(PUBLIC_DIR, 'refurb.html')));
 app.get('/tradein',        (req, res) => res.sendFile(path.join(PUBLIC_DIR, 'tradein.html')));
 app.get('/tradeins',       (req, res) => res.sendFile(path.join(PUBLIC_DIR, 'tradeins.html')));
+app.get('/report-sales',   (req, res) => {res.sendFile(path.join(__dirname, '..', 'public', 'report-sales.html'));});
 
 
 

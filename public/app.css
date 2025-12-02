@@ -272,3 +272,28 @@ body  { margin: 0; }        /* make sure nothing centers the body */
       font-weight: 600;
       background: rgba(255,255,255,0.03);
     }
+
+    /* === New layout to match <div class="wrap"><aside id="sidebar"><main class="page"> === */
+
+.wrap {
+  display: grid;
+  grid-template-columns: 260px minmax(0, 1fr);  /* sidebar | main */
+  min-height: 100vh;
+}
+
+/* The actual sidebar container (the nav HTML is injected inside this) */
+aside#sidebar {
+  background: #0f1218;                 /* deep slate, matches your nav-dark */
+  border-right: 1px solid #1b2130;
+  padding: 16px;
+  position: sticky;
+  top: 0;
+  height: 100vh;
+  overflow: auto;
+}
+
+/* Main content area */
+main.page {
+  padding: 24px 32px 40px;
+  max-width: none;
+}

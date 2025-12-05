@@ -33,12 +33,6 @@ const __dirname  = path.dirname(__filename);
 /* ---------- App ---------- */
 const app = express();
 
-const {
-  getProductByCodePG,
-  createProductPG,
-  adjustQtyPG,
-} = require('./pgProducts');
-
 
 // ----- File uploads for Trade-ins -----
 const uploadDir = path.join(__dirname, '..', 'uploads');

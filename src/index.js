@@ -33,6 +33,13 @@ const __dirname  = path.dirname(__filename);
 /* ---------- App ---------- */
 const app = express();
 
+const {
+  getProductByCodePG,
+  createProductPG,
+  adjustQtyPG,
+} = require('./pgProducts');
+
+
 // ----- File uploads for Trade-ins -----
 const uploadDir = path.join(__dirname, '..', 'uploads');
 if (!fs.existsSync(uploadDir)) {
@@ -323,6 +330,88 @@ app.post('/api/products', async (req, res) => {
     return res.status(400).json({ error: err.message });
   }
 });
+
+// Add or bump eBay product by SKU
+app.post('/api/products/ebay-add', async (req, res) => {
+  try {
+    const {
+      sku,
+      name,
+      barcode,
+      quantity,
+      notes,
+      cost,
+      retail,
+      fees,
+      postage,
+    } = req.body || {};
+
+    const skuNorm = String(sku || '').trim().toUpperCase();
+    if (!skuNorm) {
+      return res.status(400).json({ error: 'SKU is required' });
+    }
+    if (!name) {
+      return res.status(400).json({ error: 'Name is required' });
+    }
+
+    const qtyDelta = Number(quantity || 0) || 0;
+    if (qtyDelta <= 0) {
+      return res.status(400).json({ error: 'Quantity must be > 0' });
+    }
+
+    // See if product already exists by SKU
+    const existing = await getProductByCodePG(skuNorm);
+
+    if (existing) {
+      const oldQty = Number(existing.quantity) || 0;
+
+      // bump quantity by qtyDelta
+      const updated = await adjustQtyPG(existing.id, qtyDelta);
+      const newQty  = Number(updated.quantity) || 0;
+
+      // optionally update descriptive fields if you want latest values to win:
+      // (skip this if you prefer to leave name/cost/etc. as-is)
+      // await pgQuery('UPDATE products SET name = $1, cost = $2, retail = $3, fees = $4, postage = $5, notes = COALESCE($6, notes) WHERE id = $7',
+      //   [name, cost, retail, fees, postage, notes || null, existing.id]);
+
+      return res.json({
+        mode: 'updated',
+        product: updated,
+        oldQty,
+        newQty,
+        delta: qtyDelta,
+      });
+    }
+
+    // No existing product → create a new one
+    const data = {
+      sku: skuNorm,
+      name,
+      barcode: barcode || null,
+      quantity: qtyDelta,
+      notes: notes || null,
+      on_ebay: 1, // this is an eBay item
+      cost: Number(cost || 0) || 0,
+      retail: Number(retail || 0) || 0,
+      fees: Number(fees || 0) || 0,
+      postage: Number(postage || 0) || 0,
+    };
+
+    const created = await createProductPG(data);
+
+    return res.json({
+      mode: 'created',
+      product: created,
+      oldQty: 0,
+      newQty: created.quantity || qtyDelta,
+      delta: qtyDelta,
+    });
+  } catch (err) {
+    console.error('ebay-add failed:', err);
+    res.status(500).json({ error: 'Failed to add / update eBay product' });
+  }
+});
+
 
 /* ---------- API: Refurb items ---------- */
 

@@ -2,39 +2,61 @@
 <html lang="en">
 <head>
   <meta charset="utf-8" />
-  <title>Quick Add Product</title>
+  <title>Add eBay Item</title>
   <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <!-- use shared styles -->
   <link rel="stylesheet" href="/app.css">
   <style>
-    /* page-specific tweaks only */
-    .quick-wrap {
-      max-width: 700px;
+    .panel {
+      background: var(--panel);
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      padding: 16px;
+      margin-top: 16px;
     }
-    .quick-wrap label {
-      display: block;
-      margin-top: 0.75rem;
-      font-weight: 600;
+    .form-grid {
+      display: grid;
+      grid-template-columns: 150px 1fr;
+      gap: 10px 14px;
+      align-items: center;
     }
-    .quick-wrap input {
+    .form-grid input {
       width: 100%;
-      padding: 0.5rem;
-      margin-top: 0.25rem;
       border: 1px solid var(--border);
       border-radius: 6px;
+      padding: .5rem .6rem;
       background: var(--panel);
       color: var(--text);
     }
-    .quick-wrap button {
-      margin-top: 1rem;
+    .form-grid label {
+      font-weight: 600;
     }
-    .quick-wrap pre {
-      background: #111;
-      color: #0f0;
-      padding: 1rem;
-      overflow: auto;
-      border-radius: 8px;
-      border: 1px solid #333;
+    .actions {
+      grid-column: 1 / -1;
+      display: flex;
+      gap: 8px;
+      justify-content: flex-start;
+      margin-top: 8px;
+    }
+    .status {
+      margin-top: 10px;
+      font-size: 14px;
+    }
+    .status.ok { color: #166534; }
+    .status.err { color: #b91c1c; }
+
+    table#changes {
+      width: 100%;
+      border-collapse: collapse;
+      margin-top: 10px;
+    }
+    #changes th, #changes td {
+      border: 1px solid var(--border);
+      padding: 6px 8px;
+      font-size: 13px;
+    }
+    #changes th {
+      background: var(--head);
+      text-align: left;
     }
   </style>
 </head>
@@ -43,86 +65,171 @@
     <aside id="sidebar"></aside>
 
     <main class="page">
-      <div class="quick-wrap">
-        <h1>Quick Add Product</h1>
-        <p>Fill the fields and click Add. This posts directly to <code>/api/products</code>.</p>
+      <h1>Add eBay Item</h1>
+      <p>Use this for eBay SKUs. If the SKU already exists, the quantity will be increased instead of creating a duplicate.</p>
 
-        <label>SKU
-          <input id="sku" value="DEMO-4001" />
-        </label>
+      <div class="panel">
+        <form id="ebayForm" autocomplete="off">
+          <div class="form-grid">
+            <label for="sku">SKU</label>
+            <input id="sku" required />
 
-        <label>Name
-          <input id="name" value="Test Widget" />
-        </label>
+            <label for="name">Name</label>
+            <input id="name" required />
 
-        <label>Barcode
-          <input id="barcode" value="5012345678905" />
-        </label>
+            <label for="barcode">Barcode</label>
+            <input id="barcode" />
 
-        <label>Quantity
-          <input id="quantity" type="number" value="5" />
-        </label>
+            <label for="quantity">Quantity to add</label>
+            <input id="quantity" type="number" min="1" value="1" required />
 
-        <label>Notes
-          <input id="notes" value="demo item" />
-        </label>
+            <label for="cost">Cost</label>
+            <input id="cost" type="number" step="0.01" />
 
-        <label>Cost
-          <input id="cost" type="number" step="0.01" value="3.50" />
-        </label>
+            <label for="retail">Retail</label>
+            <input id="retail" type="number" step="0.01" />
 
-        <label>Retail
-          <input id="retail" type="number" step="0.01" value="9.99" />
-        </label>
+            <label for="fees">Fees</label>
+            <input id="fees" type="number" step="0.01" />
 
-        <label>Fees
-          <input id="fees" type="number" step="0.01" value="0.50" />
-        </label>
+            <label for="postage">Postage</label>
+            <input id="postage" type="number" step="0.01" />
 
-        <label>Postage
-          <input id="postage" type="number" step="0.01" value="2.99" />
-        </label>
+            <label for="notes">Notes</label>
+            <input id="notes" />
 
-        <button id="addBtn">Add</button>
+            <div class="actions">
+              <button type="submit">Add / Update</button>
+              <button type="button" id="resetBtn">Clear form</button>
+            </div>
+          </div>
+        </form>
 
-        <h2>Result</h2>
-        <pre id="out">Waiting…</pre>
+        <div id="status" class="status"></div>
+      </div>
+
+      <div class="panel" style="margin-top:20px;">
+        <h2 style="margin-top:0;">eBay quantity changes this session</h2>
+        <p style="font-size:13px; color:var(--muted); margin-top:4px;">
+          Use this list to update your eBay listings. It resets when you reload the page.
+        </p>
+        <table id="changes">
+          <thead>
+            <tr>
+              <th>SKU</th>
+              <th>Name</th>
+              <th>Old Qty</th>
+              <th>+ Added</th>
+              <th>New Qty</th>
+              <th>When</th>
+            </tr>
+          </thead>
+          <tbody id="changesBody">
+            <tr><td colspan="6" style="padding:8px; text-align:center; color:var(--muted);">
+              No changes yet.
+            </td></tr>
+          </tbody>
+        </table>
       </div>
     </main>
   </div>
 
   <script>
-    async function addProduct() {
+    const changes = []; // session log
+
+    function renderChanges() {
+      const tbody = document.getElementById('changesBody');
+      if (!changes.length) {
+        tbody.innerHTML =
+          '<tr><td colspan="6" style="padding:8px; text-align:center; color:var(--muted);">No changes yet.</td></tr>';
+        return;
+      }
+
+      tbody.innerHTML = changes.map(ch => `
+        <tr>
+          <td>${ch.sku}</td>
+          <td>${ch.name}</td>
+          <td>${ch.oldQty}</td>
+          <td>${ch.delta}</td>
+          <td>${ch.newQty}</td>
+          <td>${ch.time}</td>
+        </tr>
+      `).join('');
+    }
+
+    async function handleSubmit(ev) {
+      ev.preventDefault();
+      const statusEl = document.getElementById('status');
+      statusEl.textContent = '';
+      statusEl.className = 'status';
+
       const body = {
         sku: document.getElementById('sku').value.trim(),
         name: document.getElementById('name').value.trim(),
-        barcode: document.getElementById('barcode').value.trim(),
+        barcode: document.getElementById('barcode').value.trim() || null,
         quantity: Number(document.getElementById('quantity').value || 0),
-        notes: document.getElementById('notes').value.trim(),
+        notes: document.getElementById('notes').value.trim() || null,
         cost: Number(document.getElementById('cost').value || 0),
         retail: Number(document.getElementById('retail').value || 0),
         fees: Number(document.getElementById('fees').value || 0),
         postage: Number(document.getElementById('postage').value || 0),
-        onEbay: false
       };
 
-      const res = await fetch('/api/products', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(body)
-      });
-
-      const text = await res.text();
-      const out = document.getElementById('out');
-      out.textContent = text;
-
       try {
-        const json = JSON.parse(text);
-        out.textContent = JSON.stringify(json, null, 2);
-      } catch {}
+        const res = await fetch('/api/products/ebay-add', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(body),
+        });
+
+        const dataText = await res.text();
+        let data;
+        try { data = JSON.parse(dataText); } catch {
+          throw new Error(dataText || res.statusText);
+        }
+
+        if (!res.ok || data.error) {
+          throw new Error(data.error || res.statusText);
+        }
+
+        const mode = data.mode;
+        const p    = data.product;
+        const msg  = mode === 'updated'
+          ? `Updated existing SKU ${p.sku}: quantity ${data.oldQty} → ${data.newQty} (added ${data.delta}).`
+          : `Created new SKU ${p.sku} with quantity ${data.newQty}.`;
+
+        statusEl.textContent = msg;
+        statusEl.classList.add('ok');
+
+        // Add to session log so you can adjust on eBay later
+        changes.unshift({
+          sku: p.sku,
+          name: p.name || '',
+          oldQty: data.oldQty,
+          newQty: data.newQty,
+          delta: data.delta,
+          time: new Date().toLocaleTimeString(),
+        });
+        renderChanges();
+
+      } catch (err) {
+        console.error(err);
+        statusEl.textContent = 'Error: ' + err.message;
+        statusEl.classList.add('err');
+      }
     }
 
-    document.getElementById('addBtn').addEventListener('click', addProduct);
+    document.getElementById('ebayForm').addEventListener('submit', handleSubmit);
+
+    document.getElementById('resetBtn').addEventListener('click', () => {
+      document.getElementById('ebayForm').reset();
+      document.getElementById('quantity').value = 1;
+      document.getElementById('status').textContent = '';
+      document.getElementById('status').className = 'status';
+      document.getElementById('sku').focus();
+    });
+
+    renderChanges();
   </script>
   <script src="/js/sidebar.js"></script>
 </body>

@@ -20,6 +20,7 @@ import {
   setQtyPG,
   insertSalePG,
   listSalesPG,
+  getNextSkuForCategoryPG, 
 } from './pgProducts.js';
 import fs from 'node:fs';
 import multer from 'multer';
@@ -352,6 +353,97 @@ app.post('/api/products/ebay-add', async (req, res) => {
     if (qtyDelta <= 0) {
       return res.status(400).json({ error: 'Quantity must be > 0' });
     }
+
+    // Smart add product (auto SKU or bump quantity)
+app.post('/api/products/add-smart', async (req, res) => {
+  try {
+    const {
+      sku,
+      category,
+      name,
+      quantity = 0,
+      notes = null,
+      onEbay = false,
+      cost = 0,
+      retail = 0,
+      fees = 0,
+      postage = 0
+    } = req.body || {};
+
+    const qtyDelta = Number(quantity || 0) || 0;
+    if (!name) return res.status(400).json({ error: 'name is required' });
+    if (qtyDelta <= 0) return res.status(400).json({ error: 'quantity must be > 0' });
+
+    // 1) SKU provided → try update
+    if (sku) {
+      const skuNorm = String(sku).trim().toUpperCase();
+      const existing = await getProductByCodePG(skuNorm);
+
+      if (existing) {
+        const oldQty = Number(existing.quantity) || 0;
+        const updated = await adjustQtyPG(existing.id, qtyDelta);
+
+        return res.json({
+          mode: 'updated',
+          sku: existing.sku,
+          oldQty,
+          newQty: updated.quantity,
+          delta: qtyDelta
+        });
+      }
+
+      // SKU provided but not found → create
+      const created = await createProductPG({
+        sku: skuNorm,
+        name,
+        notes,
+        on_ebay: onEbay ? 1 : 0,
+        cost,
+        retail,
+        fees,
+        postage,
+        quantity: qtyDelta
+      });
+
+      return res.json({
+        mode: 'created',
+        sku: created.sku,
+        newQty: created.quantity
+      });
+    }
+
+    // 2) No SKU → auto assign from category
+    const prefix = String(category || '').trim().toUpperCase();
+    if (!prefix) {
+      return res.status(400).json({ error: 'category required when sku is empty' });
+    }
+
+    const newSku = await getNextSkuForCategoryPG(prefix);
+
+    const created = await createProductPG({
+      sku: newSku,
+      name,
+      notes,
+      on_ebay: onEbay ? 1 : 0,
+      cost,
+      retail,
+      fees,
+      postage,
+      quantity: qtyDelta
+    });
+
+    return res.json({
+      mode: 'created',
+      sku: created.sku,
+      newQty: created.quantity
+    });
+
+  } catch (err) {
+    console.error('add-smart failed:', err);
+    res.status(500).json({ error: err.message });
+  }
+});
+
 
     // See if product already exists by SKU
     const existing = await getProductByCodePG(skuNorm);

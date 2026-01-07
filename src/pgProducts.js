@@ -181,3 +181,27 @@ export async function stockInPG({ code, delta }) {
   // If no product matched that SKU, rows will be empty
   return rows[0] || null;
 }
+
+export async function getNextSkuForCategoryPG(prefix) {
+  const p = String(prefix || '').trim().toUpperCase();
+  if (!p) throw new Error('Category prefix required');
+
+  const { rows } = await pgQuery(
+    `
+    SELECT sku
+    FROM products
+    WHERE sku LIKE $1
+    ORDER BY sku DESC
+    LIMIT 1
+    `,
+    [`${p}%`]
+  );
+
+  if (!rows.length) return `${p}001`;
+
+  const lastSku = rows[0].sku;        // e.g. A023
+  const lastNum = parseInt(lastSku.slice(1), 10) || 0;
+  const nextNum = lastNum + 1;
+
+  return `${p}${String(nextNum).padStart(3, '0')}`;
+}

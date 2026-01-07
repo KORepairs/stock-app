@@ -4,7 +4,7 @@ import { pgQuery } from './pg.js';
 // List products (used by /api/products)
 export async function listProductsPG() {
   const { rows } = await pgQuery(
-    `SELECT id, sku, name, quantity, notes, on_ebay,
+    `SELECT id, sku, code, name, quantity, notes, on_ebay,
             retail, cost, fees, postage
      FROM products
      ORDER BY sku ASC`
@@ -15,7 +15,7 @@ export async function listProductsPG() {
 // Get single product by id
 export async function getProductByIdPG(id) {
   const { rows } = await pgQuery(
-    `SELECT id, sku, name, quantity, notes, on_ebay,
+    `SELECT id, sku, code, name, quantity, notes, on_ebay,
             retail, cost, fees, postage
      FROM products
      WHERE id = $1`,
@@ -28,6 +28,7 @@ export async function getProductByIdPG(id) {
 export async function createProductPG(data) {
   const {
     sku,
+    code = null,
     name,
     notes,
     on_ebay,
@@ -40,26 +41,32 @@ export async function createProductPG(data) {
 
   const { rows } = await pgQuery(
     `INSERT INTO products
-       (sku, name, notes, on_ebay, cost, retail, fees, postage, quantity)
+       (sku, code, name, notes, on_ebay, cost, retail, fees, postage, quantity)
      VALUES
        ($1,  $2,   $3,   $4,      $5,   $6,     $7,   $8,      $9)
-     RETURNING id, sku, name, quantity, notes, on_ebay,
+     RETURNING id, sku, code, name, quantity, notes, on_ebay,
                retail, cost, fees, postage`,
-    [sku, name, notes, on_ebay, cost, retail, fees, postage, quantity]
+    [sku, code, name, notes, on_ebay, cost, retail, fees, postage, quantity]
   );
 
   return rows[0];
 }
 
-// Look up a product by SKU / barcode (we treat them the same for now)
+// Look up a product by scanned code OR SKU
 export async function getProductByCodePG(code) {
   const codeNorm = String(code || '').trim().toUpperCase();
   if (!codeNorm) return null;
 
   const { rows } = await pgQuery(
-    'SELECT * FROM products WHERE sku = $1',
+    `
+    SELECT *
+    FROM products
+    WHERE code = $1 OR sku = $1
+    LIMIT 1
+    `,
     [codeNorm]
   );
+
   return rows[0] || null;
 }
 
@@ -190,11 +197,11 @@ export async function getNextSkuForCategoryPG(prefix) {
     `
     SELECT sku
     FROM products
-    WHERE sku LIKE $1
-    ORDER BY sku DESC
+    WHERE sku ~ $1
+    ORDER BY CAST(SUBSTRING(sku FROM 2) AS INT) DESC
     LIMIT 1
     `,
-    [`${p}%`]
+    [`^${p}[0-9]+$`]
   );
 
   if (!rows.length) return `${p}001`;
@@ -205,3 +212,4 @@ export async function getNextSkuForCategoryPG(prefix) {
 
   return `${p}${String(nextNum).padStart(3, '0')}`;
 }
+

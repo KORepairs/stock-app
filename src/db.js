@@ -7,6 +7,7 @@ export async function initDb() {
     CREATE TABLE IF NOT EXISTS products (
       id        SERIAL PRIMARY KEY,
       sku       TEXT UNIQUE NOT NULL,
+      code      TEXT,
       name      TEXT NOT NULL,
       notes     TEXT,
       on_ebay   INTEGER DEFAULT 0,
@@ -17,6 +18,10 @@ export async function initDb() {
       quantity  INTEGER DEFAULT 0
     );
   `);
+
+  await pgQuery(`ALTER TABLE products ADD COLUMN IF NOT EXISTS code TEXT;`);
+  await pgQuery(`CREATE UNIQUE INDEX IF NOT EXISTS products_code_uq ON products(code) WHERE code IS NOT NULL;`);
+
 
   // Sales table
   await pgQuery(`

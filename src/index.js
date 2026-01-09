@@ -99,6 +99,10 @@ app.get('/refurb',         (req, res) => res.sendFile(path.join(PUBLIC_DIR, 'ref
 app.get('/tradein',        (req, res) => res.sendFile(path.join(PUBLIC_DIR, 'tradein.html')));
 app.get('/tradeins',       (req, res) => res.sendFile(path.join(PUBLIC_DIR, 'tradeins.html')));
 app.get('/report-sales',   (req, res) => {res.sendFile(path.join(__dirname, '..', 'public', 'report-sales.html'));});
+app.get('/inventory-add', (req, res) =>
+  res.sendFile(path.join(PUBLIC_DIR, 'inventory-add.html'))
+);
+
 
 
 
@@ -494,7 +498,7 @@ app.put('/api/refurb/:id', async (req, res) => {
     retail,
     notes,
 
-    
+
     sku, // allow editing SKU from the table
   } = req.body || {};
 

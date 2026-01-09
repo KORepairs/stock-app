@@ -1,0 +1,151 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <title>Inventory Add</title>
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <link rel="stylesheet" href="/app.css">
+  <style>
+    .card{background:var(--panel);border:1px solid var(--border);border-radius:12px;padding:14px;margin-top:12px}
+    .grid{display:grid;grid-template-columns:180px 1fr;gap:12px 16px;align-items:center}
+    .grid input,.grid select{width:100%;padding:.55rem .65rem;border:1px solid var(--border);border-radius:8px;background:var(--panel);color:var(--text)}
+    .actions{display:flex;gap:10px;flex-wrap:wrap;margin-top:12px}
+    .log{white-space:pre-wrap;background:#111;color:#0f0;border-radius:10px;padding:12px;min-height:60px}
+    .hint{color:var(--muted);font-size:13px;margin-top:6px}
+  </style>
+</head>
+<body>
+  <div class="wrap">
+    <aside id="sidebar"></aside>
+
+    <main class="page">
+      <h1>Inventory Add</h1>
+      <p class="hint">
+        If SKU already exists, it will increase quantity and tell you the SKU to update on eBay.
+        If SKU is blank, pick a category letter and it will auto-assign the next SKU.
+      </p>
+
+      <div class="card">
+        <div class="grid">
+          <label>Known SKU (optional)</label>
+          <input id="sku" placeholder="Leave blank to auto-assign">
+
+          <label>Category (required if SKU blank)</label>
+          <select id="category">
+            <option value="">-- choose --</option>
+            <optgroup label="eBay prefixes">
+              <option>A</option><option>B</option><option>C</option><option>D</option><option>E</option>
+              <option>F</option><option>G</option><option>P</option><option>R</option><option>S</option>
+            </optgroup>
+            <optgroup label="Refurb / Shop prefixes">
+              <option>H</option><option>L</option><option>M</option><option>V</option>
+            </optgroup>
+          </select>
+
+          <label>Name</label>
+          <input id="name" placeholder="e.g. iPhone 14 Pro Max 256GB">
+
+          <label>Quantity to add</label>
+          <input id="quantity" type="number" min="1" step="1" value="1">
+
+          <label>Notes (optional)</label>
+          <input id="notes" placeholder="optional">
+
+          <label>On eBay?</label>
+          <select id="onEbay">
+            <option value="true">Yes</option>
+            <option value="false" selected>No</option>
+          </select>
+
+          <label>Cost</label>
+          <input id="cost" type="number" step="0.01" value="0">
+
+          <label>Retail</label>
+          <input id="retail" type="number" step="0.01" value="0">
+
+          <label>Fees</label>
+          <input id="fees" type="number" step="0.01" value="0">
+
+          <label>Postage</label>
+          <input id="postage" type="number" step="0.01" value="0">
+        </div>
+
+        <div class="actions">
+          <button id="addBtn">Add / Update</button>
+          <button id="clearBtn" type="button">Clear</button>
+        </div>
+      </div>
+
+      <div class="card">
+        <h3 style="margin:0 0 8px">Result</h3>
+        <div id="out" class="log">Waiting…</div>
+      </div>
+    </main>
+  </div>
+
+  <script>
+    const out = document.getElementById('out');
+
+    function log(obj) {
+      out.textContent = typeof obj === 'string' ? obj : JSON.stringify(obj, null, 2);
+    }
+
+    document.getElementById('addBtn').addEventListener('click', async () => {
+      const body = {
+        sku: document.getElementById('sku').value.trim() || null,
+        category: document.getElementById('category').value.trim() || null,
+        name: document.getElementById('name').value.trim(),
+        quantity: Number(document.getElementById('quantity').value || 0),
+        notes: document.getElementById('notes').value.trim() || null,
+        onEbay: document.getElementById('onEbay').value === 'true',
+        cost: Number(document.getElementById('cost').value || 0),
+        retail: Number(document.getElementById('retail').value || 0),
+        fees: Number(document.getElementById('fees').value || 0),
+        postage: Number(document.getElementById('postage').value || 0),
+      };
+
+      try {
+        const res = await fetch('/api/products/add-smart', {
+          method: 'POST',
+          headers: {'Content-Type':'application/json'},
+          body: JSON.stringify(body)
+        });
+
+        const text = await res.text();
+        let json;
+        try { json = JSON.parse(text); } catch {}
+        if (!res.ok) {
+          log(json?.error || text || 'Error');
+          return;
+        }
+
+        // Pretty message
+        if (json.mode === 'updated') {
+          log({
+            message: `UPDATED: ${json.sku} qty ${json.oldQty} → ${json.newQty} (+${json.delta})`,
+            ...json
+          });
+        } else {
+          log({
+            message: `CREATED: New SKU assigned ${json.sku} (qty ${json.newQty})`,
+            ...json
+          });
+        }
+      } catch (e) {
+        log('Failed: ' + (e.message || e));
+      }
+    });
+
+    document.getElementById('clearBtn').addEventListener('click', () => {
+      ['sku','name','notes'].forEach(id => document.getElementById(id).value = '');
+      document.getElementById('quantity').value = 1;
+      document.getElementById('category').value = '';
+      document.getElementById('onEbay').value = 'false';
+      ['cost','retail','fees','postage'].forEach(id => document.getElementById(id).value = 0);
+      log('Cleared.');
+    });
+  </script>
+
+  <script src="/js/sidebar.js"></script>
+</body>
+</html>

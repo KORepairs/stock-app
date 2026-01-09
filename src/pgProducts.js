@@ -40,14 +40,15 @@ export async function createProductPG(data) {
   } = data;
 
   const { rows } = await pgQuery(
-    `INSERT INTO products
-       (sku, code, name, notes, on_ebay, cost, retail, fees, postage, quantity)
-     VALUES
-       ($1,  $2,   $3,   $4,      $5,   $6,     $7,   $8,      $9)
-     RETURNING id, sku, code, name, quantity, notes, on_ebay,
-               retail, cost, fees, postage`,
-    [sku, code, name, notes, on_ebay, cost, retail, fees, postage, quantity]
-  );
+  `INSERT INTO products
+     (sku, code, name, notes, on_ebay, cost, retail, fees, postage, quantity)
+   VALUES
+     ($1,  $2,   $3,   $4,   $5,      $6,   $7,     $8,   $9,      $10)
+   RETURNING id, sku, code, name, quantity, notes, on_ebay,
+             retail, cost, fees, postage`,
+  [sku, code, name, notes, on_ebay, cost, retail, fees, postage, quantity]
+);
+
 
   return rows[0];
 }

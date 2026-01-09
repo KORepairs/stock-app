@@ -1,154 +1,119 @@
 <!doctype html>
 <html lang="en">
 <head>
-  <meta charset="utf-8">
+  <meta charset="utf-8" />
   <title>Inventory Add</title>
-  <meta name="viewport" content="width=device-width,initial-scale=1">
-  <link rel="stylesheet" href="/app.css">
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <link rel="stylesheet" href="/app.css" />
   <style>
-    .card{background:var(--panel);border:1px solid var(--border);border-radius:12px;padding:14px;margin-top:12px}
-    .grid{display:grid;grid-template-columns:180px 1fr;gap:12px 16px;align-items:center}
-    .grid input,.grid select{width:100%;padding:.55rem .65rem;border:1px solid var(--border);border-radius:8px;background:var(--panel);color:var(--text)}
-    .actions{display:flex;gap:10px;flex-wrap:wrap;margin-top:12px}
-    .log{white-space:pre-wrap;background:#111;color:#0f0;border-radius:10px;padding:12px;min-height:60px}
-    .hint{color:var(--muted);font-size:13px;margin-top:6px}
+    .panel{background:var(--panel);border:1px solid var(--border);border-radius:12px;padding:14px}
+    .log{background:#111;color:#0f0;border-radius:8px;padding:10px;min-height:44px;white-space:pre-wrap}
+    .toolbar{display:flex;gap:10px;align-items:center;flex-wrap:wrap;margin:12px 0}
   </style>
 </head>
+
 <body>
   <div class="wrap">
     <aside id="sidebar"></aside>
 
     <main class="page">
       <h1>Inventory Add</h1>
-      <p class="hint">
-        If SKU already exists, it will increase quantity and tell you the SKU to update on eBay.
-        If SKU is blank, pick a category letter and it will auto-assign the next SKU.
+      <p style="color:#666; margin-top:0">
+        Enter a part number. If it already exists, quantity will increase and it will tell you the SKU.
+        If it’s new, it will create a new SKU in the selected category.
       </p>
 
-      <div class="card">
-        <div class="grid">
-          <label>Known SKU (optional)</label>
-          <input id="sku" placeholder="Leave blank to auto-assign">
-
-          <label>Category (required if SKU blank)</label>
+      <div class="panel">
+        <div class="form-grid">
+          <label for="category">Category</label>
           <select id="category">
-            <option value="">-- choose --</option>
-            <optgroup label="eBay prefixes">
-              <option>A</option><option>B</option><option>C</option><option>D</option><option>E</option>
-              <option>F</option><option>G</option><option>P</option><option>R</option><option>S</option>
-            </optgroup>
-            <optgroup label="Refurb / Shop prefixes">
-              <option>H</option><option>L</option><option>M</option><option>V</option>
-            </optgroup>
+            <option value="A">A</option>
+            <option value="B">B</option>
+            <option value="F">F</option>
+            <option value="G">G</option>
+            <option value="R">R</option>
+            <option value="S">S</option>
           </select>
 
-          <label>Part Number (required)
-          <input id="code" placeholder="e.g. AM001EF590">
-          </label>
+          <label for="code">Part Number</label>
+          <input id="code" type="text" placeholder="e.g. AM001EF590" />
 
-          <label>Description (optional)
-          <input id="name" placeholder="e.g. iPhone 11 charging port flex">
-          </label>
+          <label for="quantity">Quantity to add</label>
+          <input id="quantity" type="number" value="1" min="1" />
 
+          <label for="notes">Notes</label>
+          <input id="notes" type="text" placeholder="optional" />
 
-          <label>Quantity to add</label>
-          <input id="quantity" type="number" min="1" step="1" value="1">
-
-          <label>Notes (optional)</label>
-          <input id="notes" placeholder="optional">
-
-          <label>On eBay?</label>
-          <select id="onEbay">
-            <option value="true">Yes</option>
-            <option value="false" selected>No</option>
-          </select>
-
-          <label>Cost</label>
-          <input id="cost" type="number" step="0.01" value="0">
-
-          <label>Retail</label>
-          <input id="retail" type="number" step="0.01" value="0">
-
-          <label>Fees</label>
-          <input id="fees" type="number" step="0.01" value="0">
-
-          <label>Postage</label>
-          <input id="postage" type="number" step="0.01" value="0">
-        </div>
-
-        <div class="actions">
-          <button id="addBtn">Add / Update</button>
-          <button id="clearBtn" type="button">Clear</button>
+          <div class="full">
+            <label></label>
+            <div class="row">
+              <button id="submitBtn">Add / Update</button>
+              <button id="clearBtn" type="button">Clear</button>
+            </div>
+          </div>
         </div>
       </div>
 
-      <div class="card">
+      <div class="panel" style="margin-top:14px">
         <h3 style="margin:0 0 8px">Result</h3>
-        <div id="out" class="log">Waiting…</div>
+        <pre class="log" id="out">Waiting…</pre>
       </div>
     </main>
   </div>
 
   <script>
-    const out = document.getElementById('out');
+    const $ = (s) => document.querySelector(s);
 
-    function log(obj) {
-      out.textContent = typeof obj === 'string' ? obj : JSON.stringify(obj, null, 2);
+    function show(obj) {
+      $('#out').textContent = typeof obj === 'string' ? obj : JSON.stringify(obj, null, 2);
     }
 
-    document.getElementById('addBtn').addEventListener('click', async () => {
-      const body = {
-        sku: document.getElementById('sku').value.trim() || null,
-        category: document.getElementById('category').value.trim() || null,
-        name: document.getElementById('name').value.trim(),
-        quantity: Number(document.getElementById('quantity').value || 0),
-        notes: document.getElementById('notes').value.trim() || null,
-        onEbay: document.getElementById('onEbay').value === 'true',
-        cost: Number(document.getElementById('cost').value || 0),
-        retail: Number(document.getElementById('retail').value || 0),
-        fees: Number(document.getElementById('fees').value || 0),
-        postage: Number(document.getElementById('postage').value || 0),
+    async function addSmart() {
+      const payload = {
+        category: $('#category').value,
+        code: $('#code').value.trim(),              // ✅ MUST be called "code"
+        quantity: Number($('#quantity').value || 0),
+        notes: $('#notes').value.trim() || null,
+        onEbay: false
       };
+
+      if (!payload.code) {
+        show('Please enter a Part Number.');
+        return;
+      }
 
       try {
         const res = await fetch('/api/products/add-smart', {
           method: 'POST',
-          headers: {'Content-Type':'application/json'},
-          body: JSON.stringify(body)
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(payload)
         });
 
         const text = await res.text();
         let json;
-        try { json = JSON.parse(text); } catch {}
-        if (!res.ok) {
-          log(json?.error || text || 'Error');
-          return;
-        }
+        try { json = JSON.parse(text); } catch { json = { raw: text }; }
 
-        // Pretty message
-        if (json.mode === 'updated') {
-          log({
-            message: `UPDATED: ${json.sku} qty ${json.oldQty} → ${json.newQty} (+${json.delta})`,
-            ...json
-          });
-        } else {
-          log({
-            message: `CREATED: New SKU assigned ${json.sku} (qty ${json.newQty})`,
-            ...json
-          });
+        show(json);
+
+        // Optional: after success, clear fields and keep category
+        if (res.ok) {
+          $('#code').value = '';
+          $('#quantity').value = 1;
+          $('#notes').value = '';
+          $('#code').focus();
         }
-      } catch (e) {
-        log('Failed: ' + (e.message || e));
+      } catch (err) {
+        show('ERROR: ' + err.message);
       }
-    });
+    }
 
-    document.getElementById('clearBtn').addEventListener('click', () => {
-      ['sku','name','notes'].forEach(id => document.getElementById(id).value = '');
-      document.getElementById('quantity').value = 1;
-      document.getElementById('category').value = '';
-      document.getElementById('onEbay').value = 'false';
-      ['cost','retail','fees','postage'].forEach(id => document.getElementById(id).value = 0);
-      log('Cleared.');
+    $('#submitBtn').addEventListener('click', addSmart);
+    $('#clearBtn').addEventListener('click', () => {
+      $('#code').value = '';
+      $('#quantity').value = 1;
+      $('#notes').value = '';
+      $('#code').focus();
+      show('Waiting…');
     });
   </script>
 

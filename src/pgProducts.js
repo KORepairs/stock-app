@@ -202,15 +202,17 @@ export async function getNextSkuForCategoryPG(prefix) {
     ORDER BY CAST(SUBSTRING(sku FROM 2) AS INT) DESC
     LIMIT 1
     `,
-    [`^${p}[0-9]+$`]
+    [`^${p}[0-9]{4}$`]   // ONLY 4-digit SKUs like A0001
   );
 
-  if (!rows.length) return `${p}001`;
+  if (!rows.length) return `${p}0001`;
 
-  const lastSku = rows[0].sku;        // e.g. A023
+  const lastSku = rows[0].sku;        // e.g. A0001
   const lastNum = parseInt(lastSku.slice(1), 10) || 0;
   const nextNum = lastNum + 1;
 
-  return `${p}${String(nextNum).padStart(3, '0')}`;
+  return `${p}${String(nextNum).padStart(4, '0')}`; // 4 digits
 }
+
+
 

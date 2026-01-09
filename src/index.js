@@ -331,12 +331,13 @@ app.post('/api/products', async (req, res) => {
 });
 
 
-    // Smart add product (auto SKU or bump quantity)
+    // Smart add product (AUTO SKU by category OR bump qty if code already exists)
 app.post('/api/products/add-smart', async (req, res) => {
   try {
     const {
-      sku,
-      category,
+      code,          // << the "inventory code" you type/scan (Excel duplicate checker)
+      sku,           // optional: if you already know the SKU
+      category,      // required when creating a NEW SKU
       name,
       quantity = 0,
       notes = null,
@@ -351,10 +352,12 @@ app.post('/api/products/add-smart', async (req, res) => {
     if (!name) return res.status(400).json({ error: 'name is required' });
     if (qtyDelta <= 0) return res.status(400).json({ error: 'quantity must be > 0' });
 
-    // 1) SKU provided → try update
-    if (sku) {
-      const skuNorm = String(sku).trim().toUpperCase();
-      const existing = await getProductByCodePG(skuNorm);
+    const codeNorm = code ? String(code).trim().toUpperCase() : '';
+    const skuNorm  = sku  ? String(sku).trim().toUpperCase()  : '';
+
+    // 1) If CODE is provided, use it to detect duplicates (Excel-style)
+    if (codeNorm) {
+      const existing = await getProductByCodePG(codeNorm); // looks up by code OR sku
 
       if (existing) {
         const oldQty = Number(existing.quantity) || 0;
@@ -362,16 +365,25 @@ app.post('/api/products/add-smart', async (req, res) => {
 
         return res.json({
           mode: 'updated',
-          sku: existing.sku,
+          sku: existing.sku,      // << this is what you need to update on eBay / label item
+          code: existing.code,
           oldQty,
           newQty: updated.quantity,
           delta: qtyDelta
         });
       }
 
-      // SKU provided but not found → create
+      // CODE provided but not found -> create NEW SKU from category
+      const prefix = String(category || '').trim().toUpperCase();
+      if (!prefix) {
+        return res.status(400).json({ error: 'category required when code is new' });
+      }
+
+      const newSku = await getNextSkuForCategoryPG(prefix);
+
       const created = await createProductPG({
-        sku: skuNorm,
+        sku: newSku,
+        code: codeNorm,           // << store the scanned/typed code
         name,
         notes,
         on_ebay: onEbay ? 1 : 0,
@@ -385,20 +397,60 @@ app.post('/api/products/add-smart', async (req, res) => {
       return res.json({
         mode: 'created',
         sku: created.sku,
+        code: created.code,
         newQty: created.quantity
       });
     }
 
-    // 2) No SKU → auto assign from category
-    const prefix = String(category || '').trim().toUpperCase();
-    if (!prefix) {
-      return res.status(400).json({ error: 'category required when sku is empty' });
+    // 2) No CODE provided - fall back to SKU flow (optional)
+    if (skuNorm) {
+      const existing = await getProductByCodePG(skuNorm);
+
+      if (existing) {
+        const oldQty = Number(existing.quantity) || 0;
+        const updated = await adjustQtyPG(existing.id, qtyDelta);
+
+        return res.json({
+          mode: 'updated',
+          sku: existing.sku,
+          code: existing.code,
+          oldQty,
+          newQty: updated.quantity,
+          delta: qtyDelta
+        });
+      }
+
+      // SKU provided but not found -> create (no code)
+      const created = await createProductPG({
+        sku: skuNorm,
+        code: null,
+        name,
+        notes,
+        on_ebay: onEbay ? 1 : 0,
+        cost,
+        retail,
+        fees,
+        postage,
+        quantity: qtyDelta
+      });
+
+      return res.json({
+        mode: 'created',
+        sku: created.sku,
+        code: created.code,
+        newQty: created.quantity
+      });
     }
+
+    // 3) Neither code nor sku -> must auto-create with category (no duplicate detection possible)
+    const prefix = String(category || '').trim().toUpperCase();
+    if (!prefix) return res.status(400).json({ error: 'category required when code & sku are empty' });
 
     const newSku = await getNextSkuForCategoryPG(prefix);
 
     const created = await createProductPG({
       sku: newSku,
+      code: null,
       name,
       notes,
       on_ebay: onEbay ? 1 : 0,
@@ -412,6 +464,7 @@ app.post('/api/products/add-smart', async (req, res) => {
     return res.json({
       mode: 'created',
       sku: created.sku,
+      code: created.code,
       newQty: created.quantity
     });
 

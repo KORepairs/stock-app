@@ -365,13 +365,9 @@ app.post('/api/products/add-smart', async (req, res) => {
       const updated = await adjustQtyPG(existing.id, qtyDelta);
 
       return res.json({
-        mode: 'updated',
-        sku: existing.sku,
-        code: existing.code,
-        oldQty,
-        newQty: updated.quantity,
-        message: `UPDATED: ${existing.sku} (part ${existing.code})`
+        message: `UPDATED: SKU ${existing.sku} (qty ${oldQty} → ${updated.quantity}) ✅ update eBay listing`
       });
+
     }
 
     // 2️⃣ No duplicate → auto-assign next SKU from category
@@ -396,12 +392,9 @@ app.post('/api/products/add-smart', async (req, res) => {
     });
 
     return res.json({
-      mode: 'created',
-      sku: created.sku,
-      code: created.code,
-      newQty: created.quantity,
-      message: `CREATED: New SKU ${created.sku} (part ${created.code})`
+      message: `CREATED: New SKU ${created.sku} (qty ${created.quantity}) ✅ label the item`
     });
+
 
   } catch (err) {
     console.error('add-smart failed:', err);

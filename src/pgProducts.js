@@ -214,5 +214,37 @@ export async function getNextSkuForCategoryPG(prefix) {
   return `${p}${String(nextNum).padStart(4, '0')}`; // 4 digits
 }
 
+export async function logEbayUpdatePG({ sku, code = null, delta, oldQty, newQty, note = null }) {
+  const { rows } = await pgQuery(
+    `INSERT INTO ebay_updates (sku, code, delta, old_qty, new_qty, note)
+     VALUES ($1,$2,$3,$4,$5,$6)
+     RETURNING *`,
+    [sku, code, Number(delta) || 0, Number(oldQty) || 0, Number(newQty) || 0, note]
+  );
+  return rows[0];
+}
+
+export async function listEbayUpdatesPG({ done = false } = {}) {
+  const { rows } = await pgQuery(
+    `SELECT * FROM ebay_updates
+     WHERE done = $1
+     ORDER BY created_at DESC`,
+    [done]
+  );
+  return rows;
+}
+
+export async function setEbayUpdateDonePG(id, done) {
+  const { rows } = await pgQuery(
+    `UPDATE ebay_updates
+     SET done = $2
+     WHERE id = $1
+     RETURNING *`,
+    [Number(id), !!done]
+  );
+  return rows[0] || null;
+}
+
+
 
 

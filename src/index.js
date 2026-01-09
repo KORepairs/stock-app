@@ -20,7 +20,11 @@ import {
   setQtyPG,
   insertSalePG,
   listSalesPG,
-  getNextSkuForCategoryPG, 
+  getNextSkuForCategoryPG,
+  logEbayUpdatePG,
+  listEbayUpdatesPG,
+  setEbayUpdateDonePG,
+
 } from './pgProducts.js';
 import fs from 'node:fs';
 import multer from 'multer';
@@ -368,6 +372,28 @@ app.post('/api/products/add-smart', async (req, res) => {
         message: `UPDATED: SKU ${existing.sku} (qty ${oldQty} → ${updated.quantity}) ✅ update eBay listing`
       });
 
+    // If it’s an eBay item, log it for later
+    if (Number(existing.on_ebay) === 1) {
+      await logEbayUpdatePG({
+        sku: existing.sku,
+        code: existing.code || null,
+        delta: qtyDelta,
+        oldQty,
+        newQty: Number(updated.quantity) || 0,
+        note: notes || null
+      });
+    }
+
+    if (Number(created.on_ebay) === 1) {
+      await logEbayUpdatePG({
+        sku: created.sku,
+        code: created.code || null,
+        delta: qtyDelta,
+        oldQty: 0,
+        newQty: Number(created.quantity) || 0,
+        note: notes || null
+      });
+    }
     }
 
     // 2️⃣ No duplicate → auto-assign next SKU from category

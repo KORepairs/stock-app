@@ -57,6 +57,22 @@ export async function initDb() {
     );
   `);
 
+  // eBay quantity update queue (what you need to go change on eBay later)
+  await pgQuery(`
+    CREATE TABLE IF NOT EXISTS ebay_updates (
+      id         SERIAL PRIMARY KEY,
+      sku        TEXT NOT NULL,
+      code       TEXT,
+      delta      INTEGER NOT NULL,         -- how much stock changed (+/-)
+      old_qty    INTEGER NOT NULL,
+      new_qty    INTEGER NOT NULL,
+      note       TEXT,
+      done       BOOLEAN DEFAULT FALSE,
+      created_at TIMESTAMPTZ DEFAULT NOW()
+    );
+  `);
+
+
   // Make sure created_at exists on both tables
   await pgQuery(`
     ALTER TABLE products

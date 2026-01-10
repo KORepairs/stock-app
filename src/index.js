@@ -104,8 +104,11 @@ app.get('/tradein',        (req, res) => res.sendFile(path.join(PUBLIC_DIR, 'tra
 app.get('/tradeins',       (req, res) => res.sendFile(path.join(PUBLIC_DIR, 'tradeins.html')));
 app.get('/report-sales',   (req, res) => {res.sendFile(path.join(__dirname, '..', 'public', 'report-sales.html'));});
 app.get('/inventory-add', (req, res) =>
-  res.sendFile(path.join(PUBLIC_DIR, 'inventory-add.html'))
+  res.sendFile(path.join(PUBLIC_DIR, 'inventory-add.html')));
+app.get('/report/ebay-updates', (req, res) =>
+  res.sendFile(path.join(PUBLIC_DIR, 'report-ebay-updates.html'))
 );
+
 
 
 

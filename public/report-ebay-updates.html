@@ -124,8 +124,8 @@
           : `<button class="primary" data-id="${r.id}" data-done="true">Mark done</button>`;
 
         const delta = Number(r.delta || 0);
-        const oldQty = r.old_qty ?? r.oldQty ?? r.oldqty ?? r.old || '';
-        const newQty = r.new_qty ?? r.newQty ?? r.newqty ?? r.new || '';
+        const oldQty = (r.old_qty ?? r.oldQty ?? r.oldqty ?? r.old) || '';
+        const newQty = (r.new_qty ?? r.newQty ?? r.newqty ?? r.new) || '';
 
         const tr = document.createElement('tr');
         tr.innerHTML = `

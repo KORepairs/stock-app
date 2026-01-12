@@ -297,3 +297,44 @@ main.page {
   padding: 24px 32px 40px;
   max-width: none;
 }
+
+/* Refurb table layout tightening */
+table {
+  table-layout: fixed;
+  width: 100%;
+}
+
+th:nth-child(3),
+td:nth-child(3) {
+  width: 90px;           /* SKU column */
+}
+
+.skuInp {
+  width: 80px;
+  font-family: ui-monospace, Menlo, Consolas, monospace;
+}
+/* Prevent inputs from stretching table */
+td input,
+td select {
+  max-width: 100%;
+  box-sizing: border-box;
+}
+
+/* Specific tuning */
+.statusSel,
+.partsSel {
+  width: 110px;
+}
+
+.costInp,
+.retailInp {
+  width: 80px;
+}
+
+.supplierInp {
+  width: 140px;
+}
+
+.notesInp {
+  width: 160px;
+}

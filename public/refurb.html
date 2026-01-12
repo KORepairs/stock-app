@@ -59,11 +59,17 @@
 
     <!-- Form -->
     <form id="refurbForm" class="form-grid" style="margin-top:16px;">
+      <label>Category</label>
+      <select id="category">
+        <option value="V">V</option>
+        <option value="M">M</option>
+        <option value="L">L</option>
+        <option value="H">H</option>
+      </select>
+
       <label for="description">Description</label>
       <input id="description" type="text" required placeholder="e.g. iPhone 11 128GB Black">
 
-      <label for="sku">SKU (optional)</label>
-      <input id="sku" type="text" placeholder="Stock SKU / barcode">
 
       <label for="serial">Serial / IMEI (optional)</label>
       <input id="serial" type="text" placeholder="Serial or IMEI">
@@ -305,8 +311,8 @@ async function loadRefurb() {
     }
 
     const body = {
+      category: $('category').value,              // ✅ V / M / L / H
       description,
-      sku: $('sku').value.trim() || null,
       serial: $('serial').value.trim() || null,
       status: $('status').value,
       parts_status: $('parts_status').value,
@@ -334,11 +340,18 @@ async function loadRefurb() {
         throw new Error(errMsg);
       }
 
-      toast('Refurb item added', 'ok');
+      const json = JSON.parse(text);
+
+  // Show the assigned SKU
+  if (json.sku) {
+    toast(`CREATED: Refurb SKU ${json.sku} ✅ label the item`, 'ok');
+  } else {
+    toast('Refurb item added', 'ok');
+  }
+
 
       // Reset form
       $('description').value = '';
-      $('sku').value = '';
       $('serial').value = '';
       $('supplier').value = '';
       $('cost').value = '0';

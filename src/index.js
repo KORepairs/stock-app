@@ -471,10 +471,11 @@ app.get('/api/refurb', async (req, res) => {
   }
 });
 
-// Create a new refurb item
+// Create a new refurb item (AUTO SKU if not provided)
 app.post('/api/refurb', async (req, res) => {
   const {
-    sku,
+    category,      // NEW: V / M / L / H
+    sku,           // optional manual override
     serial,
     description,
     status,
@@ -489,7 +490,16 @@ app.post('/api/refurb', async (req, res) => {
     return res.status(400).json({ error: 'description is required' });
   }
 
-  const skuNorm = sku ? String(sku).trim().toUpperCase() : null;
+  // If user typed an SKU, use it. Otherwise auto-generate from category.
+  let skuNorm = sku ? String(sku).trim().toUpperCase() : '';
+
+  if (!skuNorm) {
+    const prefix = String(category || '').trim().toUpperCase();
+    if (!['V','M','L','H'].includes(prefix)) {
+      return res.status(400).json({ error: 'category must be one of V, M, L, H' });
+    }
+    skuNorm = await getNextSkuForCategoryPG(prefix);
+  }
 
   try {
     const query = `
@@ -505,8 +515,8 @@ app.post('/api/refurb', async (req, res) => {
       skuNorm,
       serial || null,
       description,
-      status || 'refurb',        // default
-      parts_status || 'none',    // default
+      status || 'refurb',
+      parts_status || 'none',
       supplier || null,
       cost ?? 0,
       retail ?? 0,
@@ -514,7 +524,12 @@ app.post('/api/refurb', async (req, res) => {
     ];
 
     const result = await pgQuery(query, values);
-    res.json(result.rows[0]);
+
+    // ✅ return a simple message like the inventory add
+    res.json({
+      message: `CREATED: Refurb SKU ${skuNorm} ✅ label the item`,
+      item: result.rows[0],
+    });
   } catch (err) {
     console.error('Error creating refurb item:', err);
     res.status(500).json({ error: 'Failed to create refurb item' });

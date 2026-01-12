@@ -245,6 +245,31 @@ export async function setEbayUpdateDonePG(id, done) {
   return rows[0] || null;
 }
 
+// Next SKU for refurb_items table (V/M/L/H)
+export async function getNextRefurbSkuPG(prefix) {
+  const p = String(prefix || '').trim().toUpperCase();
+  if (!p) throw new Error('Refurb prefix required');
+
+  const { rows } = await pgQuery(
+    `
+    SELECT sku
+    FROM refurb_items
+    WHERE sku ~ $1
+    ORDER BY CAST(SUBSTRING(sku FROM 2) AS INT) DESC
+    LIMIT 1
+    `,
+    [`^${p}[0-9]+$`]
+  );
+
+  if (!rows.length) return `${p}0001`;
+
+  const lastSku = rows[0].sku;           // e.g. V0001
+  const lastNum = parseInt(lastSku.slice(1), 10) || 0;
+  const nextNum = lastNum + 1;
+
+  return `${p}${String(nextNum).padStart(4, '0')}`; // 4 digits
+}
+
 
 
 

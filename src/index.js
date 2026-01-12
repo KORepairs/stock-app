@@ -24,6 +24,7 @@ import {
   logEbayUpdatePG,
   listEbayUpdatesPG,
   setEbayUpdateDonePG,
+  getNextRefurbSkuPG,
 
 } from './pgProducts.js';
 import fs from 'node:fs';
@@ -471,11 +472,10 @@ app.get('/api/refurb', async (req, res) => {
   }
 });
 
-// Create a new refurb item (AUTO SKU if not provided)
 app.post('/api/refurb', async (req, res) => {
   const {
-    category,      // NEW: V / M / L / H
-    sku,           // optional manual override
+    category,        // <-- from the form (V/M/L/H)
+    sku,             // optional manual override
     serial,
     description,
     status,
@@ -490,15 +490,13 @@ app.post('/api/refurb', async (req, res) => {
     return res.status(400).json({ error: 'description is required' });
   }
 
-  // If user typed an SKU, use it. Otherwise auto-generate from category.
-  let skuNorm = sku ? String(sku).trim().toUpperCase() : '';
+  // If no SKU was supplied, auto-generate from category
+  let skuNorm = sku ? String(sku).trim().toUpperCase() : null;
 
   if (!skuNorm) {
     const prefix = String(category || '').trim().toUpperCase();
-    if (!['V','M','L','H'].includes(prefix)) {
-      return res.status(400).json({ error: 'category must be one of V, M, L, H' });
-    }
-    skuNorm = await getNextSkuForCategoryPG(prefix);
+    if (!prefix) return res.status(400).json({ error: 'category is required' });
+    skuNorm = await getNextRefurbSkuPG(prefix);
   }
 
   try {
@@ -524,17 +522,13 @@ app.post('/api/refurb', async (req, res) => {
     ];
 
     const result = await pgQuery(query, values);
-
-    // ✅ return a simple message like the inventory add
-    res.json({
-      message: `CREATED: Refurb SKU ${skuNorm} ✅ label the item`,
-      item: result.rows[0],
-    });
+    res.json(result.rows[0]);
   } catch (err) {
     console.error('Error creating refurb item:', err);
     res.status(500).json({ error: 'Failed to create refurb item' });
   }
 });
+
 
 // Update refurb item + if marked complete, sync with products by SKU
 app.put('/api/refurb/:id', async (req, res) => {

@@ -292,6 +292,36 @@ async function loadRefurb() {
     wireRefurbRowSaves();
     wireRefurbDeletes();
 
+    function wireRefurbDeletes() {
+  document.querySelectorAll('.deleteRowBtn').forEach(btn => {
+    btn.addEventListener('click', async () => {
+      const id = btn.getAttribute('data-id');
+      if (!confirm('Delete this refurb item?')) return;
+
+      btn.disabled = true;
+      btn.textContent = 'Deleting…';
+
+      try {
+        const res = await fetch(`/api/refurb/${id}`, { method: 'DELETE' });
+        if (!res.ok) throw new Error('Failed to delete refurb');
+
+        const data = await res.json();
+        if (!data.deleted) throw new Error('Not deleted');
+
+        // remove row immediately
+        btn.closest('tr')?.remove();
+        toast('Refurb deleted ✔️', 'ok');
+      } catch (err) {
+        console.error(err);
+        toast(err.message || 'Failed to delete refurb');
+        btn.disabled = false;
+        btn.textContent = 'Delete';
+      }
+    });
+  });
+}
+
+
   } catch (e) {
     console.error(e);
     tbody.innerHTML = '<tr><td colspan="11" style="padding:8px;color:#900">Failed to load refurb items</td></tr>';

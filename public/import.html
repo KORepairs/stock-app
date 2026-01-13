@@ -96,7 +96,14 @@
   // ---------- Config: required/optional headers ----------
   const REQUIRED = ['sku','name','quantity'];
   const OPTIONAL = ['notes','onEbay','retail','cost','fees','postage'];
-  const ALIASES  = { qty: 'quantity', on_ebay: 'onEbay' }; // friendly alias
+  const ALIASES  = {
+    qty: 'quantity',
+    on_ebay: 'onEbay',
+    onebay: 'onEbay',      // ✅ makes "onEbay" work after toLowerCase()
+    'on ebay': 'onEbay',   // ✅ optional: supports "on ebay"
+    'on-ebay': 'onEbay'    // ✅ optional
+  };
+
 
 
   // ---------- Helpers ----------
@@ -304,7 +311,10 @@
             sku: skuRaw,
             name,
             quantity: newQty,
-            onEbay: onEbayRaw === '' ? !!found.on_ebay : !!onEbayVal,
+            onEbay: onEbayRaw === '' 
+              ? !!found.on_ebay 
+              : (/^(1|true|yes|y)$/i).test(onEbayRaw),
+
             retail:  retail  || found.retail  || 0,
             cost:    cost    || found.cost    || 0,
             fees:    fees    || found.fees    || 0,

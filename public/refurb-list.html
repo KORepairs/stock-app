@@ -1,0 +1,372 @@
+<!doctype html>
+<html lang="en">
+
+<!-- force deploy test -->
+    
+<head>
+  <meta charset="utf-8">
+  <title>Refurb Items</title>
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <link rel="stylesheet" href="/app.css">
+    <style>
+    /* Status colours */
+    .refurb-status-strip td,
+    td.refurb-status-strip {
+      background-color: #4b3b16;  /* brownish */
+    }
+    .refurb-status-refurb td,
+    td.refurb-status-refurb {
+      background-color: #12324a;  /* blue-ish */
+    }
+    .refurb-status-scrap td,
+    td.refurb-status-scrap {
+      background-color: #7b1d1d;  /* dark red */
+    }
+    .refurb-status-complete td,
+    td.refurb-status-complete {
+      background-color: #1f4d2a;  /* green-ish */
+    }
+
+    /* Parts status colours (lighter) */
+    .refurb-parts-none td,
+    td.refurb-parts-none {
+      background-color: transparent;
+    }
+    .refurb-parts-needs_parts td,
+    td.refurb-parts-needs_parts {
+      background-color: #5a3a1a;  /* amber-ish */
+    }
+    .refurb-parts-awaiting_parts td,
+    td.refurb-parts-awaiting_parts {
+      background-color: #5a4a1a;  /* yellow-brown */
+    }
+    .refurb-parts-has_parts td,
+    td.refurb-parts-has_parts {
+      background-color: #1f3f2a;  /* dark green */
+    }
+  </style>
+</head>
+
+</head>
+<body>
+    <div class="wrap">
+    <aside id="sidebar"></aside>
+  <main class="page">
+    <h1>Refurb Items</h1>
+    <p style="color:var(--muted,#9aa);margin-top:4px;">
+      Track devices going through strip / refurb / scrap and whether they need or are awaiting parts.
+    </p>
+
+    <!-- Table -->
+    <h2 style="margin-top:0">Refurb queue</h2>
+    <div class="table-wrap">
+      <table>
+        <thead>
+          <tr>
+            <th>ID</th>
+            <th>Description</th>
+            <th>SKU</th>
+            <th>Status</th>
+            <th>Parts</th>
+            <th>Supplier</th>
+            <th>Cost</th>
+            <th>Retail</th>
+            <th>Notes</th>
+            <th>Actions</th>
+          </tr>
+        </thead>
+        <tbody id="refurbTbody">
+          <tr><td colspan="10" style="padding:8px">Loading…</td></tr>
+        </tbody>
+      </table>
+    </div>
+  </main>
+
+  <script>
+  function $(id){ return document.getElementById(id); }
+  function esc(s){ return String(s || '').replace(/[&<>"']/g, m => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[m]||m)); }
+  function fmtMoney(v){ return '£' + Number(v || 0).toFixed(2); }
+
+  let __toastTimer;
+  function toast(msg, kind='err') {
+    let t = document.getElementById('__toast');
+    if (!t) {
+      t = document.createElement('div');
+      t.id = '__toast';
+      Object.assign(t.style, {
+        position:'fixed',left:'50%',top:'14px',transform:'translateX(-50%)',
+        padding:'8px 14px',borderRadius:'999px',fontSize:'13px',
+        background:'#a52828',color:'#fff',opacity:'0',transition:'opacity .2s',
+        boxShadow:'0 8px 24px rgba(0,0,0,.35)',zIndex:9999,
+      });
+      document.body.appendChild(t);
+    }
+    t.style.background = kind==='ok' ? '#2c7a2c' : '#a52828';
+    t.textContent = msg;
+    t.style.opacity = '1';
+    clearTimeout(__toastTimer);
+    __toastTimer = setTimeout(()=> t.style.opacity='0', 1800);
+  }
+
+    function statusClass(status) {
+    switch (status) {
+      case 'strip':     return 'refurb-status-strip';
+      case 'refurb':    return 'refurb-status-refurb';
+      case 'scrap':     return 'refurb-status-scrap';
+      case 'complete':  return 'refurb-status-complete';
+      default:          return '';
+    }
+  }
+
+  function partsClass(partsStatus) {
+    switch (partsStatus) {
+      case 'needs_parts':    return 'refurb-parts-needs_parts';
+      case 'awaiting_parts': return 'refurb-parts-awaiting_parts';
+      case 'has_parts':      return 'refurb-parts-has_parts';
+      case 'none':
+      default:               return 'refurb-parts-none';
+    }
+  }
+
+
+  // -----------------------
+// Load refurb items
+// -----------------------
+async function loadRefurb() {
+  const tbody = $('refurbTbody');
+  tbody.innerHTML = '<tr><td colspan="10" style="padding:8px">Loading…</td></tr>';
+
+  try {
+    const res = await fetch('/api/refurb');
+    const items = await res.json();
+
+    if (!Array.isArray(items) || !items.length) {
+      tbody.innerHTML = '<tr><td colspan="10" style="padding:8px">No refurb items yet.</td></tr>';
+      return;
+    }
+
+    tbody.innerHTML = items.map(item => {
+      const created = item.created_at ? new Date(item.created_at).toLocaleString('en-GB') : '';
+
+            return `<tr>
+        <td>${item.id}</td>
+        <td>${esc(item.description)}</td>
+
+        <td>
+          <input
+            data-id="${item.id}"
+            class="skuInp"
+            type="text"
+            value="${esc(item.sku)}"
+          >
+        </td>
+
+        <td class="${statusClass(item.status)}">
+          <select data-id="${item.id}" class="statusSel">
+            <option value="strip" ${item.status==='strip'?'selected':''}>Strip</option>
+            <option value="refurb" ${item.status==='refurb'?'selected':''}>Refurb</option>
+            <option value="scrap" ${item.status==='scrap'?'selected':''}>Scrap</option>
+            <option value="complete" ${item.status==='complete'?'selected':''}>Complete</option>
+          </select>
+        </td>
+
+        <td class="${partsClass(item.parts_status)}">
+          <select data-id="${item.id}" class="partsSel">
+            <option value="none" ${item.parts_status==='none'?'selected':''}>None</option>
+            <option value="needs_parts" ${item.parts_status==='needs_parts'?'selected':''}>Needs parts</option>
+            <option value="awaiting_parts" ${item.parts_status==='awaiting_parts'?'selected':''}>Awaiting parts</option>
+            <option value="has_parts" ${item.parts_status==='has_parts'?'selected':''}>Has parts</option>
+          </select>
+        </td>
+
+
+        <td>
+          <input
+            data-id="${item.id}"
+            class="supplierInp"
+            type="text"
+            value="${esc(item.supplier)}"
+          >
+        </td>
+
+        <td>
+          <input
+            data-id="${item.id}"
+            class="costInp"
+            type="number"
+            step="0.01"
+            value="${item.cost ?? 0}"
+          >
+        </td>
+
+        <td>
+          <input
+            data-id="${item.id}"
+            class="retailInp"
+            type="number"
+            step="0.01"
+            value="${item.retail ?? 0}"
+          >
+        </td>
+
+        <td>
+          <input
+            data-id="${item.id}"
+            class="notesInp"
+            type="text"
+            value="${esc(item.notes)}"
+          >
+        </td>
+
+                <td>
+          <button type="button" class="saveRowBtn" data-id="${item.id}">
+            Save
+          </button>
+          <button type="button" class="deleteRowBtn" data-id="${item.id}" style="margin-left:6px;">
+            Delete
+          </button>
+        </td>
+
+      </tr>`;
+    }).join('');
+
+    // ✅ Wire both dropdowns AND Save buttons now that rows exist
+    wireRefurbDropdowns();
+    wireRefurbRowSaves();
+    wireRefurbDeletes();
+
+
+
+  } catch (e) {
+    console.error(e);
+    tbody.innerHTML = '<tr><td="10" style="padding:8px;color:#900">Failed to load refurb items</td></tr>';
+  }
+}
+
+
+  
+  // -----------------------
+  // Wire dropdown updates
+  // -----------------------
+  function wireRefurbDropdowns() {
+    document.querySelectorAll('.statusSel, .partsSel').forEach(sel => {
+      sel.addEventListener('change', async () => {
+
+        const id = sel.getAttribute('data-id');
+        const row = sel.closest('tr');
+
+        const statusSel = row.querySelector('.statusSel');
+        const partsSel  = row.querySelector('.partsSel');
+
+        const body = {
+          status: statusSel.value,
+          parts_status: partsSel.value
+        };
+
+        try {
+          const res = await fetch(`/api/refurb/${id}`, {
+            method: 'PUT',
+            headers: {'Content-Type':'application/json'},
+            body: JSON.stringify(body)
+          });
+
+          if (!res.ok) throw new Error('Update failed');
+
+          toast('Updated ✔️', 'ok');
+
+        } catch (err) {
+          console.error(err);
+          toast('Failed to update');
+        }
+      });
+    });
+  }
+
+    function wireRefurbRowSaves() {
+    document.querySelectorAll('.saveRowBtn').forEach(btn => {
+      btn.addEventListener('click', async () => {
+        const id = btn.getAttribute('data-id');
+        const row = btn.closest('tr');
+
+        const skuEl      = row.querySelector('.skuInp');
+        const statusSel  = row.querySelector('.statusSel');
+        const partsSel   = row.querySelector('.partsSel');
+        const supplierEl = row.querySelector('.supplierInp');
+        const costEl     = row.querySelector('.costInp');
+        const retailEl   = row.querySelector('.retailInp');
+        const notesEl    = row.querySelector('.notesInp');
+
+        const body = {
+            sku: skuEl.value.trim() || null,
+        status: statusSel.value,
+        parts_status: partsSel.value,
+        supplier: supplierEl.value.trim() || null,
+        cost: Number(costEl.value || 0),
+        retail: Number(retailEl.value || 0),
+        notes: notesEl.value.trim() || null,
+        };
+
+
+        btn.disabled = true;
+        btn.textContent = 'Saving…';
+
+        try {
+          const res = await fetch(`/api/refurb/${id}`, {
+            method: 'PUT',
+            headers: {'Content-Type':'application/json'},
+            body: JSON.stringify(body),
+          });
+
+          if (!res.ok) throw new Error('Failed to save row');
+
+          toast('Row updated ✔️', 'ok');
+        } catch (err) {
+          console.error(err);
+          toast('Failed to update row');
+        } finally {
+          btn.disabled = false;
+          btn.textContent = 'Save';
+        }
+      });
+    });
+  }
+
+    function wireRefurbDeletes() {
+    document.querySelectorAll('.deleteRowBtn').forEach(btn => {
+      btn.addEventListener('click', async () => {
+        const id = btn.getAttribute('data-id');
+        if (!confirm('Delete this refurb item?')) return;
+
+        btn.disabled = true;
+        btn.textContent = 'Deleting…';
+
+        try {
+          const res = await fetch(`/api/refurb/${id}`, {
+            method: 'DELETE'
+          });
+
+          if (!res.ok) throw new Error('Failed to delete refurb');
+
+          const data = await res.json();
+          if (!data.deleted) throw new Error('Refurb not found / not deleted');
+
+          // Remove the row from the table
+          const row = btn.closest('tr');
+          if (row) row.remove();
+
+          toast('Refurb deleted ✔️', 'ok');
+        } catch (err) {
+          console.error(err);
+          toast(err.message || 'Failed to delete refurb');
+        }
+      });
+    });
+  }
+
+
+  // Load table on page open
+  window.addEventListener('DOMContentLoaded', loadRefurb);
+</script>
+<script src="/js/sidebar.js"></script>
+</body>
+</html>

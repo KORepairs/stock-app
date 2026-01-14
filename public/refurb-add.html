@@ -1,0 +1,238 @@
+<!doctype html>
+<html lang="en">
+
+<!-- force deploy test -->
+    
+<head>
+  <meta charset="utf-8">
+  <title>Refurb Items</title>
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <link rel="stylesheet" href="/app.css">
+    <style>
+    /* Status colours */
+    .refurb-status-strip td,
+    td.refurb-status-strip {
+      background-color: #4b3b16;  /* brownish */
+    }
+    .refurb-status-refurb td,
+    td.refurb-status-refurb {
+      background-color: #12324a;  /* blue-ish */
+    }
+    .refurb-status-scrap td,
+    td.refurb-status-scrap {
+      background-color: #7b1d1d;  /* dark red */
+    }
+    .refurb-status-complete td,
+    td.refurb-status-complete {
+      background-color: #1f4d2a;  /* green-ish */
+    }
+
+    /* Parts status colours (lighter) */
+    .refurb-parts-none td,
+    td.refurb-parts-none {
+      background-color: transparent;
+    }
+    .refurb-parts-needs_parts td,
+    td.refurb-parts-needs_parts {
+      background-color: #5a3a1a;  /* amber-ish */
+    }
+    .refurb-parts-awaiting_parts td,
+    td.refurb-parts-awaiting_parts {
+      background-color: #5a4a1a;  /* yellow-brown */
+    }
+    .refurb-parts-has_parts td,
+    td.refurb-parts-has_parts {
+      background-color: #1f3f2a;  /* dark green */
+    }
+  </style>
+</head>
+
+</head>
+<body>
+    <div class="wrap">
+    <aside id="sidebar"></aside>
+  <main class="page">
+    <h1>Refurb Items</h1>
+    <p style="color:var(--muted,#9aa);margin-top:4px;">
+      Track devices going through strip / refurb / scrap and whether they need or are awaiting parts.
+    </p>
+
+    <!-- Form -->
+    <form id="refurbForm" class="form-grid" style="margin-top:16px;">
+      <label>Category</label>
+      <select id="category">
+        <option value="V">V</option>
+        <option value="M">M</option>
+        <option value="L">L</option>
+        <option value="H">H</option>
+      </select>
+
+      <label for="description">Description</label>
+      <input id="description" type="text" required placeholder="e.g. iPhone 11 128GB Black">
+
+
+      <label for="serial">Serial / IMEI (optional)</label>
+      <input id="serial" type="text" placeholder="Serial or IMEI">
+
+      <label for="status">Status</label>
+      <select id="status">
+        <option value="strip">Strip</option>
+        <option value="refurb" selected>Refurb</option>
+        <option value="scrap">Scrap</option>
+        <option value="complete">Complete</option>
+      </select>
+
+      <label for="parts_status">Parts status</label>
+      <select id="parts_status">
+        <option value="none">No parts needed</option>
+        <option value="needs_parts">Needs parts</option>
+        <option value="awaiting_parts">Awaiting parts</option>
+        <option value="has_parts">Parts in stock</option>
+      </select>
+
+      <label for="supplier">Supplier / Source</label>
+      <input id="supplier" type="text" placeholder="e.g. Trade-in, eBay, KO Repairs">
+
+      <label for="cost">Cost (£)</label>
+      <input id="cost" type="number" step="0.01" min="0" value="0">
+
+      <label for="retail">Target retail (£)</label>
+      <input id="retail" type="number" step="0.01" min="0" value="0">
+
+      <div class="full">
+        <label for="notes">Notes</label>
+        <textarea id="notes" placeholder="Parts required, faults, etc. (optional)"></textarea>
+      </div>
+
+      <div class="full">
+        <button id="saveBtn" type="button">Add Refurb Item</button>
+      </div>
+    </form>
+
+    <hr style="margin:20px 0;border-color:#333">
+
+  </main>
+
+  <script>
+  function $(id){ return document.getElementById(id); }
+  function esc(s){ return String(s || '').replace(/[&<>"']/g, m => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[m]||m)); }
+  function fmtMoney(v){ return '£' + Number(v || 0).toFixed(2); }
+
+  let __toastTimer;
+  function toast(msg, kind='err') {
+    let t = document.getElementById('__toast');
+    if (!t) {
+      t = document.createElement('div');
+      t.id = '__toast';
+      Object.assign(t.style, {
+        position:'fixed',left:'50%',top:'14px',transform:'translateX(-50%)',
+        padding:'8px 14px',borderRadius:'999px',fontSize:'13px',
+        background:'#a52828',color:'#fff',opacity:'0',transition:'opacity .2s',
+        boxShadow:'0 8px 24px rgba(0,0,0,.35)',zIndex:9999,
+      });
+      document.body.appendChild(t);
+    }
+    t.style.background = kind==='ok' ? '#2c7a2c' : '#a52828';
+    t.textContent = msg;
+    t.style.opacity = '1';
+    clearTimeout(__toastTimer);
+    __toastTimer = setTimeout(()=> t.style.opacity='0', 1800);
+  }
+
+    function statusClass(status) {
+    switch (status) {
+      case 'strip':     return 'refurb-status-strip';
+      case 'refurb':    return 'refurb-status-refurb';
+      case 'scrap':     return 'refurb-status-scrap';
+      case 'complete':  return 'refurb-status-complete';
+      default:          return '';
+    }
+  }
+
+  function partsClass(partsStatus) {
+    switch (partsStatus) {
+      case 'needs_parts':    return 'refurb-parts-needs_parts';
+      case 'awaiting_parts': return 'refurb-parts-awaiting_parts';
+      case 'has_parts':      return 'refurb-parts-has_parts';
+      case 'none':
+      default:               return 'refurb-parts-none';
+    }
+  }
+
+
+
+  // -----------------------
+  // Create refurb item
+  // -----------------------
+  async function createRefurb() {
+    const description = $('description').value.trim();
+    if (!description) {
+      toast('Description is required');
+      $('description').focus();
+      return;
+    }
+
+    const body = {
+      category: $('category').value,              // ✅ V / M / L / H
+      description,
+      serial: $('serial').value.trim() || null,
+      status: $('status').value,
+      parts_status: $('parts_status').value,
+      supplier: $('supplier').value.trim() || null,
+      cost: Number($('cost').value || 0),
+      retail: Number($('retail').value || 0),
+      notes: $('notes').value.trim() || null,
+    };
+
+    const btn = $('saveBtn');
+    btn.disabled = true;
+    btn.textContent = 'Saving…';
+
+    try {
+      const res = await fetch('/api/refurb', {
+        method: 'POST',
+        headers: {'Content-Type':'application/json'},
+        body: JSON.stringify(body),
+      });
+
+      const text = await res.text();
+      if (!res.ok) {
+        let errMsg = 'Failed to save';
+        try { const j = JSON.parse(text); errMsg = j.error || errMsg; } catch {}
+        throw new Error(errMsg);
+      }
+
+      const json = JSON.parse(text);
+
+  // Show the assigned SKU
+  if (json.sku) {
+    toast(`CREATED: Refurb SKU ${json.sku} ✅ label the item`, 'ok');
+  } else {
+    toast('Refurb item added', 'ok');
+  }
+
+
+      // Reset form
+      $('description').value = '';
+      $('serial').value = '';
+      $('supplier').value = '';
+      $('cost').value = '0';
+      $('retail').value = '0';
+      $('notes').value = '';
+
+
+    } catch (e) {
+      console.error(e);
+      toast(e.message || 'Failed to save');
+    } finally {
+      btn.disabled = false;
+      btn.textContent = 'Add Refurb Item';
+    }
+  }
+
+  $('saveBtn').addEventListener('click', createRefurb);
+
+</script>
+<script src="/js/sidebar.js"></script>
+</body>
+</html>

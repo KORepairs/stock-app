@@ -72,6 +72,21 @@ export async function initDb() {
     );
   `);
 
+  // Customers table (for repeat trade-ins)
+await pgQuery(`
+  CREATE TABLE IF NOT EXISTS customers (
+    id SERIAL PRIMARY KEY,
+    name TEXT NOT NULL,
+    phone TEXT,
+    email TEXT,
+    id_image_path TEXT,
+    notes TEXT,
+    created_at TIMESTAMPTZ DEFAULT NOW(),
+    updated_at TIMESTAMPTZ DEFAULT NOW()
+  );
+`);
+
+
 
   // Make sure created_at exists on both tables
   await pgQuery(`
@@ -106,5 +121,15 @@ await pgQuery(`
     created_at      TIMESTAMPTZ DEFAULT NOW()
   );
 `);
+
+await pgQuery(`CREATE INDEX IF NOT EXISTS customers_name_idx  ON customers (name);`);
+await pgQuery(`CREATE INDEX IF NOT EXISTS customers_phone_idx ON customers (phone);`);
+await pgQuery(`CREATE INDEX IF NOT EXISTS customers_email_idx ON customers (email);`);
+
+await pgQuery(`
+  ALTER TABLE trade_ins
+  ADD COLUMN IF NOT EXISTS customer_id INTEGER REFERENCES customers(id);
+`);
+
 
 }

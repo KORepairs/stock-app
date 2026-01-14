@@ -150,6 +150,22 @@ app.get('/api/health/db', async (req, res) => {
   }
 });
 
+let custId = customer_id ? Number(customer_id) : null;
+let custName = customer_name || null;
+let custPhone = customer_phone || null;
+let custEmail = customer_email || null;
+
+// if a customer_id is provided, load customer info
+if (custId) {
+  const { rows } = await pgQuery(`SELECT * FROM customers WHERE id = $1`, [custId]);
+  const c = rows[0];
+  if (!c) return res.status(400).json({ error: 'customer not found' });
+
+  custName = c.name;
+  custPhone = c.phone;
+  custEmail = c.email;
+}
+
 /* ---------- API: Products ---------- */
 
 app.get('/api/products', async (req, res) => {
@@ -691,6 +707,7 @@ app.post('/api/tradein', upload.single('id_image'), async (req, res) => {
   console.log('HIT POST /api/tradein');
   try {
     const {
+      customer_id, 
       customer_name,
       customer_phone,
       customer_email,
@@ -709,6 +726,12 @@ app.post('/api/tradein', upload.single('id_image'), async (req, res) => {
     const agreedNum    = agreed_value ? Number(agreed_value) : null;
 
     const idImagePath = req.file ? `/uploads/${req.file.filename}` : null;
+
+    // If we uploaded an ID image AND we have a customer, store it on the customer record too
+    if (idImagePath && custId) {
+      await pgQuery(`UPDATE customers SET id_image_path = $1, updated_at = NOW() WHERE id = $2`, [idImagePath, custId]);
+    }
+
 
     let refurbId = null;
 
@@ -735,6 +758,7 @@ app.post('/api/tradein', upload.single('id_image'), async (req, res) => {
     const tradeRes = await pgQuery(
       `
       INSERT INTO trade_ins (
+        customer_id,
         customer_name, customer_phone, customer_email,
         serial, device_desc, valuation, agreed_value,
         id_image_path, refurb_id
@@ -743,6 +767,7 @@ app.post('/api/tradein', upload.single('id_image'), async (req, res) => {
       RETURNING *;
       `,
       [
+        custId,
         customer_name,
         customer_phone || null,
         customer_email || null,
@@ -1086,6 +1111,85 @@ app.get('/report/cash', async (req, res) => {
     res.status(500).send('Error generating report');
   }
 });
+
+// Search customers (simple search)
+app.get('/api/customers', async (req, res) => {
+  try {
+    const q = String(req.query.q || '').trim();
+    if (!q) {
+      const { rows } = await pgQuery(`SELECT * FROM customers ORDER BY id DESC LIMIT 50;`);
+      return res.json(rows);
+    }
+
+    const like = `%${q}%`;
+    const { rows } = await pgQuery(
+      `
+      SELECT *
+      FROM customers
+      WHERE name ILIKE $1 OR phone ILIKE $1 OR email ILIKE $1
+      ORDER BY id DESC
+      LIMIT 50;
+      `,
+      [like]
+    );
+    res.json(rows);
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// Create a customer
+app.post('/api/customers', async (req, res) => {
+  try {
+    const { name, phone = null, email = null, notes = null, id_image_path = null } = req.body || {};
+    if (!name) return res.status(400).json({ error: 'name is required' });
+
+    const { rows } = await pgQuery(
+      `
+      INSERT INTO customers (name, phone, email, notes, id_image_path)
+      VALUES ($1,$2,$3,$4,$5)
+      RETURNING *;
+      `,
+      [String(name).trim(), phone, email, notes, id_image_path]
+    );
+
+    res.status(201).json(rows[0]);
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// Update a customer
+app.put('/api/customers/:id', async (req, res) => {
+  try {
+    const id = Number(req.params.id);
+    if (!id) return res.status(400).json({ error: 'invalid id' });
+
+    const { name, phone, email, notes, id_image_path } = req.body || {};
+
+    const { rows } = await pgQuery(
+      `
+      UPDATE customers
+      SET
+        name = COALESCE($1, name),
+        phone = COALESCE($2, phone),
+        email = COALESCE($3, email),
+        notes = COALESCE($4, notes),
+        id_image_path = COALESCE($5, id_image_path),
+        updated_at = NOW()
+      WHERE id = $6
+      RETURNING *;
+      `,
+      [name ?? null, phone ?? null, email ?? null, notes ?? null, id_image_path ?? null, id]
+    );
+
+    if (!rows[0]) return res.status(404).json({ error: 'not found' });
+    res.json(rows[0]);
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
 
 
 // ---- START SERVER ----

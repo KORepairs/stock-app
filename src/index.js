@@ -150,22 +150,6 @@ app.get('/api/health/db', async (req, res) => {
   }
 });
 
-let custId = customer_id ? Number(customer_id) : null;
-let custName = customer_name || null;
-let custPhone = customer_phone || null;
-let custEmail = customer_email || null;
-
-// if a customer_id is provided, load customer info
-if (custId) {
-  const { rows } = await pgQuery(`SELECT * FROM customers WHERE id = $1`, [custId]);
-  const c = rows[0];
-  if (!c) return res.status(400).json({ error: 'customer not found' });
-
-  custName = c.name;
-  custPhone = c.phone;
-  custEmail = c.email;
-}
-
 /* ---------- API: Products ---------- */
 
 app.get('/api/products', async (req, res) => {
@@ -718,9 +702,46 @@ app.post('/api/tradein', upload.single('id_image'), async (req, res) => {
       create_refurb,  // "on" when checkbox ticked
     } = req.body || {};
 
-    if (!customer_name || !device_desc) {
-      return res.status(400).json({ error: 'Customer name and device description are required' });
+        // ----------------------------
+    // Resolve customer (existing or new)
+    // ----------------------------
+    let custId = customer_id ? Number(customer_id) : null;
+
+    // if customer_id provided, load customer record
+    if (custId) {
+      const { rows } = await pgQuery('SELECT * FROM customers WHERE id = $1', [custId]);
+      const c = rows[0];
+      if (!c) return res.status(400).json({ error: 'customer not found' });
+
+      // overwrite form values with stored ones (keeps things consistent)
+      // (optional, but nice)
+      // customer_name = c.name;   // can't reassign const, so just use c.name later if needed
+    } else {
+      // No customer_id → create a new customer record
+      if (!customer_name) {
+        return res.status(400).json({ error: 'Customer name is required' });
+      }
+
+      const { rows } = await pgQuery(
+        `
+        INSERT INTO customers (name, phone, email)
+        VALUES ($1,$2,$3)
+        RETURNING id;
+        `,
+        [
+          String(customer_name).trim(),
+          customer_phone || null,
+          customer_email || null
+        ]
+      );
+      custId = rows[0].id;
     }
+
+
+    if ((!customer_id && !customer_name) || !device_desc) {
+      return res.status(400).json({ error: 'Customer (name or selected customer) and device description are required' });
+    }
+
 
     const valuationNum = valuation ? Number(valuation) : null;
     const agreedNum    = agreed_value ? Number(agreed_value) : null;

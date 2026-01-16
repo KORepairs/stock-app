@@ -218,7 +218,10 @@ async function loadRefurb() {
           >
         </td>
 
-                <td>
+            <td>
+            <button type="button" class="detailBtn" data-id="${item.id}">
+                Details
+            </button>
           <button type="button" class="saveRowBtn" data-id="${item.id}">
             Save
           </button>
@@ -234,12 +237,13 @@ async function loadRefurb() {
     wireRefurbDropdowns();
     wireRefurbRowSaves();
     wireRefurbDeletes();
+    wireRefurbDetails();
 
 
 
   } catch (e) {
     console.error(e);
-    tbody.innerHTML = '<tr><td="10" style="padding:8px;color:#900">Failed to load refurb items</td></tr>';
+    tbody.innerHTML = '<tr><td colspan="10" style="padding:8px;color:#900">Failed to load refurb items</td></tr>';
   }
 }
 
@@ -362,6 +366,16 @@ async function loadRefurb() {
       });
     });
   }
+
+  function wireRefurbDetails() {
+  document.querySelectorAll('.detailBtn').forEach(btn => {
+    btn.addEventListener('click', () => {
+      const id = btn.getAttribute('data-id');
+      window.location.href = `/refurb/${id}`;
+    });
+  });
+}
+
 
 
   // Load table on page open

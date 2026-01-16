@@ -103,16 +103,12 @@ app.get('/quick-add',      (req, res) => res.sendFile(path.join(PUBLIC_DIR, 'qui
 app.get('/refurb',         (req, res) => res.sendFile(path.join(PUBLIC_DIR, 'refurb-list.html')));
 app.get('/refurb/add',  (req, res) => res.sendFile(path.join(PUBLIC_DIR, 'refurb-add.html')));
 app.get('/refurb/list', (req, res) => res.sendFile(path.join(PUBLIC_DIR, 'refurb-list.html')));
+app.get('/refurb/:id', (req, res) => res.sendFile(path.join(PUBLIC_DIR, 'refurb-detail.html')));
 app.get('/tradein',        (req, res) => res.sendFile(path.join(PUBLIC_DIR, 'tradein.html')));
 app.get('/tradeins',       (req, res) => res.sendFile(path.join(PUBLIC_DIR, 'tradeins.html')));
 app.get('/report-sales',   (req, res) => {res.sendFile(path.join(__dirname, '..', 'public', 'report-sales.html'));});
-app.get('/inventory-add', (req, res) =>
-  res.sendFile(path.join(PUBLIC_DIR, 'inventory-add.html')));
-app.get('/report/ebay-updates', (req, res) =>
-  res.sendFile(path.join(PUBLIC_DIR, 'report-ebay-updates.html'))
-);
-
-
+app.get('/inventory-add', (req, res) => res.sendFile(path.join(PUBLIC_DIR, 'inventory-add.html')));
+app.get('/report/ebay-updates', (req, res) => res.sendFile(path.join(PUBLIC_DIR, 'report-ebay-updates.html')));
 
 
 
@@ -473,6 +469,96 @@ app.get('/api/refurb', async (req, res) => {
     res.status(500).json({ error: 'Failed to fetch refurb items' });
   }
 });
+
+// Get one refurb + its detail record
+app.get('/api/refurb/:id/detail', async (req, res) => {
+  try {
+    const id = Number(req.params.id);
+    if (!id) return res.status(400).json({ error: 'invalid id' });
+
+    const { rows } = await pgQuery(
+      `
+      SELECT r.*,
+             d.specs_cpu, d.specs_ram, d.specs_storage, d.specs_gpu, d.specs_screen,
+             d.os_version, d.parts_needed, d.parts_cost, d.checklist, d.notes AS detail_notes, d.updated_at
+      FROM refurb_items r
+      LEFT JOIN refurb_details d ON d.refurb_id = r.id
+      WHERE r.id = $1
+      `,
+      [id]
+    );
+
+    if (!rows[0]) return res.status(404).json({ error: 'not found' });
+    res.json(rows[0]);
+  } catch (err) {
+    console.error('refurb detail get error:', err);
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// Upsert (insert if missing, otherwise update) detail record
+app.put('/api/refurb/:id/detail', async (req, res) => {
+  try {
+    const id = Number(req.params.id);
+    if (!id) return res.status(400).json({ error: 'invalid id' });
+
+    const {
+      specs_cpu = null,
+      specs_ram = null,
+      specs_storage = null,
+      specs_gpu = null,
+      specs_screen = null,
+      os_version = null,
+      parts_needed = null,
+      parts_cost = 0,
+      checklist = {},
+      notes = null
+    } = req.body || {};
+
+    const { rows } = await pgQuery(
+      `
+      INSERT INTO refurb_details
+        (refurb_id, specs_cpu, specs_ram, specs_storage, specs_gpu, specs_screen,
+         os_version, parts_needed, parts_cost, checklist, notes, updated_at)
+      VALUES
+        ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10::jsonb,$11,NOW())
+      ON CONFLICT (refurb_id)
+      DO UPDATE SET
+        specs_cpu = EXCLUDED.specs_cpu,
+        specs_ram = EXCLUDED.specs_ram,
+        specs_storage = EXCLUDED.specs_storage,
+        specs_gpu = EXCLUDED.specs_gpu,
+        specs_screen = EXCLUDED.specs_screen,
+        os_version = EXCLUDED.os_version,
+        parts_needed = EXCLUDED.parts_needed,
+        parts_cost = EXCLUDED.parts_cost,
+        checklist = EXCLUDED.checklist,
+        notes = EXCLUDED.notes,
+        updated_at = NOW()
+      RETURNING *;
+      `,
+      [
+        id,
+        specs_cpu,
+        specs_ram,
+        specs_storage,
+        specs_gpu,
+        specs_screen,
+        os_version,
+        parts_needed,
+        Number(parts_cost) || 0,
+        JSON.stringify(checklist || {}),
+        notes
+      ]
+    );
+
+    res.json(rows[0]);
+  } catch (err) {
+    console.error('refurb detail save error:', err);
+    res.status(500).json({ error: err.message });
+  }
+});
+
 
 app.post('/api/refurb', async (req, res) => {
   const {

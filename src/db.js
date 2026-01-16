@@ -57,6 +57,31 @@ export async function initDb() {
     );
   `);
 
+    // Refurb details (extra info + checklist per refurb item)
+  await pgQuery(`
+    CREATE TABLE IF NOT EXISTS refurb_details (
+      refurb_id     INTEGER PRIMARY KEY REFERENCES refurb_items(id) ON DELETE CASCADE,
+
+      specs_cpu     TEXT,
+      specs_ram     TEXT,
+      specs_storage TEXT,
+      specs_gpu     TEXT,
+      specs_screen  TEXT,
+      os_version    TEXT,
+
+      parts_needed  TEXT,
+      parts_cost    NUMERIC(10,2) DEFAULT 0,
+
+      checklist     JSONB NOT NULL DEFAULT '{}'::jsonb,
+      notes         TEXT,
+
+      updated_at    TIMESTAMPTZ DEFAULT NOW()
+    );
+  `);
+
+    await pgQuery(`CREATE INDEX IF NOT EXISTS refurb_details_updated_idx ON refurb_details(updated_at);`);
+
+
   // eBay quantity update queue (what you need to go change on eBay later)
   await pgQuery(`
     CREATE TABLE IF NOT EXISTS ebay_updates (

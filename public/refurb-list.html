@@ -63,8 +63,8 @@
       <table>
         <thead>
           <tr>
-            <th>Description</th>
             <th>SKU</th>
+            <th>Description</th>
             <th>Status</th>
             <th>Parts</th>
             <th>CPU</th>
@@ -146,7 +146,6 @@ async function loadRefurb() {
       const created = item.created_at ? new Date(item.created_at).toLocaleString('en-GB') : '';
 
             return `<tr>
-        <td>${esc(item.description)}</td>
 
         <td>
           <input
@@ -156,6 +155,9 @@ async function loadRefurb() {
             value="${esc(item.sku)}"
           >
         </td>
+
+        <td>${esc(item.description)}</td>
+
 
         <td class="${statusClass(item.status)}">
           <select data-id="${item.id}" class="statusSel">

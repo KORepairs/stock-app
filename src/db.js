@@ -57,6 +57,9 @@ export async function initDb() {
     );
   `);
 
+  await pgQuery(`ALTER TABLE refurb_items ADD COLUMN IF NOT EXISTS cpu TEXT;`);
+
+
     // Refurb details (extra info + checklist per refurb item)
   await pgQuery(`
     CREATE TABLE IF NOT EXISTS refurb_details (

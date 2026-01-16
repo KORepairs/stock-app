@@ -68,9 +68,7 @@
             <th>SKU</th>
             <th>Status</th>
             <th>Parts</th>
-            <th>Supplier</th>
-            <th>Cost</th>
-            <th>Retail</th>
+            <th>CPU</th>
             <th>Notes</th>
             <th>Actions</th>
           </tr>
@@ -179,35 +177,16 @@ async function loadRefurb() {
           </select>
         </td>
 
-
         <td>
-          <input
-            data-id="${item.id}"
-            class="supplierInp"
-            type="text"
-            value="${esc(item.supplier)}"
-          >
+            <input
+                data-id="${item.id}"
+                class="cpuInp"
+                type="text"
+                value="${esc(item.cpu || '')}"
+                placeholder="e.g. i5-10210U"
+                >
         </td>
 
-        <td>
-          <input
-            data-id="${item.id}"
-            class="costInp"
-            type="number"
-            step="0.01"
-            value="${item.cost ?? 0}"
-          >
-        </td>
-
-        <td>
-          <input
-            data-id="${item.id}"
-            class="retailInp"
-            type="number"
-            step="0.01"
-            value="${item.retail ?? 0}"
-          >
-        </td>
 
         <td>
           <input
@@ -295,20 +274,17 @@ async function loadRefurb() {
         const skuEl      = row.querySelector('.skuInp');
         const statusSel  = row.querySelector('.statusSel');
         const partsSel   = row.querySelector('.partsSel');
-        const supplierEl = row.querySelector('.supplierInp');
-        const costEl     = row.querySelector('.costInp');
-        const retailEl   = row.querySelector('.retailInp');
+        const cpuEl = row.querySelector('.cpuInp');
         const notesEl    = row.querySelector('.notesInp');
 
         const body = {
             sku: skuEl.value.trim() || null,
-        status: statusSel.value,
-        parts_status: partsSel.value,
-        supplier: supplierEl.value.trim() || null,
-        cost: Number(costEl.value || 0),
-        retail: Number(retailEl.value || 0),
-        notes: notesEl.value.trim() || null,
-        };
+            cpu: cpuEl.value.trim() || null,
+            status: statusSel.value,
+            parts_status: partsSel.value,
+            notes: notesEl.value.trim() || null,
+            };
+
 
 
         btn.disabled = true;

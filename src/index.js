@@ -568,6 +568,7 @@ app.post('/api/refurb', async (req, res) => {
     description,
     status,
     parts_status,
+    cpu,
     supplier,
     cost,
     retail,
@@ -590,10 +591,10 @@ app.post('/api/refurb', async (req, res) => {
   try {
     const query = `
       INSERT INTO refurb_items (
-        sku, serial, description, status, parts_status,
+        sku, serial, description, status, parts_status, cpu,
         supplier, cost, retail, notes
       )
-      VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9)
+      VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10)
       RETURNING *;
     `;
 
@@ -603,6 +604,7 @@ app.post('/api/refurb', async (req, res) => {
       description,
       status || 'refurb',
       parts_status || 'none',
+      cpu || null,
       supplier || null,
       cost ?? 0,
       retail ?? 0,
@@ -624,6 +626,7 @@ app.put('/api/refurb/:id', async (req, res) => {
   const {
     status,
     parts_status,
+    cpu,
     supplier,
     cost,
     retail,
@@ -655,18 +658,20 @@ app.put('/api/refurb/:id', async (req, res) => {
       SET
         status       = COALESCE($1, status),
         parts_status = COALESCE($2, parts_status),
-        supplier     = COALESCE($3, supplier),
-        cost         = COALESCE($4, cost),
-        retail       = COALESCE($5, retail),
-        notes        = COALESCE($6, notes),
-        sku          = COALESCE($7, sku)
-      WHERE id = $8
+        cpu          = COALESCE($3, cpu)
+        supplier     = COALESCE($4, supplier),
+        cost         = COALESCE($5, cost),
+        retail       = COALESCE($6, retail),
+        notes        = COALESCE($7, notes),
+        sku          = COALESCE($8, sku)
+      WHERE id = $9
       RETURNING *;
     `;
 
     const values = [
       status ?? null,
       parts_status ?? null,
+      cpu ?? null,
       supplier ?? null,
       cost ?? null,
       retail ?? null,

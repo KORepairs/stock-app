@@ -63,7 +63,6 @@
       <table>
         <thead>
           <tr>
-            <th>ID</th>
             <th>Description</th>
             <th>SKU</th>
             <th>Status</th>
@@ -147,7 +146,6 @@ async function loadRefurb() {
       const created = item.created_at ? new Date(item.created_at).toLocaleString('en-GB') : '';
 
             return `<tr>
-        <td>${item.id}</td>
         <td>${esc(item.description)}</td>
 
         <td>

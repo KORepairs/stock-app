@@ -66,7 +66,7 @@
             <th class="col-sku">SKU</th>
             <th>Description</th>
             <th>Status</th>
-            <th>Parts</th>
+            <th class="col-parts">Parts</th>
             <th>CPU</th>
             <th>Notes</th>
             <th>Actions</th>
@@ -168,14 +168,15 @@ async function loadRefurb() {
           </select>
         </td>
 
-        <td class="${partsClass(item.parts_status)}">
-          <select data-id="${item.id}" class="partsSel">
-            <option value="none" ${item.parts_status==='none'?'selected':''}>None</option>
-            <option value="needs_parts" ${item.parts_status==='needs_parts'?'selected':''}>Needs parts</option>
-            <option value="awaiting_parts" ${item.parts_status==='awaiting_parts'?'selected':''}>Awaiting parts</option>
-            <option value="has_parts" ${item.parts_status==='has_parts'?'selected':''}>Has parts</option>
-          </select>
+        <td class="col-parts ${partsClass(item.parts_status)}">
+            <select data-id="${item.id}" class="partsSel">
+                <option value="none">None</option>
+                <option value="needs_parts">Needs parts</option>
+                <option value="awaiting_parts">Awaiting parts</option>
+                <option value="has_parts">Has parts</option>
+            </select>
         </td>
+
 
         <td>
             <input

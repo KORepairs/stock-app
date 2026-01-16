@@ -350,3 +350,14 @@ td select {
   text-align: center;
   font-weight: 600;
 }
+/* Narrow Parts column */
+.col-parts {
+  width: 140px;
+  max-width: 140px;
+}
+
+/* Make dropdown fill but not expand */
+.col-parts select {
+  width: 120px;
+  white-space: nowrap;
+}

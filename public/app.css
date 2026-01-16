@@ -361,3 +361,9 @@ td select {
   width: 105px;
   white-space: nowrap;
 }
+
+.col-parts select {
+  font-size: 13px;
+  padding: 4px 6px;
+}
+

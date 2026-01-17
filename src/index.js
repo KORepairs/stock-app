@@ -631,8 +631,6 @@ app.put('/api/refurb/:id', async (req, res) => {
     cost,
     retail,
     notes,
-
-
     sku, // allow editing SKU from the table
   } = req.body || {};
 
@@ -658,7 +656,7 @@ app.put('/api/refurb/:id', async (req, res) => {
       SET
         status       = COALESCE($1, status),
         parts_status = COALESCE($2, parts_status),
-        cpu          = COALESCE($3, cpu)
+        cpu          = COALESCE($3, cpu),
         supplier     = COALESCE($4, supplier),
         cost         = COALESCE($5, cost),
         retail       = COALESCE($6, retail),
@@ -877,7 +875,7 @@ app.post('/api/tradein', upload.single('id_image'), async (req, res) => {
         serial, device_desc, valuation, agreed_value,
         id_image_path, refurb_id
       )
-      VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9)
+      VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10)
       RETURNING *;
       `,
       [

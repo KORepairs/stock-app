@@ -57,6 +57,44 @@
       Track devices going through strip / refurb / scrap and whether they need or are awaiting parts.
     </p>
 
+    <h2 style="margin-top:0">Refurb queue</h2>
+    
+    <div class="filters" style="display:flex;gap:10px;flex-wrap:wrap;align-items:flex-end;margin:12px 0 14px;">
+  <div>
+    <label style="display:block;font-size:12px;opacity:.7;margin-bottom:4px;">Search SKU</label>
+    <input id="fSku" type="text" placeholder="e.g. L0122" style="min-width:180px;">
+  </div>
+
+  <div>
+    <label style="display:block;font-size:12px;opacity:.7;margin-bottom:4px;">Status</label>
+    <select id="fStatus">
+      <option value="">All</option>
+      <option value="strip">Strip</option>
+      <option value="refurb">Refurb</option>
+      <option value="scrap">Scrap</option>
+      <option value="complete">Complete</option>
+    </select>
+  </div>
+
+  <div>
+    <label style="display:block;font-size:12px;opacity:.7;margin-bottom:4px;">Supplier</label>
+    <select id="fSupplier">
+      <option value="">All</option>
+      <option value="ITCS">ITCS</option>
+      <option value="Dan">Dan</option>
+      <option value="Trade-in">Trade-in</option>
+    </select>
+  </div>
+
+  <div>
+    <label style="display:block;font-size:12px;opacity:.7;margin-bottom:4px;">CPU contains</label>
+    <input id="fCpu" type="text" placeholder="e.g. i5 / Ryzen" style="min-width:200px;">
+  </div>
+
+  <button id="fClear" type="button" style="height:36px;">Clear</button>
+</div>
+
+
     <!-- Table -->
     <h2 style="margin-top:0">Refurb queue</h2>
     <div class="table-wrap">
@@ -125,107 +163,139 @@
     }
   }
 
+  let ALL_REFURB = [];
+
+
 
   // -----------------------
-// Load refurb items
-// -----------------------
-async function loadRefurb() {
-  const tbody = $('refurbTbody');
-  tbody.innerHTML = '<tr><td colspan="10" style="padding:8px">Loading…</td></tr>';
+  // Load refurb items (fetch once, then filter client-side)
+  // -----------------------
+  async function loadRefurb() {
+    const tbody = $('refurbTbody');
+    tbody.innerHTML = '<tr><td colspan="10" style="padding:8px">Loading…</td></tr>';
 
-  try {
-    const res = await fetch('/api/refurb');
-    const items = await res.json();
+    try {
+      const res = await fetch('/api/refurb');
+      const items = await res.json();
 
-    if (!Array.isArray(items) || !items.length) {
-      tbody.innerHTML = '<tr><td colspan="10" style="padding:8px">No refurb items yet.</td></tr>';
-      return;
+      ALL_REFURB = Array.isArray(items) ? items : [];
+
+      populateFilters(ALL_REFURB);
+      applyFilters();
+
+    } catch (e) {
+      console.error(e);
+      tbody.innerHTML = '<tr><td colspan="10" style="padding:8px;color:#900">Failed to load refurb items</td></tr>';
     }
-
-    tbody.innerHTML = items.map(item => {
-      const created = item.created_at ? new Date(item.created_at).toLocaleString('en-GB') : '';
-
-            return `<tr>
-
-        <td class="col-sku">
-          <input
-            data-id="${item.id}"
-            class="skuInp"
-            type="text"
-            value="${esc(item.sku)}"
-          >
-        </td>
-
-        <td>${esc(item.description)}</td>
-
-
-        <td class="${statusClass(item.status)}">
-          <select data-id="${item.id}" class="statusSel">
-            <option value="strip" ${item.status==='strip'?'selected':''}>Strip</option>
-            <option value="refurb" ${item.status==='refurb'?'selected':''}>Refurb</option>
-            <option value="scrap" ${item.status==='scrap'?'selected':''}>Scrap</option>
-            <option value="complete" ${item.status==='complete'?'selected':''}>Complete</option>
-          </select>
-        </td>
-
-        <td class="col-parts ${partsClass(item.parts_status)}">
-            <select data-id="${item.id}" class="partsSel">
-                <option value="none" ${item.parts_status==='none'?'selected':''}>None</option>
-                <option value="needs_parts" ${item.parts_status==='needs_parts'?'selected':''}>Needs parts</option>
-                <option value="awaiting_parts" ${item.parts_status==='awaiting_parts'?'selected':''}>Awaiting parts</option>
-                <option value="has_parts" ${item.parts_status==='has_parts'?'selected':''}>Has parts</option>
-            </select>
-        </td>
-
-
-        <td>
-            <input
-                data-id="${item.id}"
-                class="cpuInp"
-                type="text"
-                value="${esc(item.cpu || '')}"
-                placeholder="e.g. i5-10210U"
-                >
-        </td>
-
-
-        <td>
-          <input
-            data-id="${item.id}"
-            class="notesInp"
-            type="text"
-            value="${esc(item.notes)}"
-          >
-        </td>
-
-            <td>
-            <button type="button" class="detailBtn" data-id="${item.id}">
-                Details
-            </button>
-          <button type="button" class="saveRowBtn" data-id="${item.id}">
-            Save
-          </button>
-          <button type="button" class="deleteRowBtn" data-id="${item.id}" style="margin-left:6px;">
-            Delete
-          </button>
-        </td>
-
-      </tr>`;
-    }).join('');
-
-    // ✅ Wire both dropdowns AND Save buttons now that rows exist
-    wireRefurbDropdowns();
-    wireRefurbRowSaves();
-    wireRefurbDeletes();
-    wireRefurbDetails();
-
-
-
-  } catch (e) {
-    console.error(e);
-    tbody.innerHTML = '<tr><td colspan="10" style="padding:8px;color:#900">Failed to load refurb items</td></tr>';
   }
+
+  function populateFilters(items) {
+  const supplierSel = $('supplierFilter');
+  const cpuSel = $('cpuFilter');
+
+  // Keep the "All ..." option, clear the rest
+  supplierSel.innerHTML = '<option value="">All suppliers</option>';
+  cpuSel.innerHTML = '<option value="">All CPUs</option>';
+
+  const suppliers = [...new Set(items.map(x => (x.supplier || '').trim()).filter(Boolean))].sort();
+  const cpus = [...new Set(items.map(x => (x.cpu || '').trim()).filter(Boolean))].sort();
+
+  suppliers.forEach(s => {
+    const opt = document.createElement('option');
+    opt.value = s;
+    opt.textContent = s;
+    supplierSel.appendChild(opt);
+  });
+
+  cpus.forEach(c => {
+    const opt = document.createElement('option');
+    opt.value = c;
+    opt.textContent = c;
+    cpuSel.appendChild(opt);
+  });
 }
+
+function applyFilters() {
+  const qSku = ($('skuSearch')?.value || '').trim().toUpperCase();
+  const fStatus = $('statusFilter')?.value || '';
+  const fSupplier = ($('supplierFilter')?.value || '').trim();
+  const fCpu = ($('cpuFilter')?.value || '').trim();
+
+  const filtered = ALL_REFURB.filter(item => {
+    const sku = String(item.sku || '').toUpperCase();
+    const status = String(item.status || '');
+    const supplier = String(item.supplier || '').trim();
+    const cpu = String(item.cpu || '').trim();
+
+    if (qSku && !sku.includes(qSku)) return false;
+    if (fStatus && status !== fStatus) return false;
+    if (fSupplier && supplier !== fSupplier) return false;
+    if (fCpu && cpu !== fCpu) return false;
+
+    return true;
+  });
+
+  renderRefurbTable(filtered);
+}
+
+function renderRefurbTable(items) {
+  const tbody = $('refurbTbody');
+
+  if (!Array.isArray(items) || items.length === 0) {
+    tbody.innerHTML = '<tr><td colspan="10" style="padding:8px">No matching refurb items.</td></tr>';
+    return;
+  }
+
+  tbody.innerHTML = items.map(item => {
+    return `<tr>
+      <td class="col-sku">
+        <input data-id="${item.id}" class="skuInp" type="text" value="${esc(item.sku)}">
+      </td>
+
+      <td>${esc(item.description)}</td>
+
+      <td class="${statusClass(item.status)}">
+        <select data-id="${item.id}" class="statusSel">
+          <option value="strip" ${item.status==='strip'?'selected':''}>Strip</option>
+          <option value="refurb" ${item.status==='refurb'?'selected':''}>Refurb</option>
+          <option value="scrap" ${item.status==='scrap'?'selected':''}>Scrap</option>
+          <option value="complete" ${item.status==='complete'?'selected':''}>Complete</option>
+        </select>
+      </td>
+
+      <td class="col-parts ${partsClass(item.parts_status)}">
+        <select data-id="${item.id}" class="partsSel">
+          <option value="none" ${item.parts_status==='none'?'selected':''}>None</option>
+          <option value="needs_parts" ${item.parts_status==='needs_parts'?'selected':''}>Needs parts</option>
+          <option value="awaiting_parts" ${item.parts_status==='awaiting_parts'?'selected':''}>Awaiting parts</option>
+          <option value="has_parts" ${item.parts_status==='has_parts'?'selected':''}>Has parts</option>
+        </select>
+      </td>
+
+      <td>
+        <input data-id="${item.id}" class="cpuInp" type="text"
+          value="${esc(item.cpu || '')}" placeholder="e.g. i5-10210U">
+      </td>
+
+      <td>
+        <input data-id="${item.id}" class="notesInp" type="text" value="${esc(item.notes)}">
+      </td>
+
+      <td>
+        <button type="button" class="detailBtn" data-id="${item.id}">Details</button>
+        <button type="button" class="saveRowBtn" data-id="${item.id}">Save</button>
+        <button type="button" class="deleteRowBtn" data-id="${item.id}" style="margin-left:6px;">Delete</button>
+      </td>
+    </tr>`;
+  }).join('');
+
+  // re-wire after render
+  wireRefurbDropdowns();
+  wireRefurbRowSaves();
+  wireRefurbDeletes();
+  wireRefurbDetails();
+}
+
 
 
   
@@ -353,6 +423,20 @@ async function loadRefurb() {
   });
 }
 
+['skuSearch','statusFilter','supplierFilter','cpuFilter'].forEach(id => {
+  const el = document.getElementById(id);
+  if (!el) return;
+  el.addEventListener('input', applyFilters);
+  el.addEventListener('change', applyFilters);
+});
+
+document.getElementById('clearFilters')?.addEventListener('click', () => {
+  $('skuSearch').value = '';
+  $('statusFilter').value = '';
+  $('supplierFilter').value = '';
+  $('cpuFilter').value = '';
+  applyFilters();
+});
 
 
   // Load table on page open

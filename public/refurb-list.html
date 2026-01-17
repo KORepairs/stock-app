@@ -190,53 +190,36 @@
   }
 
   function populateFilters(items) {
-  const supplierSel = $('supplierFilter');
-  const cpuSel = $('cpuFilter');
+  // (your supplier list is fixed in HTML, so we don’t need to populate it)
+  // But we *can* still populate supplier dynamically if you want later.
 
-  // Keep the "All ..." option, clear the rest
-  supplierSel.innerHTML = '<option value="">All suppliers</option>';
-  cpuSel.innerHTML = '<option value="">All CPUs</option>';
-
-  const suppliers = [...new Set(items.map(x => (x.supplier || '').trim()).filter(Boolean))].sort();
-  const cpus = [...new Set(items.map(x => (x.cpu || '').trim()).filter(Boolean))].sort();
-
-  suppliers.forEach(s => {
-    const opt = document.createElement('option');
-    opt.value = s;
-    opt.textContent = s;
-    supplierSel.appendChild(opt);
-  });
-
-  cpus.forEach(c => {
-    const opt = document.createElement('option');
-    opt.value = c;
-    opt.textContent = c;
-    cpuSel.appendChild(opt);
-  });
+  // CPU dropdown doesn’t exist (you’re using a text input fCpu), so nothing to populate
 }
 
-function applyFilters() {
-  const qSku = ($('skuSearch')?.value || '').trim().toUpperCase();
-  const fStatus = $('statusFilter')?.value || '';
-  const fSupplier = ($('supplierFilter')?.value || '').trim();
-  const fCpu = ($('cpuFilter')?.value || '').trim();
 
-  const filtered = ALL_REFURB.filter(item => {
-    const sku = String(item.sku || '').toUpperCase();
-    const status = String(item.status || '');
-    const supplier = String(item.supplier || '').trim();
-    const cpu = String(item.cpu || '').trim();
+  function applyFilters() {
+    const qSku = ($('fSku')?.value || '').trim().toUpperCase();
+    const fStatus = $('fStatus')?.value || '';
+    const fSupplier = ($('fSupplier')?.value || '').trim();
+    const fCpu = ($('fCpu')?.value || '').trim().toLowerCase();
 
-    if (qSku && !sku.includes(qSku)) return false;
-    if (fStatus && status !== fStatus) return false;
-    if (fSupplier && supplier !== fSupplier) return false;
-    if (fCpu && cpu !== fCpu) return false;
+    const filtered = ALL_REFURB.filter(item => {
+      const sku = String(item.sku || '').toUpperCase();
+      const status = String(item.status || '');
+      const supplier = String(item.supplier || '').trim();
+      const cpu = String(item.cpu || '').trim().toLowerCase();
 
-    return true;
-  });
+      if (qSku && !sku.includes(qSku)) return false;
+      if (fStatus && status !== fStatus) return false;
+      if (fSupplier && supplier !== fSupplier) return false;
+      if (fCpu && !cpu.includes(fCpu)) return false;   // <-- “contains” match
 
-  renderRefurbTable(filtered);
-}
+      return true;
+    });
+
+    renderRefurbTable(filtered);
+  }
+
 
 function renderRefurbTable(items) {
   const tbody = $('refurbTbody');
@@ -423,20 +406,21 @@ function renderRefurbTable(items) {
   });
 }
 
-['skuSearch','statusFilter','supplierFilter','cpuFilter'].forEach(id => {
+['fSku','fStatus','fSupplier','fCpu'].forEach(id => {
   const el = document.getElementById(id);
   if (!el) return;
   el.addEventListener('input', applyFilters);
   el.addEventListener('change', applyFilters);
 });
 
-document.getElementById('clearFilters')?.addEventListener('click', () => {
-  $('skuSearch').value = '';
-  $('statusFilter').value = '';
-  $('supplierFilter').value = '';
-  $('cpuFilter').value = '';
+document.getElementById('fClear')?.addEventListener('click', () => {
+  $('fSku').value = '';
+  $('fStatus').value = '';
+  $('fSupplier').value = '';
+  $('fCpu').value = '';
   applyFilters();
 });
+
 
 
   // Load table on page open

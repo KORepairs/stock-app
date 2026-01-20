@@ -723,19 +723,6 @@ function renderRefurbTable(items) {
 });
 
 
-document.getElementById('fClear')?.addEventListener('click', () => {
-  $('fSku').value = '';
-  $('fStatus').value = '';
-  $('fSupplier').value = '';
-  $('fCpu').value = '';
-  $('fColour').value = '';
-  $('fStorage').value = '';
-  $('fStorageConsole').value = '';
-  $('fController').value = '';
-  applyFilters();
-});
-
-
 $('fView')?.addEventListener('change', () => {
   syncViewUI();
   applyFilters();

@@ -103,10 +103,13 @@
   <div>
   <label style="display:block;font-size:12px;opacity:.7;margin-bottom:4px;">Category</label>
   <select id="fCat">
-    <option value="">All</option>
-    <option value="laptop">Laptop</option>
-    <option value="pc">PC</option>
-  </select>
+  <option value="">All (Laptop + PC)</option>
+  <option value="laptop">Laptop</option>
+  <option value="pc">PC</option>
+  <option value="phone">Phone</option>
+  <option value="tablet">Tablet</option>
+  <option value="console">Console</option>
+</select>
 </div>
 
 
@@ -278,13 +281,14 @@ function partsPillClass(partsStatus) {
       const status = String(item.status || '');
       const supplier = String(item.supplier || '').trim();
       const cpu = String(item.cpu || '').trim().toLowerCase();
-      const category = String(item.category || '').trim().toLowerCase();
+      const category = String(item.category || '').trim().toLowerCase() || 'laptop';
+
 
       // If a category filter is chosen, only show matching
       if (fCat && category !== fCat) return false;
 
-      // If "All" is selected, we only want laptop/pc items on this page
-      if (!fCat && category && !['laptop','pc'].includes(category)) return false;
+      // If "All (Laptop + PC)" is selected, only show laptop+pc
+      if (!fCat && !['laptop','pc'].includes(category)) return false;
 
 
       if (qSku && !sku.includes(qSku)) return false;

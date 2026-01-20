@@ -385,3 +385,14 @@ td select {
   padding: 4px 6px;
 }
 
+.skuLink {
+  font-family: ui-monospace, Menlo, Consolas, monospace;
+  font-weight: 700;
+  color: #2563eb;            /* blue link */
+  text-decoration: none;
+}
+
+.skuLink:hover {
+  text-decoration: underline;
+}
+

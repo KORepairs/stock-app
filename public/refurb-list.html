@@ -289,8 +289,11 @@ function renderRefurbTable(items) {
   tbody.innerHTML = items.map(item => {
     return `<tr>
       <td class="col-sku">
-        <input data-id="${item.id}" class="skuInp" type="text" value="${esc(item.sku)}">
+        <a href="/refurb/${item.id}" class="skuLink" title="View refurb details">
+          ${esc(item.sku)}
+        </a>
       </td>
+
 
       <td>${esc(item.description)}</td>
 

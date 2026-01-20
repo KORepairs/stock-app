@@ -101,6 +101,16 @@
   </div>
 
   <div>
+  <label style="display:block;font-size:12px;opacity:.7;margin-bottom:4px;">Category</label>
+  <select id="fCat">
+    <option value="">All</option>
+    <option value="laptop">Laptop</option>
+    <option value="pc">PC</option>
+  </select>
+</div>
+
+
+  <div>
     <label style="display:block;font-size:12px;opacity:.7;margin-bottom:4px;">Status</label>
     <select id="fStatus">
       <option value="">All</option>
@@ -260,12 +270,22 @@ function partsPillClass(partsStatus) {
     const fStatus = $('fStatus')?.value || '';
     const fSupplier = ($('fSupplier')?.value || '').trim();
     const fCpu = ($('fCpu')?.value || '').trim().toLowerCase();
+    const fCat = ($('fCat')?.value || '').trim().toLowerCase();
+
 
     const filtered = ALL_REFURB.filter(item => {
       const sku = String(item.sku || '').toUpperCase();
       const status = String(item.status || '');
       const supplier = String(item.supplier || '').trim();
       const cpu = String(item.cpu || '').trim().toLowerCase();
+      const category = String(item.category || '').trim().toLowerCase();
+
+      // If a category filter is chosen, only show matching
+      if (fCat && category !== fCat) return false;
+
+      // If "All" is selected, we only want laptop/pc items on this page
+      if (!fCat && category && !['laptop','pc'].includes(category)) return false;
+
 
       if (qSku && !sku.includes(qSku)) return false;
       if (fStatus && status !== fStatus) return false;
@@ -495,7 +515,7 @@ function renderRefurbTable(items) {
   });
 }
 
-['fSku','fStatus','fSupplier','fCpu'].forEach(id => {
+['fSku','fStatus','fSupplier','fCat','fCpu'].forEach(id => {
   const el = document.getElementById(id);
   if (!el) return;
   el.addEventListener('input', applyFilters);
@@ -507,6 +527,7 @@ document.getElementById('fClear')?.addEventListener('click', () => {
   $('fStatus').value = '';
   $('fSupplier').value = '';
   $('fCpu').value = '';
+  $('fCat').value = '';
   applyFilters();
 });
 

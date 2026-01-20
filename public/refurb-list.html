@@ -232,7 +232,7 @@ function partsPillClass(partsStatus) {
     tbody.innerHTML = '<tr><td colspan="10" style="padding:8px">Loading…</td></tr>';
 
     try {
-      const res = await fetch('/');
+      const res = await fetch('/api/refurb', { cache: 'no-store' });
       const items = await res.json();
 
       ALL_REFURB = Array.isArray(items) ? items : [];
@@ -399,14 +399,12 @@ function renderRefurbTable(items) {
         const id = btn.getAttribute('data-id');
         const row = btn.closest('tr');
 
-        const skuEl      = row.querySelector('.skuInp');
         const statusSel  = row.querySelector('.statusSel');
         const partsSel   = row.querySelector('.partsSel');
         const cpuEl = row.querySelector('.cpuInp');
         const notesEl    = row.querySelector('.notesInp');
 
         const body = {
-            sku: skuEl.value.trim() || null,
             cpu: cpuEl.value.trim() || null,
             status: statusSel.value,
             parts_status: partsSel.value,

@@ -58,6 +58,20 @@ export async function initDb() {
   `);
 
   await pgQuery(`ALTER TABLE refurb_items ADD COLUMN IF NOT EXISTS cpu TEXT;`);
+  // --- Extra fields for different refurb categories (phones/tablets/consoles) ---
+  await pgQuery(`ALTER TABLE refurb_items ADD COLUMN IF NOT EXISTS category TEXT;`);
+  await pgQuery(`ALTER TABLE refurb_items ADD COLUMN IF NOT EXISTS colour TEXT;`);
+  await pgQuery(`ALTER TABLE refurb_items ADD COLUMN IF NOT EXISTS storage TEXT;`);
+  await pgQuery(`ALTER TABLE refurb_items ADD COLUMN IF NOT EXISTS controller TEXT;`);
+
+  // Default existing refurb items to 'laptop' so they appear in laptop/pc view
+await pgQuery(`
+  UPDATE refurb_items
+  SET category = 'laptop'
+  WHERE category IS NULL;
+`);
+
+
 
 
     // Refurb details (extra info + checklist per refurb item)

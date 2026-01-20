@@ -9,41 +9,29 @@
   <meta name="viewport" content="width=device-width,initial-scale=1">
   <link rel="stylesheet" href="/app.css">
     <style>
-    /* Status colours */
-    .refurb-status-strip td,
-    td.refurb-status-strip {
-      background-color: #4b3b16;  /* brownish */
-    }
-    .refurb-status-refurb td,
-    td.refurb-status-refurb {
-      background-color: #12324a;  /* blue-ish */
-    }
-    .refurb-status-scrap td,
-    td.refurb-status-scrap {
-      background-color: #7b1d1d;  /* dark red */
-    }
-    .refurb-status-complete td,
-    td.refurb-status-complete {
-      background-color: #1f4d2a;  /* green-ish */
-    }
+    /* ===== Status colours (strong) ===== */
+td.refurb-status-strip    { background:#4a3a14; } /* strip = brown */
+td.refurb-status-refurb   { background:#12324a; } /* refurb = blue */
+td.refurb-status-scrap    { background:#6e1f1f; } /* scrap = red */
+td.refurb-status-complete { background:#1f4d2a; } /* complete = green */
 
-    /* Parts status colours (lighter) */
-    .refurb-parts-none td,
-    td.refurb-parts-none {
-      background-color: transparent;
-    }
-    .refurb-parts-needs_parts td,
-    td.refurb-parts-needs_parts {
-      background-color: #5a3a1a;  /* amber-ish */
-    }
-    .refurb-parts-awaiting_parts td,
-    td.refurb-parts-awaiting_parts {
-      background-color: #5a4a1a;  /* yellow-brown */
-    }
-    .refurb-parts-has_parts td,
-    td.refurb-parts-has_parts {
-      background-color: #1f3f2a;  /* dark green */
-    }
+/* ===== Parts colours (softer, but still visible) ===== */
+td.refurb-parts-none           { background:transparent; }
+td.refurb-parts-needs_parts    { background:#5a3a1a; } /* amber */
+td.refurb-parts-awaiting_parts { background:#5a4a1a; } /* yellow-brown */
+td.refurb-parts-has_parts      { background:#1f3f2a; } /* dark green */
+
+/* Optional: make dropdowns readable on coloured cells */
+td.refurb-status-strip select,
+td.refurb-status-refurb select,
+td.refurb-status-scrap select,
+td.refurb-status-complete select,
+td.refurb-parts-needs_parts select,
+td.refurb-parts-awaiting_parts select,
+td.refurb-parts-has_parts select {
+  background: #fff;
+}
+
   </style>
 </head>
 
@@ -144,24 +132,25 @@
   }
 
     function statusClass(status) {
-    switch (status) {
-      case 'strip':     return 'refurb-status-strip';
-      case 'refurb':    return 'refurb-status-refurb';
-      case 'scrap':     return 'refurb-status-scrap';
-      case 'complete':  return 'refurb-status-complete';
-      default:          return '';
-    }
+  switch (status) {
+    case 'strip': return 'refurb-status-strip';
+    case 'refurb': return 'refurb-status-refurb';
+    case 'scrap': return 'refurb-status-scrap';
+    case 'complete': return 'refurb-status-complete';
+    default: return '';
   }
+}
 
-  function partsClass(partsStatus) {
-    switch (partsStatus) {
-      case 'needs_parts':    return 'refurb-parts-needs_parts';
-      case 'awaiting_parts': return 'refurb-parts-awaiting_parts';
-      case 'has_parts':      return 'refurb-parts-has_parts';
-      case 'none':
-      default:               return 'refurb-parts-none';
-    }
+function partsClass(partsStatus) {
+  switch (partsStatus) {
+    case 'needs_parts': return 'refurb-parts-needs_parts';
+    case 'awaiting_parts': return 'refurb-parts-awaiting_parts';
+    case 'has_parts': return 'refurb-parts-has_parts';
+    case 'none':
+    default: return 'refurb-parts-none';
   }
+}
+
 
   let ALL_REFURB = [];
 
@@ -286,38 +275,50 @@ function renderRefurbTable(items) {
   // Wire dropdown updates
   // -----------------------
   function wireRefurbDropdowns() {
-    document.querySelectorAll('.statusSel, .partsSel').forEach(sel => {
-      sel.addEventListener('change', async () => {
+  document.querySelectorAll('.statusSel, .partsSel').forEach(sel => {
+    sel.addEventListener('change', async () => {
 
-        const id = sel.getAttribute('data-id');
-        const row = sel.closest('tr');
+      const id = sel.getAttribute('data-id');
+      const row = sel.closest('tr');
 
-        const statusSel = row.querySelector('.statusSel');
-        const partsSel  = row.querySelector('.partsSel');
+      const statusSel = row.querySelector('.statusSel');
+      const partsSel  = row.querySelector('.partsSel');
 
-        const body = {
-          status: statusSel.value,
-          parts_status: partsSel.value
-        };
+      // ✅ update UI colours immediately (before API call)
+      const statusTd = statusSel.closest('td');
+      const partsTd  = partsSel.closest('td');
 
-        try {
-          const res = await fetch(`/api/refurb/${id}`, {
-            method: 'PUT',
-            headers: {'Content-Type':'application/json'},
-            body: JSON.stringify(body)
-          });
+      statusTd.className = statusClass(statusSel.value);
+      partsTd.className  = `col-parts ${partsClass(partsSel.value)}`;
 
-          if (!res.ok) throw new Error('Update failed');
+      const body = {
+        status: statusSel.value,
+        parts_status: partsSel.value
+      };
 
-          toast('Updated ✔️', 'ok');
+      try {
+        const res = await fetch(`/api/refurb/${id}`, {
+          method: 'PUT',
+          headers: {'Content-Type':'application/json'},
+          body: JSON.stringify(body)
+        });
 
-        } catch (err) {
-          console.error(err);
-          toast('Failed to update');
-        }
-      });
+        if (!res.ok) throw new Error('Update failed');
+
+        toast('Updated ✔️', 'ok');
+
+      } catch (err) {
+        console.error(err);
+
+        // Optional: revert UI if API fails (simple approach: reload table)
+        // loadRefurb();
+
+        toast('Failed to update');
+      }
     });
-  }
+  });
+}
+
 
     function wireRefurbRowSaves() {
     document.querySelectorAll('.saveRowBtn').forEach(btn => {

@@ -1,0 +1,542 @@
+<!doctype html>
+<html lang="en">
+
+<!-- force deploy test -->
+    
+<head>
+  <meta charset="utf-8">
+  <title>Refurb Queue - Tablets</title>
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <link rel="stylesheet" href="/app.css">
+    <style>
+    /* ===== Status colours (strong) ===== */
+  td.refurb-status-strip    { background:#ed9507; } /* strip = brown */
+  td.refurb-status-refurb   { background:#0819d1; } /* refurb = blue */
+  td.refurb-status-scrap    { background:#e81c0e; } /* scrap = red */
+  td.refurb-status-complete { background:#158207; } /* complete = green */
+
+  /* ===== Parts colours (softer, but still visible) ===== */
+  td.refurb-parts-none           { background:#919087; }
+  td.refurb-parts-needs_parts    { background:#a81703; } /* red */
+  td.refurb-parts-awaiting_parts { background:#d9c61e; } /* yellow-brown */
+  td.refurb-parts-has_parts      { background:#053802; } /* dark green */
+
+  /* Optional: make dropdowns readable on coloured cells */
+  td.refurb-status-strip select,
+  td.refurb-status-refurb select,
+  td.refurb-status-scrap select,
+  td.refurb-status-complete select,
+  td.refurb-parts-needs_parts select,
+  td.refurb-parts-awaiting_parts select,
+  td.refurb-parts-has_parts select {
+    background: #fff;
+  }
+
+  /* --- Make the coloured "pill" --- */
+  .pill {
+    display: inline-flex;
+    align-items: center;
+    border-radius: 999px;
+    padding: 6px 10px;
+    min-height: 34px;
+    box-shadow: inset 0 0 0 1px rgba(255,255,255,.08);
+  }
+
+  /* Make the select sit nicely inside the pill */
+  .pill select {
+    border: 0;
+    outline: none;
+    background: transparent;
+    color: #fff;
+    font-weight: 600;
+    padding: 0 6px;
+    min-height: 22px;
+    cursor: pointer;
+  }
+
+  /* Remove the big coloured TD backgrounds (optional safety) */
+  td.refurb-status-strip,
+  td.refurb-status-refurb,
+  td.refurb-status-scrap,
+  td.refurb-status-complete,
+  td.refurb-parts-none,
+  td.refurb-parts-needs_parts,
+  td.refurb-parts-awaiting_parts,
+  td.refurb-parts-has_parts {
+    background: transparent !important;
+  }
+
+  /* ===== Status pill colours ===== */
+  .pill-status-strip    { background:#ed9507; }
+  .pill-status-refurb   { background:#0819d1; }
+  .pill-status-scrap    { background:#e81c0e; }
+  .pill-status-complete { background:#158207; }
+
+  /* ===== Parts pill colours ===== */
+  .pill-parts-none           { background: #919087; }
+  .pill-parts-needs_parts    { background:#a81703; }
+  .pill-parts-awaiting_parts { background:#d9c61e; }
+  .pill-parts-has_parts      { background:#053802; }
+
+
+  </style>
+</head>
+
+</head>
+<body>
+    <div class="wrap">
+    <aside id="sidebar"></aside>
+  <main class="page">
+    <h1>Refurb Queue - Tablets</h1>
+    <p style="color:var(--muted,#9aa);margin-top:4px;">
+      Track devices going through strip / refurb / scrap and whether they need or are awaiting parts.
+    </p>
+
+    <h2 style="margin-top:0">Refurb queue</h2>
+    
+    <div class="filters" style="display:flex;gap:10px;flex-wrap:wrap;align-items:flex-end;margin:12px 0 14px;">
+  <div>
+    <label style="display:block;font-size:12px;opacity:.7;margin-bottom:4px;">Search SKU</label>
+    <input id="fSku" type="text" placeholder="e.g. L0122" style="min-width:180px;">
+  </div>
+
+  <div>
+    <label style="display:block;font-size:12px;opacity:.7;margin-bottom:4px;">Status</label>
+    <select id="fStatus">
+      <option value="">All</option>
+      <option value="strip">Strip</option>
+      <option value="refurb">Refurb</option>
+      <option value="scrap">Scrap</option>
+      <option value="complete">Complete</option>
+    </select>
+  </div>
+
+  <div>
+    <label style="display:block;font-size:12px;opacity:.7;margin-bottom:4px;">Supplier</label>
+    <select id="fSupplier">
+      <option value="">All</option>
+      <option value="ITCS">ITCS</option>
+      <option value="Dan">Dan</option>
+      <option value="Trade-in">Trade-in</option>
+    </select>
+  </div>
+
+  <div>
+  <label style="display:block;font-size:12px;opacity:.7;margin-bottom:4px;">Colour contains</label>
+  <input id="fColour" type="text" placeholder="e.g. Black" style="min-width:160px;">
+</div>
+
+<div>
+  <label style="display:block;font-size:12px;opacity:.7;margin-bottom:4px;">Storage contains</label>
+  <input id="fStorage" type="text" placeholder="e.g. 128GB" style="min-width:160px;">
+</div>
+
+
+  <button id="fClear" type="button" style="height:36px;">Clear</button>
+</div>
+
+
+    <!-- Table -->
+    <h2 style="margin-top:0">Refurb queue</h2>
+    <div class="table-wrap">
+      <table>
+        <thead>
+          <tr>
+            <th class="col-sku">SKU</th>
+            <th>Description</th>
+            <th>Category</th>
+            <th>Status</th>
+            <th class="col-parts">Parts</th>
+            <th>Colour</th>
+            <th>Storage</th>
+            <th>Actions</th>
+          </tr>
+        </thead>
+        <tbody id="refurbTbody">
+          <tr><td colspan="10" style="padding:8px">Loading…</td></tr>
+        </tbody>
+      </table>
+    </div>
+  </main>
+
+  <script>
+  function $(id){ return document.getElementById(id); }
+  function esc(s){ return String(s || '').replace(/[&<>"']/g, m => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[m]||m)); }
+  function fmtMoney(v){ return '£' + Number(v || 0).toFixed(2); }
+
+  let __toastTimer;
+  function toast(msg, kind='err') {
+    let t = document.getElementById('__toast');
+    if (!t) {
+      t = document.createElement('div');
+      t.id = '__toast';
+      Object.assign(t.style, {
+        position:'fixed',left:'50%',top:'14px',transform:'translateX(-50%)',
+        padding:'8px 14px',borderRadius:'999px',fontSize:'13px',
+        background:'#a52828',color:'#fff',opacity:'0',transition:'opacity .2s',
+        boxShadow:'0 8px 24px rgba(0,0,0,.35)',zIndex:9999,
+      });
+      document.body.appendChild(t);
+    }
+    t.style.background = kind==='ok' ? '#2c7a2c' : '#a52828';
+    t.textContent = msg;
+    t.style.opacity = '1';
+    clearTimeout(__toastTimer);
+    __toastTimer = setTimeout(()=> t.style.opacity='0', 1800);
+  }
+
+    function statusClass(status) {
+  switch (status) {
+    case 'strip': return 'refurb-status-strip';
+    case 'refurb': return 'refurb-status-refurb';
+    case 'scrap': return 'refurb-status-scrap';
+    case 'complete': return 'refurb-status-complete';
+    default: return '';
+  }
+}
+
+function partsClass(partsStatus) {
+  switch (partsStatus) {
+    case 'needs_parts': return 'refurb-parts-needs_parts';
+    case 'awaiting_parts': return 'refurb-parts-awaiting_parts';
+    case 'has_parts': return 'refurb-parts-has_parts';
+    case 'none':
+    default: return 'refurb-parts-none';
+  }
+}
+
+function statusPillClass(status) {
+  switch (status) {
+    case 'strip':    return 'pill-status-strip';
+    case 'refurb':   return 'pill-status-refurb';
+    case 'scrap':    return 'pill-status-scrap';
+    case 'complete': return 'pill-status-complete';
+    default:         return 'pill-status-refurb';
+  }
+}
+
+function partsPillClass(partsStatus) {
+  switch (partsStatus) {
+    case 'needs_parts':    return 'pill-parts-needs_parts';
+    case 'awaiting_parts': return 'pill-parts-awaiting_parts';
+    case 'has_parts':      return 'pill-parts-has_parts';
+    case 'none':
+    default:               return 'pill-parts-none';
+  }
+}
+
+
+
+  let ALL_REFURB = [];
+
+
+
+  // -----------------------
+  // Load refurb items (fetch once, then filter client-side)
+  // -----------------------
+  async function loadRefurb() {
+    const tbody = $('refurbTbody');
+    tbody.innerHTML = '<tr><td colspan="10" style="padding:8px">Loading…</td></tr>';
+
+    try {
+      const res = await fetch('/api/refurb', { cache: 'no-store' });
+      const items = await res.json();
+
+      ALL_REFURB = Array.isArray(items) ? items : [];
+
+      populateFilters(ALL_REFURB);
+      applyFilters();
+
+    } catch (e) {
+      console.error(e);
+      tbody.innerHTML = '<tr><td colspan="10" style="padding:8px;color:#900">Failed to load refurb items</td></tr>';
+    }
+  }
+
+  function populateFilters(items) {
+  // (your supplier list is fixed in HTML, so we don’t need to populate it)
+  // But we *can* still populate supplier dynamically if you want later.
+
+  // CPU dropdown doesn’t exist (you’re using a text input fCpu), so nothing to populate
+}
+
+
+  function applyFilters() {
+    const qSku = ($('fSku')?.value || '').trim().toUpperCase();
+    const fStatus = $('fStatus')?.value || '';
+    const fSupplier = ($('fSupplier')?.value || '').trim();
+    const fColour = ($('fColour')?.value || '').trim().toLowerCase();
+    const fStorage = ($('fStorage')?.value || '').trim().toLowerCase();
+
+    const fixedCategory = 'tablet';
+
+    const filtered = ALL_REFURB.filter(item => {
+      const sku = String(item.sku || '').toUpperCase();
+      const status = String(item.status || '');
+      const supplier = String(item.supplier || '').trim();
+      const colour = String(item.colour || '').trim().toLowerCase();
+      const storage = String(item.storage || '').trim().toLowerCase();
+
+      // 🔹 NEW: lock this page to phones only
+    const category = String(item.category || '').trim().toLowerCase();
+    if (category !== fixedCategory) return false;
+
+
+      if (qSku && !sku.includes(qSku)) return false;
+      if (fStatus && status !== fStatus) return false;
+      if (fSupplier && supplier !== fSupplier) return false;
+      if (fColour && !colour.includes(fColour)) return false;
+      if (fStorage && !storage.includes(fStorage)) return false;
+
+
+      return true;
+    });
+
+    renderRefurbTable(filtered);
+  }
+
+
+function renderRefurbTable(items) {
+  const tbody = $('refurbTbody');
+
+  if (!Array.isArray(items) || items.length === 0) {
+    tbody.innerHTML = '<tr><td colspan="10" style="padding:8px">No matching refurb items.</td></tr>';
+    return;
+  }
+
+  tbody.innerHTML = items.map(item => {
+    return `<tr>
+      <td class="col-sku">
+        <a href="/refurb/${item.id}" class="skuLink" title="View refurb details">
+          ${esc(item.sku)}
+        </a>
+      </td>
+
+
+      <td>${esc(item.description)}</td>
+      <td>
+        <select data-id="${item.id}" class="catSel">
+          <option value="laptop" ${item.category==='laptop'?'selected':''}>Laptop</option>
+          <option value="pc" ${item.category==='pc'?'selected':''}>PC</option>
+          <option value="phone" ${item.category==='phone'?'selected':''}>Phone</option>
+          <option value="tablet" ${item.category==='tablet'?'selected':''}>Tablet</option>
+          <option value="console" ${item.category==='console'?'selected':''}>Console</option>
+        </select>
+      </td>
+
+
+      <td>
+        <span class="pill ${statusPillClass(item.status)}">
+         <select data-id="${item.id}" class="statusSel">
+            <option value="strip" ${item.status==='strip'?'selected':''}>Strip</option>
+            <option value="refurb" ${item.status==='refurb'?'selected':''}>Refurb</option>
+            <option value="scrap" ${item.status==='scrap'?'selected':''}>Scrap</option>
+            <option value="complete" ${item.status==='complete'?'selected':''}>Complete</option>
+          </select>
+        </span>
+      </td>
+
+
+      <td class="col-parts">
+        <span class="pill ${partsPillClass(item.parts_status)}">
+          <select data-id="${item.id}" class="partsSel">
+            <option value="none" ${item.parts_status==='none'?'selected':''}>None</option>
+            <option value="needs_parts" ${item.parts_status==='needs_parts'?'selected':''}>Needs parts</option>
+            <option value="awaiting_parts" ${item.parts_status==='awaiting_parts'?'selected':''}>Awaiting parts</option>
+          <option value="has_parts" ${item.parts_status==='has_parts'?'selected':''}>Has parts</option>
+        </select>
+      </span>
+    </td>
+
+
+      <td>
+        <input data-id="${item.id}" class="colourInp" type="text"
+            value="${esc(item.colour || '')}" placeholder="e.g. Black">
+        </td>
+
+        <td>
+        <input data-id="${item.id}" class="storageInp" type="text"
+            value="${esc(item.storage || '')}" placeholder="e.g. 128GB">
+        </td>
+
+
+      <td>
+        <button type="button" class="detailBtn" data-id="${item.id}">Details</button>
+        <button type="button" class="saveRowBtn" data-id="${item.id}">Save</button>
+        <button type="button" class="deleteRowBtn" data-id="${item.id}" style="margin-left:6px;">Delete</button>
+      </td>
+    </tr>`;
+  }).join('');
+
+  // re-wire after render
+  wireRefurbDropdowns();
+  wireRefurbRowSaves();
+  wireRefurbDeletes();
+  wireRefurbDetails();
+}
+
+
+
+  
+  // -----------------------
+  // Wire dropdown updates
+  // -----------------------
+  function wireRefurbDropdowns() {
+  document.querySelectorAll('.statusSel, .partsSel, .catSel').forEach(sel => {
+    sel.addEventListener('change', async () => {
+
+      const id = sel.getAttribute('data-id');
+      const row = sel.closest('tr');
+
+      const statusSel = row.querySelector('.statusSel');
+      const partsSel  = row.querySelector('.partsSel');
+
+      // ✅ update pill colours immediately
+      const statusPill = statusSel.closest('.pill');
+      const partsPill  = partsSel.closest('.pill');
+
+      statusPill.className = `pill ${statusPillClass(statusSel.value)}`;
+      partsPill.className  = `pill ${partsPillClass(partsSel.value)}`;
+
+      const catSel = row.querySelector('.catSel');
+
+      const body = {
+        status: statusSel.value,
+        parts_status: partsSel.value,
+        category: catSel?.value || null
+      };
+
+
+      try {
+        const res = await fetch(`/api/refurb/${id}`, {
+          method: 'PUT',
+          headers: {'Content-Type':'application/json'},
+          body: JSON.stringify(body)
+        });
+
+        if (!res.ok) throw new Error('Update failed');
+        toast('Updated ✔️', 'ok');
+
+      } catch (err) {
+        console.error(err);
+        toast('Failed to update');
+      }
+    });
+  });
+}
+
+
+
+    function wireRefurbRowSaves() {
+    document.querySelectorAll('.saveRowBtn').forEach(btn => {
+      btn.addEventListener('click', async () => {
+        const id = btn.getAttribute('data-id');
+        const row = btn.closest('tr');
+
+        const statusSel  = row.querySelector('.statusSel');
+        const partsSel   = row.querySelector('.partsSel');
+        const catSel = row.querySelector('.catSel');
+        const colourEl  = row.querySelector('.colourInp');
+        const storageEl = row.querySelector('.storageInp');
+
+
+        const body = {
+            category: catSel?.value || 'tablet',
+            status: statusSel.value,
+            parts_status: partsSel.value,
+            colour: colourEl.value.trim() || null,
+            storage: storageEl.value.trim() || null,
+            };
+
+
+
+        btn.disabled = true;
+        btn.textContent = 'Saving…';
+
+        try {
+          const res = await fetch(`/api/refurb/${id}`, {
+            method: 'PUT',
+            headers: {'Content-Type':'application/json'},
+            body: JSON.stringify(body),
+          });
+
+          if (!res.ok) throw new Error('Failed to save row');
+
+          toast('Row updated ✔️', 'ok');
+        } catch (err) {
+          console.error(err);
+          toast('Failed to update row');
+        } finally {
+          btn.disabled = false;
+          btn.textContent = 'Save';
+        }
+      });
+    });
+  }
+
+    function wireRefurbDeletes() {
+    document.querySelectorAll('.deleteRowBtn').forEach(btn => {
+      btn.addEventListener('click', async () => {
+        const id = btn.getAttribute('data-id');
+        if (!confirm('Delete this refurb item?')) return;
+
+        btn.disabled = true;
+        btn.textContent = 'Deleting…';
+
+        try {
+          const res = await fetch(`/api/refurb/${id}`, {
+            method: 'DELETE'
+          });
+
+          if (!res.ok) throw new Error('Failed to delete refurb');
+
+          const data = await res.json();
+          if (!data.deleted) throw new Error('Refurb not found / not deleted');
+
+          // Remove the row from the table
+          const row = btn.closest('tr');
+          if (row) row.remove();
+
+          toast('Refurb deleted ✔️', 'ok');
+        } catch (err) {
+          console.error(err);
+          toast(err.message || 'Failed to delete refurb');
+        }
+      });
+    });
+  }
+
+  function wireRefurbDetails() {
+  document.querySelectorAll('.detailBtn').forEach(btn => {
+    btn.addEventListener('click', () => {
+      const id = btn.getAttribute('data-id');
+      window.location.href = `/refurb/${id}`;
+    });
+  });
+}
+
+['fSku','fStatus','fSupplier','fColour','fStorage'].forEach(id => {
+  const el = document.getElementById(id);
+  if (!el) return;
+  el.addEventListener('input', applyFilters);
+  el.addEventListener('change', applyFilters);
+});
+
+
+document.getElementById('fClear')?.addEventListener('click', () => {
+  $('fSku').value = '';
+  $('fStatus').value = '';
+  $('fSupplier').value = '';
+  $('fColour').value = '';
+  $('fStorage').value = '';
+  applyFilters();
+});
+
+
+
+  // Load table on page open
+  window.addEventListener('DOMContentLoaded', loadRefurb);
+</script>
+<script src="/js/sidebar.js"></script>
+</body>
+</html>

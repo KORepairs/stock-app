@@ -30,6 +30,18 @@ import {
 import fs from 'node:fs';
 import multer from 'multer';
 
+function categoryFromSkuPrefix(sku) {
+  const s = String(sku || '').trim().toUpperCase();
+  const p = s.charAt(0);
+
+  if (p === 'L') return 'laptop';
+  if (p === 'M') return 'pc';
+  if (p === 'V') return 'phone';
+  if (p === 'Q') return 'tablet';
+  if (p === 'H') return 'console';
+
+  return null;
+}
 
 
 /* ---------- Paths ---------- */
@@ -643,6 +655,13 @@ app.put('/api/refurb/:id', async (req, res) => {
   // normalise SKU to uppercase like products
   const skuNorm = sku ? String(sku).trim().toUpperCase() : null;
 
+  const autoCat = skuNorm ? categoryFromSkuPrefix(skuNorm) : null;
+
+// If frontend sent a category, keep it.
+// If not, and we can infer from SKU, use inferred value.
+const categoryToUse = (category ?? null) || autoCat;
+
+
   try {
     // 1) Get the existing refurb row so we know its previous status
     const existing = await pgQuery(
@@ -689,7 +708,7 @@ app.put('/api/refurb/:id', async (req, res) => {
       notes ?? null,
       skuNorm ?? null,
 
-      category ?? null,
+      categoryToUse ?? null,
       colour ?? null,
       storage ?? null,
       controller ?? null,

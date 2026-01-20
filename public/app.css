@@ -396,3 +396,7 @@ td select {
   text-decoration: underline;
 }
 
+.catSel {
+  width: 120px;
+}
+

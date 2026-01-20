@@ -138,6 +138,7 @@
           <tr>
             <th class="col-sku">SKU</th>
             <th>Description</th>
+            <th>Category</th>
             <th>Status</th>
             <th class="col-parts">Parts</th>
             <th>CPU</th>
@@ -296,6 +297,16 @@ function renderRefurbTable(items) {
 
 
       <td>${esc(item.description)}</td>
+      <td>
+        <select data-id="${item.id}" class="catSel">
+          <option value="laptop" ${item.category==='laptop'?'selected':''}>Laptop</option>
+          <option value="pc" ${item.category==='pc'?'selected':''}>PC</option>
+          <option value="phone" ${item.category==='phone'?'selected':''}>Phone</option>
+          <option value="tablet" ${item.category==='tablet'?'selected':''}>Tablet</option>
+          <option value="console" ${item.category==='console'?'selected':''}>Console</option>
+        </select>
+      </td>
+
 
       <td>
         <span class="pill ${statusPillClass(item.status)}">
@@ -401,10 +412,12 @@ function renderRefurbTable(items) {
 
         const statusSel  = row.querySelector('.statusSel');
         const partsSel   = row.querySelector('.partsSel');
+        const catSel = row.querySelector('.catSel');
         const cpuEl = row.querySelector('.cpuInp');
         const notesEl    = row.querySelector('.notesInp');
 
         const body = {
+            category: catSel?.value || 'laptop',
             cpu: cpuEl.value.trim() || null,
             status: statusSel.value,
             parts_status: partsSel.value,

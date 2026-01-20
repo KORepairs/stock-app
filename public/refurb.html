@@ -175,6 +175,11 @@
 
   <script>
   function $(id){ return document.getElementById(id); }
+  function setVal(id, v) {
+    const el = document.getElementById(id);
+    if (el) el.value = v;
+  }
+
   function esc(s){ return String(s || '').replace(/[&<>"']/g, m => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[m]||m)); }
   function fmtMoney(v){ return '£' + Number(v || 0).toFixed(2); }
 
@@ -337,6 +342,26 @@ function updateLocalRefurb(updatedRow) {
 
   renderRefurbTable(filtered);
 }
+
+ function clearFilters() {
+  setVal('fSku', '');
+  setVal('fStatus', '');
+  setVal('fSupplier', '');
+
+  // computer
+  setVal('fCpu', '');
+
+  // phone / tablet
+  setVal('fColour', '');
+  setVal('fStorage', '');
+
+  // console
+  setVal('fStorageConsole', '');
+  setVal('fController', '');
+
+  applyFilters();
+}
+
 
 function syncViewUI() {
   const view = $('fView')?.value || 'computer';
@@ -722,6 +747,10 @@ $('fView')?.addEventListener('change', () => {
   window.addEventListener('DOMContentLoaded', () => {
   syncViewUI();
   loadRefurb();
+
+  const btn = document.getElementById('fClear');
+  if (btn) btn.addEventListener('click', clearFilters);
+
 });
 
 </script>

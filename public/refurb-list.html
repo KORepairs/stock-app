@@ -363,7 +363,7 @@ function renderRefurbTable(items) {
   // Wire dropdown updates
   // -----------------------
   function wireRefurbDropdowns() {
-  document.querySelectorAll('.statusSel, .partsSel').forEach(sel => {
+  document.querySelectorAll('.statusSel, .partsSel, .catSel').forEach(sel => {
     sel.addEventListener('change', async () => {
 
       const id = sel.getAttribute('data-id');
@@ -379,10 +379,14 @@ function renderRefurbTable(items) {
       statusPill.className = `pill ${statusPillClass(statusSel.value)}`;
       partsPill.className  = `pill ${partsPillClass(partsSel.value)}`;
 
+      const catSel = row.querySelector('.catSel');
+
       const body = {
         status: statusSel.value,
-        parts_status: partsSel.value
+        parts_status: partsSel.value,
+        category: catSel?.value || null
       };
+
 
       try {
         const res = await fetch(`/api/refurb/${id}`, {

@@ -239,6 +239,14 @@ function partsPillClass(partsStatus) {
   }
 }
 
+function updateLocalRefurb(updatedRow) {
+  if (!updatedRow || !updatedRow.id) return;
+  const idx = ALL_REFURB.findIndex(x => String(x.id) === String(updatedRow.id));
+  if (idx >= 0) {
+    ALL_REFURB[idx] = { ...ALL_REFURB[idx], ...updatedRow };
+  }
+}
+
 
 
   let ALL_REFURB = [];
@@ -544,7 +552,6 @@ function renderRefurbTable(items) {
         category: catSel?.value || null
       };
 
-
       try {
         const res = await fetch(`/api/refurb/${id}`, {
           method: 'PUT',
@@ -553,9 +560,13 @@ function renderRefurbTable(items) {
         });
 
         if (!res.ok) throw new Error('Update failed');
+
+        // ✅ IMPORTANT: update the in-memory list so rerender doesn't snap back
+        const updatedRow = await res.json();
+        updateLocalRefurb(updatedRow);
+
         toast('Updated ✔️', 'ok');
         applyFilters();
-
 
       } catch (err) {
         console.error(err);
@@ -619,11 +630,12 @@ function renderRefurbTable(items) {
         });
 
         if (!res.ok) throw new Error('Failed to save row');
+        const updatedRow = await res.json();
+        updateLocalRefurb(updatedRow);
 
         toast('Row updated ✔️', 'ok');
-
-        // Re-apply filters so if category/view changed it moves instantly
         applyFilters();
+
 
       } catch (err) {
         console.error(err);

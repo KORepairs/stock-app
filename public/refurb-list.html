@@ -10,27 +10,74 @@
   <link rel="stylesheet" href="/app.css">
     <style>
     /* ===== Status colours (strong) ===== */
-td.refurb-status-strip    { background:#4a3a14; } /* strip = brown */
-td.refurb-status-refurb   { background:#12324a; } /* refurb = blue */
-td.refurb-status-scrap    { background:#6e1f1f; } /* scrap = red */
-td.refurb-status-complete { background:#1f4d2a; } /* complete = green */
+  td.refurb-status-strip    { background:#4a3a14; } /* strip = brown */
+  td.refurb-status-refurb   { background:#12324a; } /* refurb = blue */
+  td.refurb-status-scrap    { background:#6e1f1f; } /* scrap = red */
+  td.refurb-status-complete { background:#1f4d2a; } /* complete = green */
 
-/* ===== Parts colours (softer, but still visible) ===== */
-td.refurb-parts-none           { background:transparent; }
-td.refurb-parts-needs_parts    { background:#5a3a1a; } /* amber */
-td.refurb-parts-awaiting_parts { background:#5a4a1a; } /* yellow-brown */
-td.refurb-parts-has_parts      { background:#1f3f2a; } /* dark green */
+  /* ===== Parts colours (softer, but still visible) ===== */
+  td.refurb-parts-none           { background:transparent; }
+  td.refurb-parts-needs_parts    { background:#5a3a1a; } /* amber */
+  td.refurb-parts-awaiting_parts { background:#5a4a1a; } /* yellow-brown */
+  td.refurb-parts-has_parts      { background:#1f3f2a; } /* dark green */
 
-/* Optional: make dropdowns readable on coloured cells */
-td.refurb-status-strip select,
-td.refurb-status-refurb select,
-td.refurb-status-scrap select,
-td.refurb-status-complete select,
-td.refurb-parts-needs_parts select,
-td.refurb-parts-awaiting_parts select,
-td.refurb-parts-has_parts select {
-  background: #fff;
-}
+  /* Optional: make dropdowns readable on coloured cells */
+  td.refurb-status-strip select,
+  td.refurb-status-refurb select,
+  td.refurb-status-scrap select,
+  td.refurb-status-complete select,
+  td.refurb-parts-needs_parts select,
+  td.refurb-parts-awaiting_parts select,
+  td.refurb-parts-has_parts select {
+    background: #fff;
+  }
+
+  /* --- Make the coloured "pill" --- */
+  .pill {
+    display: inline-flex;
+    align-items: center;
+    border-radius: 999px;
+    padding: 6px 10px;
+    min-height: 34px;
+    box-shadow: inset 0 0 0 1px rgba(255,255,255,.08);
+  }
+
+  /* Make the select sit nicely inside the pill */
+  .pill select {
+    border: 0;
+    outline: none;
+    background: transparent;
+    color: #fff;
+    font-weight: 600;
+    padding: 0 6px;
+    min-height: 22px;
+    cursor: pointer;
+  }
+
+  /* Remove the big coloured TD backgrounds (optional safety) */
+  td.refurb-status-strip,
+  td.refurb-status-refurb,
+  td.refurb-status-scrap,
+  td.refurb-status-complete,
+  td.refurb-parts-none,
+  td.refurb-parts-needs_parts,
+  td.refurb-parts-awaiting_parts,
+  td.refurb-parts-has_parts {
+    background: transparent !important;
+  }
+
+  /* ===== Status pill colours ===== */
+  .pill-status-strip    { background:#4a3a14; }
+  .pill-status-refurb   { background:#12324a; }
+  .pill-status-scrap    { background:#6e1f1f; }
+  .pill-status-complete { background:#1f4d2a; }
+
+  /* ===== Parts pill colours ===== */
+  .pill-parts-none           { background: rgba(255,255,255,.06); color:#fff; }
+  .pill-parts-needs_parts    { background:#5a3a1a; }
+  .pill-parts-awaiting_parts { background:#5a4a1a; }
+  .pill-parts-has_parts      { background:#1f3f2a; }
+
 
   </style>
 </head>
@@ -151,6 +198,27 @@ function partsClass(partsStatus) {
   }
 }
 
+function statusPillClass(status) {
+  switch (status) {
+    case 'strip':    return 'pill-status-strip';
+    case 'refurb':   return 'pill-status-refurb';
+    case 'scrap':    return 'pill-status-scrap';
+    case 'complete': return 'pill-status-complete';
+    default:         return 'pill-status-refurb';
+  }
+}
+
+function partsPillClass(partsStatus) {
+  switch (partsStatus) {
+    case 'needs_parts':    return 'pill-parts-needs_parts';
+    case 'awaiting_parts': return 'pill-parts-awaiting_parts';
+    case 'has_parts':      return 'pill-parts-has_parts';
+    case 'none':
+    default:               return 'pill-parts-none';
+  }
+}
+
+
 
   let ALL_REFURB = [];
 
@@ -226,23 +294,29 @@ function renderRefurbTable(items) {
 
       <td>${esc(item.description)}</td>
 
-      <td class="${statusClass(item.status)}">
-        <select data-id="${item.id}" class="statusSel">
-          <option value="strip" ${item.status==='strip'?'selected':''}>Strip</option>
-          <option value="refurb" ${item.status==='refurb'?'selected':''}>Refurb</option>
-          <option value="scrap" ${item.status==='scrap'?'selected':''}>Scrap</option>
-          <option value="complete" ${item.status==='complete'?'selected':''}>Complete</option>
-        </select>
+      <td>
+        <span class="pill ${statusPillClass(item.status)}">
+         <select data-id="${item.id}" class="statusSel">
+            <option value="strip" ${item.status==='strip'?'selected':''}>Strip</option>
+            <option value="refurb" ${item.status==='refurb'?'selected':''}>Refurb</option>
+            <option value="scrap" ${item.status==='scrap'?'selected':''}>Scrap</option>
+            <option value="complete" ${item.status==='complete'?'selected':''}>Complete</option>
+          </select>
+        </span>
       </td>
 
-      <td class="col-parts ${partsClass(item.parts_status)}">
-        <select data-id="${item.id}" class="partsSel">
-          <option value="none" ${item.parts_status==='none'?'selected':''}>None</option>
-          <option value="needs_parts" ${item.parts_status==='needs_parts'?'selected':''}>Needs parts</option>
-          <option value="awaiting_parts" ${item.parts_status==='awaiting_parts'?'selected':''}>Awaiting parts</option>
+
+      <td class="col-parts">
+        <span class="pill ${partsPillClass(item.parts_status)}">
+          <select data-id="${item.id}" class="partsSel">
+            <option value="none" ${item.parts_status==='none'?'selected':''}>None</option>
+            <option value="needs_parts" ${item.parts_status==='needs_parts'?'selected':''}>Needs parts</option>
+            <option value="awaiting_parts" ${item.parts_status==='awaiting_parts'?'selected':''}>Awaiting parts</option>
           <option value="has_parts" ${item.parts_status==='has_parts'?'selected':''}>Has parts</option>
         </select>
-      </td>
+      </span>
+    </td>
+
 
       <td>
         <input data-id="${item.id}" class="cpuInp" type="text"
@@ -284,12 +358,12 @@ function renderRefurbTable(items) {
       const statusSel = row.querySelector('.statusSel');
       const partsSel  = row.querySelector('.partsSel');
 
-      // ✅ update UI colours immediately (before API call)
-      const statusTd = statusSel.closest('td');
-      const partsTd  = partsSel.closest('td');
+      // ✅ update pill colours immediately
+      const statusPill = statusSel.closest('.pill');
+      const partsPill  = partsSel.closest('.pill');
 
-      statusTd.className = statusClass(statusSel.value);
-      partsTd.className  = `col-parts ${partsClass(partsSel.value)}`;
+      statusPill.className = `pill ${statusPillClass(statusSel.value)}`;
+      partsPill.className  = `pill ${partsPillClass(partsSel.value)}`;
 
       const body = {
         status: statusSel.value,
@@ -304,20 +378,16 @@ function renderRefurbTable(items) {
         });
 
         if (!res.ok) throw new Error('Update failed');
-
         toast('Updated ✔️', 'ok');
 
       } catch (err) {
         console.error(err);
-
-        // Optional: revert UI if API fails (simple approach: reload table)
-        // loadRefurb();
-
         toast('Failed to update');
       }
     });
   });
 }
+
 
 
     function wireRefurbRowSaves() {

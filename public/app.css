@@ -304,10 +304,28 @@ table {
   width: 100%;
 }
 
+/* SKU is column 1 */
+th:nth-child(1),
+td:nth-child(1) {
+  width: 90px;
+}
+
+/* Status is column 3 */
 th:nth-child(3),
 td:nth-child(3) {
-  width: 90px;           /* SKU column */
+  width: 140px;
 }
+
+/* Parts is column 4 */
+th:nth-child(4),
+td:nth-child(4) {
+  width: 160px;
+}
+
+td { overflow: hidden; }
+.pill { max-width: 100%; }
+.pill select { width: 100%; }
+
 
 .skuInp {
   width: 80px;

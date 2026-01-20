@@ -632,6 +632,12 @@ app.put('/api/refurb/:id', async (req, res) => {
     retail,
     notes,
     sku, // allow editing SKU from the table
+
+    // NEW (optional fields for category-specific views)
+    category,
+    colour,
+    storage,
+    controller,
   } = req.body || {};
 
   // normalise SKU to uppercase like products
@@ -651,7 +657,7 @@ app.put('/api/refurb/:id', async (req, res) => {
     const oldStatus = existing.rows[0].status;
 
     // 2) Update refurb row
-    const query = `
+        const query = `
       UPDATE refurb_items
       SET
         status       = COALESCE($1, status),
@@ -661,12 +667,19 @@ app.put('/api/refurb/:id', async (req, res) => {
         cost         = COALESCE($5, cost),
         retail       = COALESCE($6, retail),
         notes        = COALESCE($7, notes),
-        sku          = COALESCE($8, sku)
-      WHERE id = $9
+        sku          = COALESCE($8, sku),
+
+        category     = COALESCE($9, category),
+        colour       = COALESCE($10, colour),
+        storage      = COALESCE($11, storage),
+        controller   = COALESCE($12, controller)
+
+      WHERE id = $13
       RETURNING *;
     `;
 
-    const values = [
+
+        const values = [
       status ?? null,
       parts_status ?? null,
       cpu ?? null,
@@ -675,8 +688,15 @@ app.put('/api/refurb/:id', async (req, res) => {
       retail ?? null,
       notes ?? null,
       skuNorm ?? null,
+
+      category ?? null,
+      colour ?? null,
+      storage ?? null,
+      controller ?? null,
+
       id,
     ];
+
 
     const result  = await pgQuery(query, values);
     const updated = result.rows[0];

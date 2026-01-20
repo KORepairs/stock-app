@@ -232,7 +232,7 @@ function partsPillClass(partsStatus) {
     tbody.innerHTML = '<tr><td colspan="10" style="padding:8px">Loading…</td></tr>';
 
     try {
-      const res = await fetch('/api/refurb');
+      const res = await fetch('/');
       const items = await res.json();
 
       ALL_REFURB = Array.isArray(items) ? items : [];

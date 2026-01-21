@@ -211,19 +211,27 @@
 
     // Checklist keys (stored in JSON)
     const CHECK_ITEMS = [
-      ['boots', 'Boots to OS'],
-      ['screen', 'Screen / backlight'],
+      // Row 1
+      ['bios', 'Posts to BIOS'],
+      ['bios_password', 'BIOS password'],
+      ['battery', 'Battery'],
+
+      // Row 2
       ['keyboard', 'Keyboard'],
-      ['trackpad', 'Trackpad / mouse'],
-      ['ports', 'USB / HDMI / ports'],
-      ['wifi', 'Wi-Fi / Bluetooth'],
-      ['camera', 'Camera / mic'],
-      ['sound', 'Speakers'],
-      ['battery', 'Battery / charging'],
-      ['storage', 'Drive health / SMART'],
-      ['stress', 'Stress test (basic)'],
-      ['cosmetic', 'Cosmetic check'],
+      ['trackpad', 'Trackpad'],
+      ['wifi', 'Wi-Fi'],
+
+      // Row 3
+      ['camera', 'Camera'],
+      ['mic', 'Mic'],
+      ['speakers', 'Speakers'],
+
+      // Row 4
+      ['updates', 'Updates installed'],
+      ['chrome', 'Chrome installed'],
+      ['avast', 'Avast installed'],
     ];
+
 
     function buildChecklist(checkedMap){
       const wrap = $('checklistWrap');

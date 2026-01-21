@@ -397,7 +397,8 @@
   // only prefill if currently empty
   const hasCost = String($('cost').value || '').trim() !== '';
   const hasRetail = String($('retail').value || '').trim() !== '';
-  if (hasCost || hasRetail) return;
+  if (hasCost && hasRetail) return;
+
 
   try {
     const p = await fetchJSON(`/api/products/lookup/${encodeURIComponent(s)}`);

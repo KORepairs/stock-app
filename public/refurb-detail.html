@@ -25,8 +25,26 @@
 
     @media (max-width:900px){ .grid2,.grid3{ grid-template-columns:1fr; } }
 
-    .checklist { display:grid; grid-template-columns: 1fr 1fr; gap:10px; margin-top:10px; }
-    @media (max-width:900px){ .checklist{ grid-template-columns:1fr; } }
+    .checklist {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 12px;
+}
+
+/* Tablet */
+@media (max-width: 1000px) {
+  .checklist {
+    grid-template-columns: repeat(2, 1fr);
+  }
+}
+
+/* Mobile */
+@media (max-width: 600px) {
+  .checklist {
+    grid-template-columns: 1fr;
+  }
+}
+
     .check { display:flex; gap:10px; align-items:flex-start; padding:10px; border:1px solid var(--border); border-radius:12px; background: rgba(255,255,255,.02); }
     .check input { margin-top:2px; }
 

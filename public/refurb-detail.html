@@ -173,6 +173,11 @@
 
   <script>
     function $(id){ return document.getElementById(id); }
+    function setIfExists(id, value) {
+  const el = document.getElementById(id);
+  if (el) el.value = value ?? '';
+}
+
     function esc(s){ return String(s ?? '').replace(/[&<>"']/g, m => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[m])); }
 
     let __toastTimer;
@@ -282,12 +287,11 @@
         $('subhead').innerHTML = `<b>${esc(data.sku || ('#'+id))}</b> · ${esc(data.description || '')}`;
 
         // detail fields
-        $('specs_cpu').value = data.specs_cpu || '';
-        $('specs_ram').value = data.specs_ram || '';
-        $('specs_storage').value = data.specs_storage || '';
-        $('specs_gpu').value = data.specs_gpu || '';
-        $('specs_screen').value = data.specs_screen || '';
-        $('os_version').value = data.os_version || '';
+        setIfExists('specs_cpu', data.specs_cpu);
+        setIfExists('specs_ram', data.specs_ram);
+        setIfExists('specs_storage', data.specs_storage);
+        setIfExists('specs_gpu', data.specs_gpu);
+
 
         $('parts_needed').value = data.parts_needed || '';
         $('parts_cost').value = Number(data.parts_cost || 0).toFixed(2);

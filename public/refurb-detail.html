@@ -11,6 +11,18 @@
     .card { background: var(--panel); border:1px solid var(--border); border-radius:12px; padding:14px; margin-top:14px; }
     .grid2 { display:grid; grid-template-columns: 1fr 1fr; gap:12px; }
     .grid3 { display:grid; grid-template-columns: 1fr 1fr 1fr; gap:12px; }
+    .grid4 {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 12px;
+}
+
+@media (max-width: 900px) {
+  .grid4 {
+    grid-template-columns: 1fr;
+  }
+}
+
     @media (max-width:900px){ .grid2,.grid3{ grid-template-columns:1fr; } }
 
     .checklist { display:grid; grid-template-columns: 1fr 1fr; gap:10px; margin-top:10px; }
@@ -99,37 +111,43 @@
 
 
       <div class="card">
-        <h2 style="margin:0 0 10px;">Specs</h2>
-        <div class="grid4">
-          <div>
-            <label>CPU</label>
-            <input id="specs_cpu" type="text" placeholder="e.g. i5-8365U" />
-          </div>
-          <div>
-            <label>RAM</label>
-            <input id="specs_ram" type="text" placeholder="e.g. 16GB" />
-          </div>
-          <div>
-            <label>Storage</label>
-            <input id="specs_storage" type="text" placeholder="e.g. 512GB SSD" />
-          </div>
-        </div>
+  <h2 style="margin:0 0 10px;">Specs</h2>
 
-        <div class="grid3" style="margin-top:12px;">
-          <div>
-            <label>GPU</label>
-            <input id="specs_gpu" type="text" placeholder="e.g. Intel UHD / RTX 2060" />
-          </div>
-          <div>
-            <label>Screen</label>
-            <input id="specs_screen" type="text" placeholder="e.g. 14&quot; 1080p" />
-          </div>
-          <div>
-            <label>OS Version</label>
-            <input id="os_version" type="text" placeholder="e.g. Windows 11 Pro" />
-          </div>
-        </div>
-      </div>
+  <div class="grid4">
+    <div>
+      <label>CPU</label>
+      <input id="specs_cpu" type="text" placeholder="e.g. i5-8365U" />
+    </div>
+
+    <div>
+      <label>RAM</label>
+      <input id="specs_ram" type="text" placeholder="e.g. 16GB" />
+    </div>
+
+    <div>
+      <label>Storage</label>
+      <input id="specs_storage" type="text" placeholder="e.g. 512GB SSD" />
+    </div>
+
+    <div>
+      <label>GPU</label>
+      <input id="specs_gpu" type="text" placeholder="e.g. Intel UHD / RTX 2060" />
+    </div>
+  </div>
+
+  <div class="grid2" style="margin-top:12px;">
+    <div>
+      <label>Screen</label>
+      <input id="specs_screen" type="text" placeholder="e.g. 14&quot; 1080p" />
+    </div>
+
+    <div>
+      <label>OS Version</label>
+      <input id="os_version" type="text" placeholder="e.g. Windows 11 Pro" />
+    </div>
+  </div>
+</div>
+
 
       <div class="card">
         <h2 style="margin:0 0 10px;">Laptop Checklist</h2>

@@ -1,506 +1,713 @@
 <!doctype html>
 <html lang="en">
-<head>
-  <meta charset="utf-8" />
-  <title>Refurb Detail</title>
-  <meta name="viewport" content="width=device-width,initial-scale=1" />
-  <link rel="stylesheet" href="/app.css" />
-  <style>
-    .row { display:flex; gap:12px; align-items:center; flex-wrap:wrap; }
-    .muted { color: var(--muted,#9aa); font-size: 13px; }
-    .card { background: var(--panel); border:1px solid var(--border); border-radius:12px; padding:14px; margin-top:14px; }
-    .grid2 { display:grid; grid-template-columns: 1fr 1fr; gap:12px; }
-    .grid3 { display:grid; grid-template-columns: 1fr 1fr 1fr; gap:12px; }
-    .grid4 {
-  display: grid;
-  grid-template-columns: repeat(4, 1fr);
-  gap: 12px;
-}
-
-@media (max-width: 900px) {
-  .grid4 {
-    grid-template-columns: 1fr;
-  }
-}
-
-    @media (max-width:900px){ .grid2,.grid3{ grid-template-columns:1fr; } }
-
-    .checklist {
-  display: grid;
-  grid-template-columns: repeat(3, 1fr);
-  gap: 12px;
-}
-
-/* Tablet */
-@media (max-width: 1000px) {
-  .checklist {
-    grid-template-columns: repeat(2, 1fr);
-  }
-}
-
-/* Mobile */
-@media (max-width: 600px) {
-  .checklist {
-    grid-template-columns: 1fr;
-  }
-}
-
-  #detail_notes {
-  width: 100%;
-  min-height: 120px;
-  box-sizing: border-box;
-}
-
-    .check { display:flex; gap:10px; align-items:flex-start; padding:10px; border:1px solid var(--border); border-radius:12px; background: rgba(255,255,255,.02); }
-    .check input { margin-top:2px; }
-
-    .actions { display:flex; gap:10px; justify-content:flex-end; margin-top:12px; flex-wrap:wrap; }
-    textarea { min-height: 90px; }
-
-    .pill { padding:4px 10px; border-radius:999px; border:1px solid var(--border); font-size:12px; color:#ddd; }
-    .pill.ok { background:#183a1a; border-color:#2f6b33; color:#cdeccf; }
-    .pill.bad { background:#3a1a1a; border-color:#6b2f2f; color:#f7d7d7; }
-
-    .parts-grid {
-  display: grid;
-  grid-template-columns: 1fr 120px;
-  gap: 10px;
-  align-items: center;
-}
-
-.parts-header {
-  font-weight: 600;
-  font-size: 13px;
-  color: var(--muted, #9aa);
-}
-
-  </style>
-</head>
-<body>
-  <div class="wrap">
-    <aside id="sidebar"></aside>
-
-    <main class="page">
-      <div class="row" style="justify-content:space-between;">
-        <div>
-          <h1 style="margin:0;">Refurb Detail</h1>
-          <div class="muted" id="subhead">Loading…</div>
-        </div>
-
-        <div class="row">
-          <a href="/refurb"><button type="button">← Back to Refurb List</button></a>
-          <span class="pill" id="saveState" style="display:none;"></span>
-        </div>
-      </div>
-
-      <div class="card">
-  <h2 style="margin:0 0 10px;">Device</h2>
-
-  <div class="grid2">
-    <!-- Row 1 -->
-    <div>
-      <label>SKU</label>
-      <input id="sku" type="text" placeholder="e.g. L0123" />
-    </div>
-
-    <div>
-      <label>Description</label>
-      <input id="description" type="text" disabled />
-    </div>
-
-    <!-- Row 2 -->
-    <div>
-      <label>Status</label>
-      <input id="status" type="text" disabled />
-    </div>
-
-    <div>
-      <label>Parts status</label>
-      <input id="parts_status" type="text" disabled />
-    </div>
-
-    <!-- Row 3 -->
-    <div>
-      <label>Cost (£)</label>
-      <input id="cost" type="number" step="0.01" min="0" placeholder="0.00" />
-    </div>
-
-    <div>
-      <label>Retail (£)</label>
-      <input id="retail" type="number" step="0.01" min="0" placeholder="0.00" />
-    </div>
-
-    <!-- Row 4 -->
-    <div>
-      <label>Supplier</label>
-      <input id="supplier" type="text" disabled />
-    </div>
-
-    <div>
-      <label>Serial / IMEI</label>
-      <input id="serial" type="text" disabled />
-    </div>
-  </div>
-
-  <div class="actions">
-    <button type="button" id="saveDeviceBtn">Save device</button>
-  </div>
-</div>
-
-
-      <div class="card">
-  <h2 style="margin:0 0 10px;">Specs</h2>
-
-  <div class="grid4">
-    <div>
-      <label>CPU</label>
-      <input id="specs_cpu" type="text" placeholder="e.g. i5-8365U" />
-    </div>
-
-    <div>
-      <label>RAM</label>
-      <input id="specs_ram" type="text" placeholder="e.g. 16GB" />
-    </div>
-
-    <div>
-      <label>Storage</label>
-      <input id="specs_storage" type="text" placeholder="e.g. 512GB SSD" />
-    </div>
-
-    <div>
-      <label>GPU</label>
-      <input id="specs_gpu" type="text" placeholder="e.g. Intel UHD / RTX 2060" />
-    </div>
-  </div>
-</div>
-
-
-
-      <div class="card">
-        <h2 style="margin:0 0 10px;">Laptop Checklist</h2>
-        <div class="muted">Tick what you’ve tested. (You can change these later.)</div>
-
-        <div class="checklist" id="checklistWrap"></div>
-
-        <div style="margin-top:12px;">
-          <label>Checklist notes</label>
-          <textarea id="detail_notes" placeholder="Any findings, faults, cosmetic notes, battery health, etc."></textarea>
-        </div>
-      </div>
-
-      <div class="card">
-  <h2 style="margin:0 0 10px;">Parts</h2>
-
-  <div class="parts-grid">
-    <div class="parts-header">Part</div>
-    <div class="parts-header">Cost (£)</div>
-
-    <input id="part_1" type="text" placeholder="e.g. Battery" />
-    <input id="part_cost_1" type="number" step="0.01" min="0" value="0" />
-
-    <input id="part_2" type="text" placeholder="e.g. Keyboard" />
-    <input id="part_cost_2" type="number" step="0.01" min="0" value="0" />
-
-    <input id="part_3" type="text" placeholder="e.g. SSD" />
-    <input id="part_cost_3" type="number" step="0.01" min="0" value="0" />
-  </div>
-
-  <div class="row" style="justify-content:space-between; margin-top:14px;">
-    <strong>Total parts cost (£):</strong>
-    <strong id="parts_total">0.00</strong>
-  </div>
-
-  <div class="actions">
-    <button type="button" id="saveBtn">Save details</button>
-  </div>
-</div>
-
-    </main>
-  </div>
-
-  <script>
-    function $(id){ return document.getElementById(id); }
-    function setIfExists(id, value) {
-  const el = document.getElementById(id);
-  if (el) el.value = value ?? '';
-}
-
-    function esc(s){ return String(s ?? '').replace(/[&<>"']/g, m => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[m])); }
-
-    let __toastTimer;
-    function toast(msg, kind='err') {
-      let t = document.getElementById('__toast');
-      if (!t) {
-        t = document.createElement('div');
-        t.id = '__toast';
-        Object.assign(t.style, {
-          position:'fixed',left:'50%',top:'14px',transform:'translateX(-50%)',
-          padding:'8px 14px',borderRadius:'999px',fontSize:'13px',
-          background:'#a52828',color:'#fff',opacity:'0',transition:'opacity .2s',
-          boxShadow:'0 8px 24px rgba(0,0,0,.35)',zIndex:9999,
-        });
-        document.body.appendChild(t);
+  <head>
+    <meta charset="utf-8" />
+    <title>Refurb Detail</title>
+    <meta name="viewport" content="width=device-width,initial-scale=1" />
+    <link rel="stylesheet" href="/app.css" />
+    <style>
+      .row {
+        display: flex;
+        gap: 12px;
+        align-items: center;
+        flex-wrap: wrap;
       }
-      t.style.background = kind==='ok' ? '#2c7a2c' : '#a52828';
-      t.textContent = msg;
-      t.style.opacity = '1';
-      clearTimeout(__toastTimer);
-      __toastTimer = setTimeout(()=> t.style.opacity='0', 1800);
-    }
+      .muted {
+        color: var(--muted, #9aa);
+        font-size: 13px;
+      }
+      .card {
+        background: var(--panel);
+        border: 1px solid var(--border);
+        border-radius: 12px;
+        padding: 14px;
+        margin-top: 14px;
+      }
+      .grid2 {
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        gap: 12px;
+      }
+      .grid3 {
+        display: grid;
+        grid-template-columns: 1fr 1fr 1fr;
+        gap: 12px;
+      }
+      .grid4 {
+        display: grid;
+        grid-template-columns: repeat(4, 1fr);
+        gap: 12px;
+      }
 
-    function setSaveState(kind, text){
-      const el = $('saveState');
-      el.style.display = 'inline-block';
-      el.className = 'pill ' + (kind === 'ok' ? 'ok' : 'bad');
-      el.textContent = text;
-      setTimeout(()=>{ el.style.display='none'; }, 1800);
-    }
+      @media (max-width: 900px) {
+        .grid4 {
+          grid-template-columns: 1fr;
+        }
+      }
 
-    // Checklist keys (stored in JSON)
-    const CHECK_ITEMS = [
-      // Row 1
-      ['bios', 'Posts to BIOS'],
-      ['bios_password', 'BIOS password'],
-      ['battery', 'Battery'],
+      @media (max-width: 900px) {
+        .grid2,
+        .grid3 {
+          grid-template-columns: 1fr;
+        }
+      }
 
-      // Row 2
-      ['keyboard', 'Keyboard'],
-      ['trackpad', 'Trackpad'],
-      ['wifi', 'Wi-Fi'],
+      .checklist {
+        display: grid;
+        grid-template-columns: repeat(3, 1fr);
+        gap: 12px;
+      }
 
-      // Row 3
-      ['camera', 'Camera'],
-      ['mic', 'Mic'],
-      ['speakers', 'Speakers'],
+      /* Tablet */
+      @media (max-width: 1000px) {
+        .checklist {
+          grid-template-columns: repeat(2, 1fr);
+        }
+      }
 
-      // Row 4
-      ['updates', 'Updates installed'],
-      ['chrome', 'Chrome installed'],
-      ['avast', 'Avast installed'],
-    ];
+      /* Mobile */
+      @media (max-width: 600px) {
+        .checklist {
+          grid-template-columns: 1fr;
+        }
+      }
 
-    function updatePartsTotal(){
-  const total =
-    (Number($('part_cost_1')?.value) || 0) +
-    (Number($('part_cost_2')?.value) || 0) +
-    (Number($('part_cost_3')?.value) || 0);
+      #detail_notes {
+        width: 100%;
+        min-height: 120px;
+        box-sizing: border-box;
+      }
 
-  $('parts_total').textContent = total.toFixed(2);
-  $('parts_cost').value = total.toFixed(2); // keeps backend happy
-}
+      .check {
+        display: flex;
+        gap: 10px;
+        align-items: flex-start;
+        padding: 10px;
+        border: 1px solid var(--border);
+        border-radius: 12px;
+        background: rgba(255, 255, 255, 0.02);
+      }
+      .check input {
+        margin-top: 2px;
+      }
 
+      .actions {
+        display: flex;
+        gap: 10px;
+        justify-content: flex-end;
+        margin-top: 12px;
+        flex-wrap: wrap;
+      }
+      textarea {
+        min-height: 90px;
+      }
 
+      .pill {
+        padding: 4px 10px;
+        border-radius: 999px;
+        border: 1px solid var(--border);
+        font-size: 12px;
+        color: #ddd;
+      }
+      .pill.ok {
+        background: #183a1a;
+        border-color: #2f6b33;
+        color: #cdeccf;
+      }
+      .pill.bad {
+        background: #3a1a1a;
+        border-color: #6b2f2f;
+        color: #f7d7d7;
+      }
 
-    function buildChecklist(checkedMap){
-      const wrap = $('checklistWrap');
-      wrap.innerHTML = CHECK_ITEMS.map(([key,label]) => {
-        const checked = !!(checkedMap && checkedMap[key]);
-        return `
+      .parts-grid {
+        display: grid;
+        grid-template-columns: 1fr 120px;
+        gap: 10px;
+        align-items: center;
+      }
+
+      .parts-header {
+        font-weight: 600;
+        font-size: 13px;
+        color: var(--muted, #9aa);
+      }
+
+      .parts-grid4 {
+        display: grid;
+        grid-template-columns: 1.3fr 1fr 120px 160px;
+        gap: 10px;
+        align-items: center;
+      }
+      @media (max-width: 900px) {
+        .parts-grid4 {
+          grid-template-columns: 1fr;
+        }
+      }
+      .parts-header {
+        font-weight: 600;
+        font-size: 13px;
+        color: var(--muted, #9aa);
+      }
+    </style>
+  </head>
+  <body>
+    <div class="wrap">
+      <aside id="sidebar"></aside>
+
+      <main class="page">
+        <div class="row" style="justify-content: space-between">
+          <div>
+            <h1 style="margin: 0">Refurb Detail</h1>
+            <div class="muted" id="subhead">Loading…</div>
+          </div>
+
+          <div class="row">
+            <a href="/refurb"
+              ><button type="button">← Back to Refurb List</button></a
+            >
+            <span class="pill" id="saveState" style="display: none"></span>
+          </div>
+        </div>
+
+        <div class="card">
+          <h2 style="margin: 0 0 10px">Device</h2>
+
+          <div class="grid2">
+            <!-- Row 1 -->
+            <div>
+              <label>SKU</label>
+              <input id="sku" type="text" placeholder="e.g. L0123" />
+            </div>
+
+            <div>
+              <label>Description</label>
+              <input id="description" type="text" disabled />
+            </div>
+
+            <!-- Row 2 -->
+            <div>
+              <label>Status</label>
+              <input id="status" type="text" disabled />
+            </div>
+
+            <div>
+              <label>Parts status</label>
+              <input id="parts_status" type="text" disabled />
+            </div>
+
+            <!-- Row 3 -->
+            <div>
+              <label>Cost (£)</label>
+              <input
+                id="cost"
+                type="number"
+                step="0.01"
+                min="0"
+                placeholder="0.00"
+              />
+            </div>
+
+            <div>
+              <label>Retail (£)</label>
+              <input
+                id="retail"
+                type="number"
+                step="0.01"
+                min="0"
+                placeholder="0.00"
+              />
+            </div>
+
+            <!-- Row 4 -->
+            <div>
+              <label>Supplier</label>
+              <input id="supplier" type="text" disabled />
+            </div>
+
+            <div>
+              <label>Serial / IMEI</label>
+              <input id="serial" type="text" disabled />
+            </div>
+          </div>
+
+          <div class="actions">
+            <button type="button" id="saveDeviceBtn">Save device</button>
+          </div>
+        </div>
+
+        <div class="card">
+          <h2 style="margin: 0 0 10px">Specs</h2>
+
+          <div class="grid4">
+            <div>
+              <label>CPU</label>
+              <input id="specs_cpu" type="text" placeholder="e.g. i5-8365U" />
+            </div>
+
+            <div>
+              <label>RAM</label>
+              <input id="specs_ram" type="text" placeholder="e.g. 16GB" />
+            </div>
+
+            <div>
+              <label>Storage</label>
+              <input
+                id="specs_storage"
+                type="text"
+                placeholder="e.g. 512GB SSD"
+              />
+            </div>
+
+            <div>
+              <label>GPU</label>
+              <input
+                id="specs_gpu"
+                type="text"
+                placeholder="e.g. Intel UHD / RTX 2060"
+              />
+            </div>
+          </div>
+        </div>
+
+        <div class="card">
+          <h2 style="margin: 0 0 10px">Laptop Checklist</h2>
+          <div class="muted">
+            Tick what you’ve tested. (You can change these later.)
+          </div>
+
+          <div class="checklist" id="checklistWrap"></div>
+
+          <div style="margin-top: 12px">
+            <label>Checklist notes</label>
+            <textarea
+              id="detail_notes"
+              placeholder="Any findings, faults, cosmetic notes, battery health, etc."
+            ></textarea>
+          </div>
+        </div>
+
+        <div class="card">
+          <h2 style="margin: 0 0 10px">Parts</h2>
+
+          <div class="parts-grid4">
+            <div class="parts-header">Part</div>
+            <div class="parts-header">Code</div>
+            <div class="parts-header">Cost (£)</div>
+            <div class="parts-header">Part status</div>
+
+            <!-- Row 1 -->
+            <input id="part_1" type="text" placeholder="e.g. Battery" />
+            <input id="part_code_1" type="text" placeholder="e.g. BAT-123" />
+            <input
+              id="part_cost_1"
+              type="number"
+              step="0.01"
+              min="0"
+              value="0"
+            />
+            <select id="part_status_1">
+              <option value="need_parts">Need parts</option>
+              <option value="parts_ordered">Parts ordered</option>
+              <option value="parts_arrived">Parts arrived</option>
+            </select>
+
+            <!-- Row 2 -->
+            <input id="part_2" type="text" placeholder="e.g. Screen" />
+            <input id="part_code_2" type="text" placeholder="e.g. SCR-456" />
+            <input
+              id="part_cost_2"
+              type="number"
+              step="0.01"
+              min="0"
+              value="0"
+            />
+            <select id="part_status_2">
+              <option value="need_parts">Need parts</option>
+              <option value="parts_ordered">Parts ordered</option>
+              <option value="parts_arrived">Parts arrived</option>
+            </select>
+
+            <!-- Row 3 -->
+            <input id="part_3" type="text" placeholder="e.g. Keyboard" />
+            <input id="part_code_3" type="text" placeholder="e.g. KEY-789" />
+            <input
+              id="part_cost_3"
+              type="number"
+              step="0.01"
+              min="0"
+              value="0"
+            />
+            <select id="part_status_3">
+              <option value="need_parts">Need parts</option>
+              <option value="parts_ordered">Parts ordered</option>
+              <option value="parts_arrived">Parts arrived</option>
+            </select>
+          </div>
+
+          <div
+            class="row"
+            style="justify-content: space-between; margin-top: 14px"
+          >
+            <strong>Total parts cost (£):</strong>
+            <strong id="parts_total">0.00</strong>
+          </div>
+
+          <!-- keep this hidden field so your backend keeps working -->
+          <input id="parts_cost" type="hidden" value="0" />
+
+          <div class="actions">
+            <button type="button" id="saveBtn">Save details</button>
+          </div>
+        </div>
+      </main>
+    </div>
+
+    <script>
+      function $(id) {
+        return document.getElementById(id);
+      }
+      function setIfExists(id, value) {
+        const el = document.getElementById(id);
+        if (el) el.value = value ?? "";
+      }
+
+      function esc(s) {
+        return String(s ?? "").replace(
+          /[&<>"']/g,
+          (m) =>
+            ({
+              "&": "&amp;",
+              "<": "&lt;",
+              ">": "&gt;",
+              '"': "&quot;",
+              "'": "&#39;",
+            })[m],
+        );
+      }
+
+      let __toastTimer;
+      function toast(msg, kind = "err") {
+        let t = document.getElementById("__toast");
+        if (!t) {
+          t = document.createElement("div");
+          t.id = "__toast";
+          Object.assign(t.style, {
+            position: "fixed",
+            left: "50%",
+            top: "14px",
+            transform: "translateX(-50%)",
+            padding: "8px 14px",
+            borderRadius: "999px",
+            fontSize: "13px",
+            background: "#a52828",
+            color: "#fff",
+            opacity: "0",
+            transition: "opacity .2s",
+            boxShadow: "0 8px 24px rgba(0,0,0,.35)",
+            zIndex: 9999,
+          });
+          document.body.appendChild(t);
+        }
+        t.style.background = kind === "ok" ? "#2c7a2c" : "#a52828";
+        t.textContent = msg;
+        t.style.opacity = "1";
+        clearTimeout(__toastTimer);
+        __toastTimer = setTimeout(() => (t.style.opacity = "0"), 1800);
+      }
+
+      function setSaveState(kind, text) {
+        const el = $("saveState");
+        el.style.display = "inline-block";
+        el.className = "pill " + (kind === "ok" ? "ok" : "bad");
+        el.textContent = text;
+        setTimeout(() => {
+          el.style.display = "none";
+        }, 1800);
+      }
+
+      // Checklist keys (stored in JSON)
+      const CHECK_ITEMS = [
+        // Row 1
+        ["bios", "Posts to BIOS"],
+        ["bios_password", "BIOS password"],
+        ["battery", "Battery"],
+
+        // Row 2
+        ["keyboard", "Keyboard"],
+        ["trackpad", "Trackpad"],
+        ["wifi", "Wi-Fi"],
+
+        // Row 3
+        ["camera", "Camera"],
+        ["mic", "Mic"],
+        ["speakers", "Speakers"],
+
+        // Row 4
+        ["updates", "Updates installed"],
+        ["chrome", "Chrome installed"],
+        ["avast", "Avast installed"],
+      ];
+
+      function updatePartsTotal() {
+        const total =
+          (Number($("part_cost_1")?.value) || 0) +
+          (Number($("part_cost_2")?.value) || 0) +
+          (Number($("part_cost_3")?.value) || 0);
+
+        $("parts_total").textContent = total.toFixed(2);
+        $("parts_cost").value = total.toFixed(2); // keeps backend happy
+      }
+
+      function buildChecklist(checkedMap) {
+        const wrap = $("checklistWrap");
+        wrap.innerHTML = CHECK_ITEMS.map(([key, label]) => {
+          const checked = !!(checkedMap && checkedMap[key]);
+          return `
           <label class="check">
-            <input type="checkbox" data-key="${esc(key)}" ${checked ? 'checked' : ''}/>
+            <input type="checkbox" data-key="${esc(key)}" ${checked ? "checked" : ""}/>
             <div>
               <div style="font-weight:600;">${esc(label)}</div>
               <div class="muted">${esc(key)}</div>
             </div>
           </label>
         `;
-      }).join('');
-    }
-
-    function getChecklistFromUI(){
-      const map = {};
-      document.querySelectorAll('#checklistWrap input[type="checkbox"]').forEach(cb => {
-        map[cb.dataset.key] = cb.checked;
-      });
-      return map;
-    }
-
-    function getRefurbIdFromUrl(){
-      // route is /refurb/:id
-      const parts = location.pathname.split('/').filter(Boolean);
-      const id = Number(parts[1]);
-      return id;
-    }
-
-    async function fetchJSON(url, opts){
-      const r = await fetch(url, opts);
-      const t = await r.text();
-      let j; try { j = JSON.parse(t); } catch {}
-      if (!r.ok) throw new Error(j?.error || t || r.statusText);
-      return j;
-    }
-
-    async function load(){
-      const id = getRefurbIdFromUrl();
-      if (!id) {
-        toast('Invalid refurb id');
-        return;
+        }).join("");
       }
 
-      try {
-        const data = await fetchJSON(`/api/refurb/${id}/detail`);
+      function getChecklistFromUI() {
+        const map = {};
+        document
+          .querySelectorAll('#checklistWrap input[type="checkbox"]')
+          .forEach((cb) => {
+            map[cb.dataset.key] = cb.checked;
+          });
+        return map;
+      }
 
-        // base refurb fields
-        $('sku').value = data.sku || '';
-        $('cost').value = data.cost == null ? '' : data.cost;
-        $('retail').value = data.retail == null ? '' : data.retail;
-        $('status').value = data.status || '';
-        $('parts_status').value = data.parts_status || '';
-        $('description').value = data.description || '';
-        $('serial').value = data.serial || '';
-        $('supplier').value = data.supplier || '';
+      function getRefurbIdFromUrl() {
+        // route is /refurb/:id
+        const parts = location.pathname.split("/").filter(Boolean);
+        const id = Number(parts[1]);
+        return id;
+      }
 
-        $('subhead').innerHTML = `<b>${esc(data.sku || ('#'+id))}</b> · ${esc(data.description || '')}`;
+      async function fetchJSON(url, opts) {
+        const r = await fetch(url, opts);
+        const t = await r.text();
+        let j;
+        try {
+          j = JSON.parse(t);
+        } catch {}
+        if (!r.ok) throw new Error(j?.error || t || r.statusText);
+        return j;
+      }
 
-        // detail fields
-        setIfExists('specs_cpu', data.specs_cpu);
-        setIfExists('specs_ram', data.specs_ram);
-        setIfExists('specs_storage', data.specs_storage);
-        setIfExists('specs_gpu', data.specs_gpu);
-
-
-        $('parts_needed').value = data.parts_needed || '';
-        $('parts_cost').value = Number(data.parts_cost || 0).toFixed(2);
-        $('detail_notes').value = data.detail_notes || '';
-
-        await tryPrefillCostRetailFromProducts(data.sku);
-
-        // checklist JSON can come back already as object OR string depending on driver
-        let checklist = data.checklist || {};
-        if (typeof checklist === 'string') {
-          try { checklist = JSON.parse(checklist); } catch { checklist = {}; }
+      async function load() {
+        const id = getRefurbIdFromUrl();
+        if (!id) {
+          toast("Invalid refurb id");
+          return;
         }
-        buildChecklist(checklist);
 
-      } catch (e) {
-        console.error(e);
-        toast(e.message || 'Failed to load detail');
+        try {
+          const data = await fetchJSON(`/api/refurb/${id}/detail`);
+
+          // base refurb fields
+          $("sku").value = data.sku || "";
+          $("cost").value = data.cost == null ? "" : data.cost;
+          $("retail").value = data.retail == null ? "" : data.retail;
+          $("status").value = data.status || "";
+          $("parts_status").value = data.parts_status || "";
+          $("description").value = data.description || "";
+          $("serial").value = data.serial || "";
+          $("supplier").value = data.supplier || "";
+
+          $("subhead").innerHTML =
+            `<b>${esc(data.sku || "#" + id)}</b> · ${esc(data.description || "")}`;
+
+          // detail fields
+          setIfExists("specs_cpu", data.specs_cpu);
+          setIfExists("specs_ram", data.specs_ram);
+          setIfExists("specs_storage", data.specs_storage);
+          setIfExists("specs_gpu", data.specs_gpu);
+
+          // load total
+          $("parts_cost").value = Number(data.parts_cost || 0).toFixed(2);
+          $("parts_total").textContent = Number(data.parts_cost || 0).toFixed(
+            2,
+          );
+
+          // load structured parts rows if present
+          let rows = [];
+          try {
+            if (
+              data.parts_needed &&
+              String(data.parts_needed).trim().startsWith("[")
+            ) {
+              rows = JSON.parse(data.parts_needed);
+            }
+          } catch {}
+
+          [1, 2, 3].forEach((n) => {
+            const r = rows[n - 1] || {};
+            if ($("part_" + n)) $("part_" + n).value = r.part || "";
+            if ($("part_code_" + n)) $("part_code_" + n).value = r.code || "";
+            if ($("part_cost_" + n)) $("part_cost_" + n).value = r.cost ?? 0;
+            if ($("part_status_" + n))
+              $("part_status_" + n).value = r.status || "need_parts";
+          });
+
+          updatePartsTotal();
+
+          $("detail_notes").value = data.detail_notes || "";
+
+          await tryPrefillCostRetailFromProducts(data.sku);
+
+          // checklist JSON can come back already as object OR string depending on driver
+          let checklist = data.checklist || {};
+          if (typeof checklist === "string") {
+            try {
+              checklist = JSON.parse(checklist);
+            } catch {
+              checklist = {};
+            }
+          }
+          buildChecklist(checklist);
+        } catch (e) {
+          console.error(e);
+          toast(e.message || "Failed to load detail");
+        }
       }
-    }
 
-    async function saveDevice(){
-  const id = getRefurbIdFromUrl();
-  if (!id) return;
+      async function saveDevice() {
+        const id = getRefurbIdFromUrl();
+        if (!id) return;
 
-  const skuVal = $('sku').value.trim();
-  const costVal = $('cost').value;
-  const retailVal = $('retail').value;
+        const skuVal = $("sku").value.trim();
+        const costVal = $("cost").value;
+        const retailVal = $("retail").value;
 
-  const body = {
-    sku: skuVal ? skuVal.toUpperCase() : null,
-    cost: costVal === '' ? null : Number(costVal),
-    retail: retailVal === '' ? null : Number(retailVal),
-  };
+        const body = {
+          sku: skuVal ? skuVal.toUpperCase() : null,
+          cost: costVal === "" ? null : Number(costVal),
+          retail: retailVal === "" ? null : Number(retailVal),
+        };
 
-  const btn = $('saveDeviceBtn');
-  btn.disabled = true;
-  btn.textContent = 'Saving…';
+        const btn = $("saveDeviceBtn");
+        btn.disabled = true;
+        btn.textContent = "Saving…";
 
-  try {
-    const updated = await fetchJSON(`/api/refurb/${id}`, {
-      method:'PUT',
-      headers:{'Content-Type':'application/json'},
-      body: JSON.stringify(body)
-    });
+        try {
+          const updated = await fetchJSON(`/api/refurb/${id}`, {
+            method: "PUT",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify(body),
+          });
 
-    // refill from what server saved (keeps it consistent)
-    $('sku').value = updated.sku || '';
-    $('cost').value = updated.cost ?? '';
-    $('retail').value = updated.retail ?? '';
+          // refill from what server saved (keeps it consistent)
+          $("sku").value = updated.sku || "";
+          $("cost").value = updated.cost ?? "";
+          $("retail").value = updated.retail ?? "";
 
-    await tryPrefillCostRetailFromProducts(updated.sku);
+          await tryPrefillCostRetailFromProducts(updated.sku);
 
-    // update header too (so it reflects SKU change instantly)
-    $('subhead').innerHTML = `<b>${esc(updated.sku || ('#'+id))}</b> · ${esc(updated.description || $('description').value || '')}`;
+          // update header too (so it reflects SKU change instantly)
+          $("subhead").innerHTML =
+            `<b>${esc(updated.sku || "#" + id)}</b> · ${esc(updated.description || $("description").value || "")}`;
 
-
-    toast('Device saved ✔️', 'ok');
-    setSaveState('ok', 'Device saved');
-  } catch (e) {
-    console.error(e);
-    toast(e.message || 'Device save failed');
-    setSaveState('bad', 'Device save failed');
-  } finally {
-    btn.disabled = false;
-    btn.textContent = 'Save device';
-  }
-}
-
-
-    async function save(){
-      const id = getRefurbIdFromUrl();
-      if (!id) return;
-
-      const body = {
-        specs_cpu: $('specs_cpu').value.trim() || null,
-        specs_ram: $('specs_ram').value.trim() || null,
-        specs_storage: $('specs_storage').value.trim() || null,
-        specs_gpu: $('specs_gpu').value.trim() || null,
-        specs_screen: $('specs_screen').value.trim() || null,
-        os_version: $('os_version').value.trim() || null,
-        parts_needed: [
-          $('part_1').value,
-          $('part_2').value,
-          $('part_3').value
-        ].filter(Boolean).join('\n'),
-        parts_cost: Number($('parts_cost').value || 0),
-        checklist: getChecklistFromUI(),
-        notes: $('detail_notes').value.trim() || null
-      };
-
-      const btn = $('saveBtn');
-      btn.disabled = true;
-      btn.textContent = 'Saving…';
-
-      try {
-        await fetchJSON(`/api/refurb/${id}/detail`, {
-          method:'PUT',
-          headers:{'Content-Type':'application/json'},
-          body: JSON.stringify(body)
-        });
-        toast('Saved ✔️', 'ok');
-        setSaveState('ok', 'Saved');
-      } catch(e) {
-        console.error(e);
-        toast(e.message || 'Save failed');
-        setSaveState('bad', 'Save failed');
-      } finally {
-        btn.disabled = false;
-        btn.textContent = 'Save details';
+          toast("Device saved ✔️", "ok");
+          setSaveState("ok", "Device saved");
+        } catch (e) {
+          console.error(e);
+          toast(e.message || "Device save failed");
+          setSaveState("bad", "Device save failed");
+        } finally {
+          btn.disabled = false;
+          btn.textContent = "Save device";
+        }
       }
-    }
 
-    async function tryPrefillCostRetailFromProducts(sku){
-  const s = String(sku || '').trim().toUpperCase();
-  if (!s) return;
+      async function save() {
+        const id = getRefurbIdFromUrl();
+        if (!id) return;
 
-  // only prefill if currently empty
-  const hasCost = String($('cost').value || '').trim() !== '';
-  const hasRetail = String($('retail').value || '').trim() !== '';
-  if (hasCost && hasRetail) return;
+        const partsRows = [1, 2, 3]
+          .map((n) => ({
+            part: $("part_" + n)?.value.trim() || "",
+            code: $("part_code_" + n)?.value.trim() || "",
+            cost: Number($("part_cost_" + n)?.value || 0),
+            status: $("part_status_" + n)?.value || "need_parts",
+          }))
+          .filter((r) => r.part || r.code || r.cost > 0);
 
+        const body = {
+          specs_cpu: $("specs_cpu").value.trim() || null,
+          specs_ram: $("specs_ram").value.trim() || null,
+          specs_storage: $("specs_storage").value.trim() || null,
+          specs_gpu: $("specs_gpu").value.trim() || null,
 
-  try {
-    const p = await fetchJSON(`/api/products/lookup/${encodeURIComponent(s)}`);
-    if (p?.cost != null) $('cost').value = p.cost;
-    if (p?.retail != null) $('retail').value = p.retail;
-  } catch {
-    // ignore if product not found
-  }
-}
+          parts_needed: partsRows.length ? JSON.stringify(partsRows) : null,
+          parts_cost: Number($("parts_cost").value || 0),
 
-['part_cost_1','part_cost_2','part_cost_3'].forEach(id => {
-  const el = $(id);
-  if (el) el.addEventListener('input', updatePartsTotal);
-});
+          checklist: getChecklistFromUI(),
+          notes: $("detail_notes").value.trim() || null,
+        };
 
+        const btn = $("saveBtn");
+        btn.disabled = true;
+        btn.textContent = "Saving…";
 
+        try {
+          await fetchJSON(`/api/refurb/${id}/detail`, {
+            method: "PUT",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify(body),
+          });
+          toast("Saved ✔️", "ok");
+          setSaveState("ok", "Saved");
+        } catch (e) {
+          console.error(e);
+          toast(e.message || "Save failed");
+          setSaveState("bad", "Save failed");
+        } finally {
+          btn.disabled = false;
+          btn.textContent = "Save details";
+        }
+      }
 
-    $('saveBtn').addEventListener('click', save);
-    $('saveDeviceBtn').addEventListener('click', saveDevice);
-    window.addEventListener('DOMContentLoaded', load);
-  </script>
+      async function tryPrefillCostRetailFromProducts(sku) {
+        const s = String(sku || "")
+          .trim()
+          .toUpperCase();
+        if (!s) return;
 
-  <script src="/js/sidebar.js"></script>
-</body>
+        // only prefill if currently empty
+        const hasCost = String($("cost").value || "").trim() !== "";
+        const hasRetail = String($("retail").value || "").trim() !== "";
+        if (hasCost && hasRetail) return;
+
+        try {
+          const p = await fetchJSON(
+            `/api/products/lookup/${encodeURIComponent(s)}`,
+          );
+          if (p?.cost != null) $("cost").value = p.cost;
+          if (p?.retail != null) $("retail").value = p.retail;
+        } catch {
+          // ignore if product not found
+        }
+      }
+
+      ["part_cost_1", "part_cost_2", "part_cost_3"].forEach((id) => {
+        const el = $(id);
+        if (el) el.addEventListener("input", updatePartsTotal);
+      });
+
+      $("saveBtn").addEventListener("click", save);
+      $("saveDeviceBtn").addEventListener("click", saveDevice);
+      window.addEventListener("DOMContentLoaded", load);
+    </script>
+
+    <script src="/js/sidebar.js"></script>
+  </body>
 </html>

@@ -3,7 +3,7 @@ import 'dotenv/config';
 
 // test deploy
 
-
+import exportsRouter from "./routes/exports.js";
 import path from 'node:path';
 import express from 'express';
 import cors from 'cors';
@@ -96,7 +96,7 @@ app.use((req, res, next) => {
 
 app.use(cors());
 app.use(express.json());
-
+app.use("/api/exports", exportsRouter);
 
 
 /* ---------- Static / Pages ---------- */

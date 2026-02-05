@@ -178,8 +178,18 @@
       return;
     }
 
+    const catMap = {
+      L: 'laptop',
+      V: 'console',
+      H: 'phone',
+      M: 'tablet'
+    };
+
+    const category = catMap[$('category').value] || 'laptop';
+
+
     const body = {
-      category: $('category').value,              // ✅ V / M / L / H
+      category: category,              // ✅ V / M / L / H
       description,
       serial: $('serial').value.trim() || null,
       status: $('status').value,

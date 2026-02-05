@@ -123,6 +123,13 @@ router.get("/refurb.csv", async (req, res) => {
     ];
 
     setCsvHeaders(res, "refurb.csv");
+    await pgQuery(`
+  INSERT INTO export_logs (key, last_exported)
+  VALUES ('refurb', NOW())
+  ON CONFLICT (key)
+  DO UPDATE SET last_exported = NOW()
+`);
+
     res.send(toCsv(cleaned, columns));
   } catch (err) {
     console.error(err);

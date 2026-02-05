@@ -603,25 +603,30 @@ app.post('/api/refurb', async (req, res) => {
   try {
     const query = `
       INSERT INTO refurb_items (
-        sku, serial, description, status, parts_status, cpu,
-        supplier, cost, retail, notes
-      )
-      VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10)
+      sku, serial, description, status, parts_status, cpu,
+      supplier, category, cost, retail, notes
+    )
+    VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11)
+
       RETURNING *;
     `;
 
-    const values = [
-      skuNorm,
-      serial || null,
-      description,
-      status || 'refurb',
-      parts_status || 'none',
-      cpu || null,
-      supplier || null,
-      cost ?? 0,
-      retail ?? 0,
-      notes || null,
-    ];
+    const prefix = String(category || '').trim().toUpperCase(); // V/M/L/H
+
+const values = [
+  skuNorm,
+  serial || null,
+  description,
+  status || 'refurb',
+  parts_status || 'none',
+  cpu || null,
+  supplier || null,
+  categoryFromSkuPrefix(skuNorm) || categoryFromSkuPrefix(prefix) || 'laptop',
+  cost ?? 0,
+  retail ?? 0,
+  notes || null,
+];
+
 
     const result = await pgQuery(query, values);
     res.json(result.rows[0]);

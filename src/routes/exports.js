@@ -130,4 +130,29 @@ router.get("/refurb.csv", async (req, res) => {
   }
 });
 
+/**
+ * GET /api/exports/last
+ * Returns last export timestamps
+ */
+router.get("/last", async (req, res) => {
+  try {
+    const { rows } = await pgQuery(`
+      SELECT key, last_exported
+      FROM export_logs
+    `);
+
+    const map = {};
+    rows.forEach(r => {
+      map[r.key] = r.last_exported;
+    });
+
+    res.json(map);
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: "Failed to fetch export times" });
+  }
+});
+
+
+
 export default router;

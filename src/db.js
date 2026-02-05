@@ -129,6 +129,15 @@ await pgQuery(`
 `);
 
 
+// Export log table (tracks last CSV export time)
+await pgQuery(`
+  CREATE TABLE IF NOT EXISTS export_logs (
+    key TEXT PRIMARY KEY,
+    last_exported TIMESTAMPTZ NOT NULL
+  );
+`);
+
+
 
   // Make sure created_at exists on both tables
   await pgQuery(`

@@ -2,6 +2,7 @@
 import express from "express";
 import { pgQuery } from "../pg.js";
 
+
 const router = express.Router();
 
 function csvEscape(value) {
@@ -48,7 +49,17 @@ router.get("/products.csv", async (req, res) => {
     ];
 
     setCsvHeaders(res, "products.csv");
-    res.send(toCsv(rows, columns));
+
+    // ✅ record last export time
+    await pgQuery(`
+        INSERT INTO export_logs (key, last_exported)
+        VALUES ('products', NOW())
+        ON CONFLICT (key)
+        DO UPDATE SET last_exported = NOW()
+        `);
+
+        res.send(toCsv(rows, columns));
+
   } catch (err) {
     console.error(err);
     res.status(500).json({ error: "Failed to export products" });

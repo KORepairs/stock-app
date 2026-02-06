@@ -676,6 +676,7 @@ app.put('/api/refurb/:id', async (req, res) => {
     retail,
     notes,
     sku, // allow editing SKU from the table
+    description, 
 
     // NEW (optional fields for category-specific views)
     category,
@@ -719,13 +720,15 @@ const categoryToUse = (category ?? null) || autoCat;
         retail       = COALESCE($6, retail),
         notes        = COALESCE($7, notes),
         sku          = COALESCE($8, sku),
+        description  = COALESCE($9, description),
 
-        category     = COALESCE($9, category),
-        colour       = COALESCE($10, colour),
-        storage      = COALESCE($11, storage),
-        controller   = COALESCE($12, controller)
 
-      WHERE id = $13
+        category     = COALESCE($10, category),
+        colour       = COALESCE($11, colour),
+        storage      = COALESCE($12, storage),
+        controller   = COALESCE($13, controller)
+
+      WHERE id = $14
       RETURNING *;
     `;
 
@@ -739,6 +742,7 @@ const categoryToUse = (category ?? null) || autoCat;
       retail ?? null,
       notes ?? null,
       skuNorm ?? null,
+      description ?? null,
 
       categoryToUse ?? null,
       colour ?? null,

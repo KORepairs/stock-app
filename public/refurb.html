@@ -398,7 +398,14 @@ function syncViewUI() {
         </a>
       `
     },
-    { label: 'Description', render: (item) => esc(item.description) },
+    {
+  label: 'Description',
+  render: (item) => `
+    <input data-id="${item.id}" class="descInp" type="text"
+      value="${esc(item.description || '')}" placeholder="Description">
+  `
+},
+
     {
       label: 'Category',
       render: (item) => `
@@ -631,10 +638,13 @@ function renderRefurbTable(items) {
     btn.addEventListener('click', async () => {
       const id = btn.getAttribute('data-id');
       const row = btn.closest('tr');
+      
+
 
       const statusSel = row.querySelector('.statusSel');
       const partsSel  = row.querySelector('.partsSel');
       const catSel    = row.querySelector('.catSel');
+      const descEl = row.querySelector('.descInp');
 
       const view = $('fView')?.value || 'computer';
 
@@ -643,6 +653,7 @@ function renderRefurbTable(items) {
         category: catSel?.value || null,
         status: statusSel?.value || 'refurb',
         parts_status: partsSel?.value || 'none',
+        description: descEl?.value.trim() || null,
       };
 
       // View-specific fields
@@ -651,6 +662,8 @@ function renderRefurbTable(items) {
         const notesEl = row.querySelector('.notesInp');
         body.cpu   = cpuEl?.value.trim() || null;
         body.notes = notesEl?.value.trim() || null;
+        
+
       }
 
       if (view === 'phone' || view === 'tablet') {

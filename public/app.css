@@ -400,3 +400,14 @@ td select {
   width: 120px;
 }
 
+/* Make export links stack vertically */
+.nav a.nav-item {
+  flex-direction: column;
+  align-items: flex-start;
+}
+
+.nav a.nav-item .muted.small {
+  margin-left: 0;
+  margin-top: 4px;
+}
+

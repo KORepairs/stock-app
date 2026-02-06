@@ -120,15 +120,15 @@
             </select>
         </div>
 
-        <div>
-            <label style="display:block;font-size:12px;opacity:.7;margin-bottom:4px;">Supplier</label>
-            <select id="fSupplier">
+        <label style="display:block;font-size:12px;opacity:.7;margin-bottom:4px;">Parts</label>
+          <select id="fParts">
             <option value="">All</option>
-            <option value="ITCS">ITCS</option>
-            <option value="Dan">Dan</option>
-            <option value="Trade-in">Trade-in</option>
-            </select>
-        </div>
+            <option value="none">No parts needed</option>
+            <option value="needs_parts">Needs parts</option>
+            <option value="awaiting_parts">Awaiting parts</option>
+            <option value="has_parts">Has parts</option>
+          </select>
+
 
         <!-- Computer filter -->
         <div id="filterComputer">
@@ -303,7 +303,7 @@ function removeLocalRefurb(id) {
   function applyFilters() {
   const qSku = ($('fSku')?.value || '').trim().toUpperCase();
   const fStatus = $('fStatus')?.value || '';
-  const fSupplier = ($('fSupplier')?.value || '').trim();
+  const fParts = ($('fParts')?.value || '').trim();
 
   const view = $('fView')?.value || 'computer';
   const cfg = getViewConfig(view);
@@ -320,7 +320,7 @@ function removeLocalRefurb(id) {
   const filtered = ALL_REFURB.filter(item => {
     const sku = String(item.sku || '').toUpperCase();
     const status = String(item.status || '');
-    const supplier = String(item.supplier || '').trim();
+    const parts = String(item.parts_status || '').trim();
     const category = (String(item.category || '').trim().toLowerCase() || 'laptop');
 
     // lock to current view categories
@@ -328,7 +328,7 @@ function removeLocalRefurb(id) {
 
     if (qSku && !sku.includes(qSku)) return false;
     if (fStatus && status !== fStatus) return false;
-    if (fSupplier && supplier !== fSupplier) return false;
+    if (fParts && parts !== fParts) return false;
 
     if (view === 'computer') {
       const cpu = String(item.cpu || '').trim().toLowerCase();
@@ -358,7 +358,7 @@ function removeLocalRefurb(id) {
  function clearFilters() {
   setVal('fSku', '');
   setVal('fStatus', '');
-  setVal('fSupplier', '');
+  setVal('fParts', '');
 
   // computer
   setVal('fCpu', '');
@@ -743,7 +743,7 @@ function renderRefurbTable(items) {
   });
 }
 
-['fSku','fStatus','fSupplier','fCpu','fColour','fStorage','fStorageConsole','fController'].forEach(id => {
+['fSku','fStatus','fParts','fCpu','fColour','fStorage','fStorageConsole','fController'].forEach(id => {
   const el = document.getElementById(id);
   if (!el) return;
   el.addEventListener('input', applyFilters);

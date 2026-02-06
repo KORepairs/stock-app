@@ -450,8 +450,20 @@ function syncViewUI() {
           </select>
         </span>
       `
-    }
+    },
+
+    {
+  label: 'Retail (£)',
+  thClass: 'col-retail',
+  render: (item) => `
+    <input data-id="${item.id}" class="retailInp" type="number"
+      step="0.01" min="0"
+      value="${Number(item.retail || 0).toFixed(2)}">
+  `
+},
   ];
+
+
 
   const actionsCol = {
     label: 'Actions',
@@ -645,6 +657,8 @@ function renderRefurbTable(items) {
       const partsSel  = row.querySelector('.partsSel');
       const catSel    = row.querySelector('.catSel');
       const descEl = row.querySelector('.descInp');
+      const retailEl = row.querySelector('.retailInp');
+
 
       const view = $('fView')?.value || 'computer';
 
@@ -655,6 +669,8 @@ function renderRefurbTable(items) {
         parts_status: partsSel?.value || 'none',
         description: descEl?.value.trim() || null,
       };
+
+      body.retail = retailEl ? Number(retailEl.value || 0) : 0;
 
       // View-specific fields
       if (view === 'computer') {

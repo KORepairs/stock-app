@@ -1,0 +1,72 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <title>Retired Refurb Items</title>
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <link rel="stylesheet" href="/app.css">
+</head>
+<body>
+<div class="wrap">
+  <aside id="sidebar"></aside>
+
+  <main class="page">
+    <h1>Retired Items</h1>
+    <p style="color:var(--muted,#9aa);margin-top:4px;">
+      Items that have been stripped for parts or fully scrapped.
+    </p>
+
+    <div class="table-wrap" style="margin-top:14px;">
+      <table>
+        <thead>
+          <tr>
+            <th>SKU</th>
+            <th>Status</th>
+            <th>Description</th>
+            <th>Supplier</th>
+            <th>Created</th>
+          </tr>
+        </thead>
+        <tbody id="tb">
+          <tr><td colspan="5" style="padding:8px">Loading…</td></tr>
+        </tbody>
+      </table>
+    </div>
+  </main>
+</div>
+
+<script>
+  function esc(s){ return String(s ?? '').replace(/[&<>"']/g, m => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[m])); }
+
+  async function load() {
+    const tb = document.getElementById('tb');
+    try {
+      const res = await fetch('/api/refurb?view=retired', { cache: 'no-store' });
+      const rows = await res.json();
+
+      if (!Array.isArray(rows) || rows.length === 0) {
+        tb.innerHTML = `<tr><td colspan="5" style="padding:8px">No retired items.</td></tr>`;
+        return;
+      }
+
+      tb.innerHTML = rows.map(r => `
+        <tr>
+          <td>${esc(r.sku || '')}</td>
+          <td>${esc(r.status || '')}</td>
+          <td>${esc(r.description || '')}</td>
+          <td>${esc(r.supplier || '')}</td>
+          <td>${r.created_at ? esc(new Date(r.created_at).toLocaleString()) : ''}</td>
+        </tr>
+      `).join('');
+    } catch (e) {
+      console.error(e);
+      tb.innerHTML = `<tr><td colspan="5" style="padding:8px;color:#900">Failed to load.</td></tr>`;
+    }
+  }
+
+  window.addEventListener('DOMContentLoaded', load);
+</script>
+
+<script src="/js/sidebar.js"></script>
+</body>
+</html>

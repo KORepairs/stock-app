@@ -115,13 +115,14 @@ app.get('/quick-add',      (req, res) => res.sendFile(path.join(PUBLIC_DIR, 'qui
 app.get('/refurb',         (req, res) => res.sendFile(path.join(PUBLIC_DIR, 'refurb.html')));
 app.get('/refurb/add',  (req, res) => res.sendFile(path.join(PUBLIC_DIR, 'refurb-add.html')));
 app.get('/refurb/list', (req, res) => res.sendFile(path.join(PUBLIC_DIR, 'refurb.html')));
+app.get('/refurb/retired', (req, res) => res.sendFile(path.join(PUBLIC_DIR, 'refurb-retired.html')));
 app.get('/refurb/:id', (req, res) => res.sendFile(path.join(PUBLIC_DIR, 'refurb-detail.html')));
 app.get('/tradein',        (req, res) => res.sendFile(path.join(PUBLIC_DIR, 'tradein.html')));
 app.get('/tradeins',       (req, res) => res.sendFile(path.join(PUBLIC_DIR, 'tradeins.html')));
 app.get('/report-sales',   (req, res) => {res.sendFile(path.join(__dirname, '..', 'public', 'report-sales.html'));});
 app.get('/inventory-add', (req, res) => res.sendFile(path.join(PUBLIC_DIR, 'inventory-add.html')));
 app.get('/report/ebay-updates', (req, res) => res.sendFile(path.join(PUBLIC_DIR, 'report-ebay-updates.html')));
-app.get('/refurb/scrapped', (req, res) => res.sendFile(path.join(PUBLIC_DIR, 'refurb-scrapped.html')));
+
 
 
 

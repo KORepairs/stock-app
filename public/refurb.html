@@ -261,6 +261,9 @@ function updateLocalRefurb(updatedRow) {
   }
 }
 
+function removeLocalRefurb(id) {
+  ALL_REFURB = ALL_REFURB.filter(x => String(x.id) !== String(id));
+}
 
 
   let ALL_REFURB = [];
@@ -605,6 +608,11 @@ function renderRefurbTable(items) {
         const updatedRow = await res.json();
         updateLocalRefurb(updatedRow);
 
+        if (updatedRow.status === 'scrapped' || updatedRow.status === 'stripped') {
+          removeLocalRefurb(updatedRow.id);
+        }
+
+
         toast('Updated ✔️', 'ok');
         applyFilters();
 
@@ -672,6 +680,11 @@ function renderRefurbTable(items) {
         if (!res.ok) throw new Error('Failed to save row');
         const updatedRow = await res.json();
         updateLocalRefurb(updatedRow);
+
+        if (updatedRow.status === 'scrapped' || updatedRow.status === 'stripped') {
+          removeLocalRefurb(updatedRow.id);
+        }
+
 
         toast('Row updated ✔️', 'ok');
         applyFilters();

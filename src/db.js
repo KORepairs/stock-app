@@ -96,6 +96,18 @@ await pgQuery(`
     );
   `);
 
+  // --- Extra specs for non-laptop devices (safe migrations) ---
+await pgQuery(`
+  ALTER TABLE refurb_details
+    ADD COLUMN IF NOT EXISTS specs_colour    TEXT,
+    ADD COLUMN IF NOT EXISTS specs_network   TEXT,
+    ADD COLUMN IF NOT EXISTS specs_condition TEXT,
+    ADD COLUMN IF NOT EXISTS specs_firmware  TEXT,
+    ADD COLUMN IF NOT EXISTS specs_region    TEXT,
+    ADD COLUMN IF NOT EXISTS specs_bundle    TEXT;
+`);
+
+
     await pgQuery(`CREATE INDEX IF NOT EXISTS refurb_details_updated_idx ON refurb_details(updated_at);`);
 
 
@@ -181,6 +193,8 @@ await pgQuery(`
   ALTER TABLE trade_ins
   ADD COLUMN IF NOT EXISTS customer_id INTEGER REFERENCES customers(id);
 `);
+
+
 
 
 }

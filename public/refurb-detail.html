@@ -236,10 +236,10 @@
           </div>
         </div>
 
-        <div class="card">
+        <div class="card" id="specsCard">
           <h2 style="margin: 0 0 10px">Specs</h2>
 
-          <div class="grid4">
+          <div class="grid4" id="specsBody">
             <div>
               <label>CPU</label>
               <input id="specs_cpu" type="text" placeholder="e.g. i5-8365U" />
@@ -271,10 +271,8 @@
         </div>
 
         <div class="card">
-          <h2 style="margin: 0 0 10px">Laptop Checklist</h2>
-          <div class="muted">
-            Tick what you’ve tested. 
-          </div>
+          <h2 id="checklistTitle" style="margin: 0 0 10px">Checklist</h2>
+          <div class="muted">Tick what you’ve tested.</div>
 
           <div class="checklist" id="checklistWrap"></div>
 
@@ -291,20 +289,20 @@
           <h2 style="margin: 0 0 10px">Parts</h2>
 
           <!-- Headers stay -->
-<div class="parts-grid4">
-  <div class="parts-header">Part</div>
-  <div class="parts-header">Code</div>
-  <div class="parts-header">Cost (£)</div>
-  <div class="parts-header">Part status</div>
-</div>
+          <div class="parts-grid4">
+            <div class="parts-header">Part</div>
+            <div class="parts-header">Code</div>
+            <div class="parts-header">Cost (£)</div>
+            <div class="parts-header">Part status</div>
+          </div>
 
-<!-- Rows will be added dynamically here -->
-<div id="partsRows" class="parts-grid4"></div>
+          <!-- Rows will be added dynamically here -->
+          <div id="partsRows" class="parts-grid4"></div>
 
-<!-- Add button -->
-<div class="row" style="justify-content:flex-end; margin-top:10px;">
-  <button type="button" id="addPartBtn">+ Add part line</button>
-</div>
+          <!-- Add button -->
+          <div class="row" style="justify-content: flex-end; margin-top: 10px">
+            <button type="button" id="addPartBtn">+ Add part line</button>
+          </div>
 
           <div
             class="row"
@@ -388,30 +386,30 @@
       }
 
       // ---------- Dynamic Parts Rows ----------
-let PART_ROW_COUNT = 0;
+      let PART_ROW_COUNT = 0;
 
-function partsStatusOptions(selected = "need_parts") {
-  const opts = [
-    ["need_parts", "Need parts"],
-    ["parts_ordered", "Parts ordered"],
-    ["parts_arrived", "Parts arrived"],
-  ];
-  return opts
-    .map(([val, label]) => {
-      const sel = val === selected ? "selected" : "";
-      return `<option value="${val}" ${sel}>${label}</option>`;
-    })
-    .join("");
-}
+      function partsStatusOptions(selected = "need_parts") {
+        const opts = [
+          ["need_parts", "Need parts"],
+          ["parts_ordered", "Parts ordered"],
+          ["parts_arrived", "Parts arrived"],
+        ];
+        return opts
+          .map(([val, label]) => {
+            const sel = val === selected ? "selected" : "";
+            return `<option value="${val}" ${sel}>${label}</option>`;
+          })
+          .join("");
+      }
 
-function addPartRow(prefill = {}) {
-  PART_ROW_COUNT += 1;
-  const n = PART_ROW_COUNT;
+      function addPartRow(prefill = {}) {
+        PART_ROW_COUNT += 1;
+        const n = PART_ROW_COUNT;
 
-  const wrap = document.getElementById("partsRows");
-  if (!wrap) return;
+        const wrap = document.getElementById("partsRows");
+        if (!wrap) return;
 
-  const rowHtml = `
+        const rowHtml = `
     <input class="partInp" data-n="${n}" id="part_${n}" type="text"
       placeholder="e.g. Battery" value="${esc(prefill.part || "")}" />
 
@@ -426,99 +424,146 @@ function addPartRow(prefill = {}) {
     </select>
   `;
 
-  wrap.insertAdjacentHTML("beforeend", rowHtml);
+        wrap.insertAdjacentHTML("beforeend", rowHtml);
 
-  // keep total live-updated
-  const costEl = document.getElementById(`part_cost_${n}`);
-  if (costEl) costEl.addEventListener("input", updatePartsTotal);
+        // keep total live-updated
+        const costEl = document.getElementById(`part_cost_${n}`);
+        if (costEl) costEl.addEventListener("input", updatePartsTotal);
 
-  // update total after adding
-  updatePartsTotal();
-}
-
-function clearPartsRows() {
-  PART_ROW_COUNT = 0;
-  const wrap = document.getElementById("partsRows");
-  if (wrap) wrap.innerHTML = "";
-}
-
-function getPartsRowsFromUI() {
-  const rows = [];
-
-  for (let n = 1; n <= PART_ROW_COUNT; n++) {
-    const part = document.getElementById(`part_${n}`)?.value.trim() || "";
-    const code = document.getElementById(`part_code_${n}`)?.value.trim() || "";
-    const cost = Number(document.getElementById(`part_cost_${n}`)?.value || 0);
-    const status =
-      document.getElementById(`part_status_${n}`)?.value || "need_parts";
-
-    // skip empty rows
-    if (!part && !code && cost <= 0) continue;
-
-    rows.push({ part, code, cost, status });
-  }
-
-  return rows;
-}
-
-function updatePartsTotal() {
-  let total = 0;
-  document.querySelectorAll(".partCostInp").forEach((el) => {
-    total += Number(el.value || 0);
-  });
-
-  document.getElementById("parts_total").textContent = total.toFixed(2);
-  document.getElementById("parts_cost").value = total.toFixed(2); // hidden field
-}
-
-
-      // Checklist keys (stored in JSON)
-      const CHECK_ITEMS = [
-        // Row 1
-        ["bios", "Posts to BIOS"],
-        ["win_act", "Windows Activated"],
-        ["battery", "Battery"],
-
-        // Row 2
-        ["keyboard", "Keyboard"],
-        ["trackpad", "Trackpad"],
-        ["wifi", "Wi-Fi"],
-
-        // Row 3
-        ["camera", "Camera"],
-        ["mic", "Mic"],
-        ["speakers", "Speakers"],
-
-        // Row 4
-        ["updates", "Updates installed"],
-        ["chrome", "Chrome installed"],
-        ["avast", "Avast installed"],
-      ];
-
-      function updatePartsTotal() {
-        const total =
-          (Number($("part_cost_1")?.value) || 0) +
-          (Number($("part_cost_2")?.value) || 0) +
-          (Number($("part_cost_3")?.value) || 0);
-
-        $("parts_total").textContent = total.toFixed(2);
-        $("parts_cost").value = total.toFixed(2); // keeps backend happy
+        // update total after adding
+        updatePartsTotal();
       }
 
-      function buildChecklist(checkedMap) {
+      function clearPartsRows() {
+        PART_ROW_COUNT = 0;
+        const wrap = document.getElementById("partsRows");
+        if (wrap) wrap.innerHTML = "";
+      }
+
+      function getPartsRowsFromUI() {
+        const rows = [];
+
+        for (let n = 1; n <= PART_ROW_COUNT; n++) {
+          const part = document.getElementById(`part_${n}`)?.value.trim() || "";
+          const code =
+            document.getElementById(`part_code_${n}`)?.value.trim() || "";
+          const cost = Number(
+            document.getElementById(`part_cost_${n}`)?.value || 0,
+          );
+          const status =
+            document.getElementById(`part_status_${n}`)?.value || "need_parts";
+
+          // skip empty rows
+          if (!part && !code && cost <= 0) continue;
+
+          rows.push({ part, code, cost, status });
+        }
+
+        return rows;
+      }
+
+      function updatePartsTotal() {
+        let total = 0;
+        document.querySelectorAll(".partCostInp").forEach((el) => {
+          total += Number(el.value || 0);
+        });
+
+        document.getElementById("parts_total").textContent = total.toFixed(2);
+        document.getElementById("parts_cost").value = total.toFixed(2); // hidden field
+      }
+
+      // Checklist keys (stored in JSON)
+      const CHECKLISTS = {
+        laptop: [
+          ["bios", "Posts to BIOS"],
+          ["bios_password", "BIOS password"],
+          ["battery", "Battery"],
+          ["keyboard", "Keyboard"],
+          ["trackpad", "Trackpad"],
+          ["wifi", "Wi-Fi"],
+          ["camera", "Camera"],
+          ["mic", "Mic"],
+          ["speakers", "Speakers"],
+          ["updates", "Updates installed"],
+          ["chrome", "Chrome installed"],
+          ["avast", "Avast installed"],
+        ],
+
+        pc: [
+          ["posts", "Posts / boots"],
+          ["bios", "BIOS accessible"],
+          ["cpu_temp", "CPU temps OK"],
+          ["ram_test", "RAM test OK"],
+          ["storage_health", "Storage health OK"],
+          ["usb_ports", "USB ports"],
+          ["audio", "Audio"],
+          ["ethernet", "Ethernet"],
+          ["wifi", "Wi-Fi (if fitted)"],
+          ["gpu_output", "GPU/display output"],
+          ["updates", "Updates installed"],
+          ["drivers", "Drivers installed"],
+        ],
+
+        phone: [
+          ["touch", "Touchscreen"],
+          ["display", "Display (dead pixels/burn)"],
+          ["buttons", "Buttons"],
+          ["speaker", "Speaker"],
+          ["mic", "Microphone"],
+          ["cameras", "Cameras"],
+          ["charging", "Charging port"],
+          ["battery", "Battery health"],
+          ["sim", "SIM reader"],
+          ["wifi", "Wi-Fi"],
+          ["bluetooth", "Bluetooth"],
+          ["network", "Network signal"],
+          ["faceid_touchid", "Face ID / Touch ID"],
+        ],
+
+        tablet: [
+          ["touch", "Touchscreen"],
+          ["display", "Display (dead pixels/burn)"],
+          ["buttons", "Buttons"],
+          ["speaker", "Speaker"],
+          ["mic", "Microphone"],
+          ["cameras", "Cameras"],
+          ["charging", "Charging port"],
+          ["battery", "Battery"],
+          ["wifi", "Wi-Fi"],
+          ["bluetooth", "Bluetooth"],
+          ["updates", "Updates installed"],
+        ],
+
+        console: [
+          ["power", "Powers on"],
+          ["hdmi", "HDMI output"],
+          ["disc", "Disc drive (if applicable)"],
+          ["storage", "Storage OK"],
+          ["controller_sync", "Controller sync"],
+          ["usb_ports", "USB ports"],
+          ["network", "Network / online"],
+          ["fan_noise", "Fan noise OK"],
+          ["overheating", "No overheating"],
+          ["factory_reset", "Factory reset done"],
+        ],
+      };
+
+      function buildChecklist(items, checkedMap) {
         const wrap = $("checklistWrap");
-        wrap.innerHTML = CHECK_ITEMS.map(([key, label]) => {
-          const checked = !!(checkedMap && checkedMap[key]);
-          return `
-          <label class="check">
-            <input type="checkbox" data-key="${esc(key)}" ${checked ? "checked" : ""}/>
-            <div>
-              <div style="font-weight:600;">${esc(label)}</div>
-              <div class="muted">${esc(key)}</div>
-            </div>
-          </label>
-        `;
-        }).join("");
+        wrap.innerHTML = items
+          .map(([key, label]) => {
+            const checked = !!(checkedMap && checkedMap[key]);
+            return `
+      <label class="check">
+        <input type="checkbox" data-key="${esc(key)}" ${checked ? "checked" : ""}/>
+        <div>
+          <div style="font-weight:600;">${esc(label)}</div>
+          <div class="muted">${esc(key)}</div>
+        </div>
+      </label>
+    `;
+          })
+          .join("");
       }
 
       function getChecklistFromUI() {
@@ -549,6 +594,98 @@ function updatePartsTotal() {
         return j;
       }
 
+      function guessCategory(data) {
+        const cat = String(data?.category || "")
+          .trim()
+          .toLowerCase();
+        if (cat) return cat;
+
+        // fallback based on SKU prefix if category missing
+        const sku = String(data?.sku || "")
+          .trim()
+          .toUpperCase();
+        const p = sku.charAt(0);
+
+        if (p === "L") return "laptop";
+        if (p === "M") return "pc";
+        if (p === "V") return "phone";
+        if (p === "Q") return "tablet";
+        if (p === "H") return "console";
+
+        return "laptop"; // safe default
+      }
+
+      const CATEGORY_LABELS = {
+        laptop: "Laptop",
+        pc: "PC",
+        phone: "Phone",
+        tablet: "Tablet",
+        console: "Console",
+      };
+
+      function setChecklistTitle(category) {
+        const el = $("checklistTitle");
+        if (!el) return;
+        const label = CATEGORY_LABELS[category] || "Device";
+        el.textContent = `${label} Checklist`;
+      }
+
+      function renderSpecsForCategory(category) {
+        const body = $("specsBody");
+        if (!body) return;
+
+        // Laptop / PC: keep existing fields (do nothing)
+        if (category === "laptop" || category === "pc") return;
+
+        // Phone / Tablet specs
+        if (category === "phone" || category === "tablet") {
+          body.className = "grid4"; // reuse your grid
+          body.innerHTML = `
+      <div>
+        <label>Colour</label>
+        <input id="specs_colour" type="text" placeholder="e.g. Black" />
+      </div>
+      <div>
+        <label>Storage</label>
+        <input id="specs_storage2" type="text" placeholder="e.g. 128GB" />
+      </div>
+      <div>
+        <label>Network</label>
+        <input id="specs_network" type="text" placeholder="e.g. Unlocked / O2 / Vodafone" />
+      </div>
+      <div>
+        <label>Condition</label>
+        <input id="specs_condition" type="text" placeholder="e.g. Grade B / scratches on back" />
+      </div>
+    `;
+          return;
+        }
+
+        // Console specs
+        if (category === "console") {
+          body.className = "grid4";
+          body.innerHTML = `
+      <div>
+        <label>Storage</label>
+        <input id="specs_storage2" type="text" placeholder="e.g. 1TB" />
+      </div>
+      <div>
+        <label>Firmware</label>
+        <input id="specs_firmware" type="text" placeholder="e.g. 11.50" />
+      </div>
+      <div>
+        <label>Region</label>
+        <input id="specs_region" type="text" placeholder="e.g. UK / EU" />
+      </div>
+      <div>
+        <label>Bundle</label>
+        <input id="specs_bundle" type="text" placeholder="e.g. 1 controller + cables" />
+      </div>
+    `;
+          return;
+        }
+      }
+
       async function load() {
         const id = getRefurbIdFromUrl();
         if (!id) {
@@ -572,20 +709,36 @@ function updatePartsTotal() {
           $("subhead").innerHTML =
             `<b>${esc(data.sku || "#" + id)}</b> · ${esc(data.description || "")}`;
 
-          // detail fields
+          // ✅ category-based UI (TASK 3)
+          const category = guessCategory(data);
+          setChecklistTitle(category);
+          renderSpecsForCategory(category);
+
+          // detail fields (only applies if those inputs exist)
           setIfExists("specs_cpu", data.specs_cpu);
           setIfExists("specs_ram", data.specs_ram);
           setIfExists("specs_storage", data.specs_storage);
           setIfExists("specs_gpu", data.specs_gpu);
 
-          // load total
+          setIfExists("specs_colour", data.specs_colour);
+          setIfExists("specs_storage2", data.specs_storage2);
+          setIfExists("specs_network", data.specs_network);
+          setIfExists("specs_condition", data.specs_condition);
+
+          setIfExists("specs_firmware", data.specs_firmware);
+          setIfExists("specs_region", data.specs_region);
+          setIfExists("specs_bundle", data.specs_bundle);
+
+          // totals
           $("parts_cost").value = Number(data.parts_cost || 0).toFixed(2);
           $("parts_total").textContent = Number(data.parts_cost || 0).toFixed(
             2,
           );
 
-          // load structured parts rows if present
-         
+          // build dynamic parts rows
+          clearPartsRows();
+
+          let rows = [];
           try {
             if (
               data.parts_needed &&
@@ -595,34 +748,20 @@ function updatePartsTotal() {
             }
           } catch {}
 
-          // build dynamic parts rows
-          clearPartsRows();
-
-          let rows = [];
-          try {
-            if (data.parts_needed && String(data.parts_needed).trim().startsWith("[")) {
-              rows = JSON.parse(data.parts_needed);
-            }
-          } catch {}
-
-          // if we have saved rows, render them
           if (rows.length) {
             rows.forEach((r) => addPartRow(r));
           } else {
-            // otherwise default to 3 empty rows like before
             addPartRow();
             addPartRow();
             addPartRow();
           }
 
-
           updatePartsTotal();
 
           $("detail_notes").value = data.detail_notes || "";
-
           await tryPrefillCostRetailFromProducts(data.sku);
 
-          // checklist JSON can come back already as object OR string depending on driver
+          // checklist
           let checklist = data.checklist || {};
           if (typeof checklist === "string") {
             try {
@@ -631,7 +770,9 @@ function updatePartsTotal() {
               checklist = {};
             }
           }
-          buildChecklist(checklist);
+
+          const items = CHECKLISTS[category] || CHECKLISTS.laptop;
+          buildChecklist(items, checklist);
         } catch (e) {
           console.error(e);
           toast(e.message || "Failed to load detail");
@@ -692,15 +833,23 @@ function updatePartsTotal() {
 
         const partsRows = getPartsRowsFromUI();
 
-
         const body = {
-          specs_cpu: $("specs_cpu").value.trim() || null,
-          specs_ram: $("specs_ram").value.trim() || null,
-          specs_storage: $("specs_storage").value.trim() || null,
-          specs_gpu: $("specs_gpu").value.trim() || null,
+          specs_cpu: ($("specs_cpu")?.value || "").trim() || null,
+          specs_ram: ($("specs_ram")?.value || "").trim() || null,
+          specs_storage: ($("specs_storage")?.value || "").trim() || null,
+          specs_gpu: ($("specs_gpu")?.value || "").trim() || null,
 
           parts_needed: partsRows.length ? JSON.stringify(partsRows) : null,
           parts_cost: Number($("parts_cost").value || 0),
+
+          specs_colour: ($("specs_colour")?.value || "").trim() || null,
+          specs_storage2: ($("specs_storage2")?.value || "").trim() || null,
+          specs_network: ($("specs_network")?.value || "").trim() || null,
+          specs_condition: ($("specs_condition")?.value || "").trim() || null,
+
+          specs_firmware: ($("specs_firmware")?.value || "").trim() || null,
+          specs_region: ($("specs_region")?.value || "").trim() || null,
+          specs_bundle: ($("specs_bundle")?.value || "").trim() || null,
 
           checklist: getChecklistFromUI(),
           notes: $("detail_notes").value.trim() || null,
@@ -749,11 +898,6 @@ function updatePartsTotal() {
           // ignore if product not found
         }
       }
-
-      ["part_cost_1", "part_cost_2", "part_cost_3"].forEach((id) => {
-        const el = $(id);
-        if (el) el.addEventListener("input", updatePartsTotal);
-      });
 
       $("addPartBtn")?.addEventListener("click", () => addPartRow());
       $("saveBtn").addEventListener("click", save);

@@ -81,8 +81,6 @@
 
   </style>
 </head>
-
-</head>
 <body>
     <div class="wrap">
     <aside id="sidebar"></aside>
@@ -91,8 +89,6 @@
     <p style="color:var(--muted,#9aa);margin-top:4px;">
       Track devices going through strip / refurb / scrap and whether they need or are awaiting parts.
     </p>
-
-    <h2 style="margin-top:0">Refurb queue</h2>
     
     <div class="filters" style="display:flex;gap:10px;flex-wrap:wrap;align-items:flex-end;margin:12px 0 14px;">
   <div>
@@ -115,14 +111,18 @@
 
   <div>
     <label style="display:block;font-size:12px;opacity:.7;margin-bottom:4px;">Status</label>
-    <select id="fStatus">
-      <option value="">All</option>
-      <option value="strip">Strip</option>
-      <option value="refurb">Refurb</option>
-      <option value="scrap">Scrap</option>
-      <option value="scrapped">Scrapped</option>
-      <option value="complete">Complete</option>
-    </select>
+    <select data-id="${item.id}" class="statusSel">
+  <option value="strip"     ${item.status==='strip'?'selected':''}>Strip</option>
+  <option value="stripped"  ${item.status==='stripped'?'selected':''}>Stripped</option>
+
+  <option value="refurb"    ${item.status==='refurb'?'selected':''}>Refurb</option>
+
+  <option value="scrap"     ${item.status==='scrap'?'selected':''}>Scrap</option>
+  <option value="scrapped"  ${item.status==='scrapped'?'selected':''}>Scrapped</option>
+
+  <option value="complete"  ${item.status==='complete'?'selected':''}>Complete</option>
+</select>
+
   </div>
 
   <div>
@@ -199,6 +199,9 @@
     case 'refurb': return 'refurb-status-refurb';
     case 'scrap': return 'refurb-status-scrap';
     case 'complete': return 'refurb-status-complete';
+    case 'stripped': return 'refurb-status-strip';
+    case 'scrapped': return 'refurb-status-scrap';
+
     default: return '';
   }
 }
@@ -215,13 +218,23 @@ function partsClass(partsStatus) {
 
 function statusPillClass(status) {
   switch (status) {
-    case 'strip':    return 'pill-status-strip';
-    case 'refurb':   return 'pill-status-refurb';
-    case 'scrap':    return 'pill-status-scrap';
-    case 'complete': return 'pill-status-complete';
-    default:         return 'pill-status-refurb';
+    case 'strip':
+    case 'stripped':
+      return 'pill-status-strip';
+
+    case 'scrap':
+    case 'scrapped':
+      return 'pill-status-scrap';
+
+    case 'complete':
+      return 'pill-status-complete';
+
+    case 'refurb':
+    default:
+      return 'pill-status-refurb';
   }
 }
+
 
 function partsPillClass(partsStatus) {
   switch (partsStatus) {
@@ -247,7 +260,7 @@ function partsPillClass(partsStatus) {
     tbody.innerHTML = '<tr><td colspan="10" style="padding:8px">Loading…</td></tr>';
 
     try {
-      const res = await fetch('/api/refurb?view=active', { cache: 'no-store' });
+      const res = await fetch('/api/refurb?view=retired', { cache: 'no-store' });
       const items = await res.json();
 
       ALL_REFURB = Array.isArray(items) ? items : [];

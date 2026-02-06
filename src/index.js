@@ -475,27 +475,27 @@ app.get('/api/refurb', async (req, res) => {
   try {
     const view = String(req.query.view || '').trim().toLowerCase();
 
-    // ✅ Default refurb list (hide scrapped items)
+    // ✅ ACTIVE refurb list (hide scrapped + stripped)
     if (!view || view === 'active') {
       const { rows } = await pgQuery(
         `SELECT * FROM refurb_items
-         WHERE status IS DISTINCT FROM 'scrapped'
+         WHERE status NOT IN ('scrapped', 'stripped')
          ORDER BY id DESC;`
       );
       return res.json(rows);
     }
 
-    // ✅ Scrapped-only view
-    if (view === 'scrapped') {
+    // ✅ RETIRED view (scrapped + stripped together)
+    if (view === 'retired') {
       const { rows } = await pgQuery(
         `SELECT * FROM refurb_items
-         WHERE status = 'scrapped'
+         WHERE status IN ('scrapped', 'stripped')
          ORDER BY id DESC;`
       );
       return res.json(rows);
     }
 
-    // fallback (shouldn't really be needed)
+    // fallback (optional)
     const { rows } = await pgQuery(
       `SELECT * FROM refurb_items ORDER BY id DESC;`
     );

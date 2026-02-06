@@ -82,7 +82,6 @@
   </style>
 </head>
 
-</head>
 <body>
     <div class="wrap">
     <aside id="sidebar"></aside>
@@ -226,13 +225,23 @@ function partsClass(partsStatus) {
 
 function statusPillClass(status) {
   switch (status) {
-    case 'strip':    return 'pill-status-strip';
-    case 'refurb':   return 'pill-status-refurb';
-    case 'scrap':    return 'pill-status-scrap';
-    case 'complete': return 'pill-status-complete';
-    default:         return 'pill-status-refurb';
+    case 'strip':
+    case 'stripped':
+      return 'pill-status-strip';
+
+    case 'scrap':
+    case 'scrapped':
+      return 'pill-status-scrap';
+
+    case 'complete':
+      return 'pill-status-complete';
+
+    case 'refurb':
+    default:
+      return 'pill-status-refurb';
   }
 }
+
 
 function partsPillClass(partsStatus) {
   switch (partsStatus) {
@@ -266,7 +275,7 @@ function updateLocalRefurb(updatedRow) {
     tbody.innerHTML = '<tr><td colspan="10" style="padding:8px">Loading…</td></tr>';
 
     try {
-      const res = await fetch('/api/refurb', { cache: 'no-store' });
+      const res = await fetch('/api/refurb?view=active', { cache: 'no-store' });
       const items = await res.json();
 
       ALL_REFURB = Array.isArray(items) ? items : [];
@@ -404,11 +413,17 @@ function syncViewUI() {
       render: (item) => `
         <span class="pill ${statusPillClass(item.status)}">
           <select data-id="${item.id}" class="statusSel">
-            <option value="strip" ${item.status==='strip'?'selected':''}>Strip</option>
-            <option value="refurb" ${item.status==='refurb'?'selected':''}>Refurb</option>
-            <option value="scrap" ${item.status==='scrap'?'selected':''}>Scrap</option>
-            <option value="complete" ${item.status==='complete'?'selected':''}>Complete</option>
+            <option value="strip"     ${item.status==='strip'?'selected':''}>Strip</option>
+            <option value="stripped"  ${item.status==='stripped'?'selected':''}>Stripped</option>
+
+            <option value="refurb"    ${item.status==='refurb'?'selected':''}>Refurb</option>
+
+            <option value="scrap"     ${item.status==='scrap'?'selected':''}>Scrap</option>
+            <option value="scrapped"  ${item.status==='scrapped'?'selected':''}>Scrapped</option>
+
+            <option value="complete"  ${item.status==='complete'?'selected':''}>Complete</option>
           </select>
+
         </span>
       `
     },

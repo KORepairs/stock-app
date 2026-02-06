@@ -290,60 +290,21 @@
         <div class="card">
           <h2 style="margin: 0 0 10px">Parts</h2>
 
-          <div class="parts-grid4">
-            <div class="parts-header">Part</div>
-            <div class="parts-header">Code</div>
-            <div class="parts-header">Cost (£)</div>
-            <div class="parts-header">Part status</div>
+          <!-- Headers stay -->
+<div class="parts-grid4">
+  <div class="parts-header">Part</div>
+  <div class="parts-header">Code</div>
+  <div class="parts-header">Cost (£)</div>
+  <div class="parts-header">Part status</div>
+</div>
 
-            <!-- Row 1 -->
-            <input id="part_1" type="text" placeholder="e.g. Battery" />
-            <input id="part_code_1" type="text" placeholder="e.g. BAT-123" />
-            <input
-              id="part_cost_1"
-              type="number"
-              step="0.01"
-              min="0"
-              value="0"
-            />
-            <select id="part_status_1">
-              <option value="need_parts">Need parts</option>
-              <option value="parts_ordered">Parts ordered</option>
-              <option value="parts_arrived">Parts arrived</option>
-            </select>
+<!-- Rows will be added dynamically here -->
+<div id="partsRows" class="parts-grid4"></div>
 
-            <!-- Row 2 -->
-            <input id="part_2" type="text" placeholder="e.g. Screen" />
-            <input id="part_code_2" type="text" placeholder="e.g. SCR-456" />
-            <input
-              id="part_cost_2"
-              type="number"
-              step="0.01"
-              min="0"
-              value="0"
-            />
-            <select id="part_status_2">
-              <option value="need_parts">Need parts</option>
-              <option value="parts_ordered">Parts ordered</option>
-              <option value="parts_arrived">Parts arrived</option>
-            </select>
-
-            <!-- Row 3 -->
-            <input id="part_3" type="text" placeholder="e.g. Keyboard" />
-            <input id="part_code_3" type="text" placeholder="e.g. KEY-789" />
-            <input
-              id="part_cost_3"
-              type="number"
-              step="0.01"
-              min="0"
-              value="0"
-            />
-            <select id="part_status_3">
-              <option value="need_parts">Need parts</option>
-              <option value="parts_ordered">Parts ordered</option>
-              <option value="parts_arrived">Parts arrived</option>
-            </select>
-          </div>
+<!-- Add button -->
+<div class="row" style="justify-content:flex-end; margin-top:10px;">
+  <button type="button" id="addPartBtn">+ Add part line</button>
+</div>
 
           <div
             class="row"

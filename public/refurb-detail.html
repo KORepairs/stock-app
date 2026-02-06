@@ -387,6 +387,91 @@
         }, 1800);
       }
 
+      // ---------- Dynamic Parts Rows ----------
+let PART_ROW_COUNT = 0;
+
+function partsStatusOptions(selected = "need_parts") {
+  const opts = [
+    ["need_parts", "Need parts"],
+    ["parts_ordered", "Parts ordered"],
+    ["parts_arrived", "Parts arrived"],
+  ];
+  return opts
+    .map(([val, label]) => {
+      const sel = val === selected ? "selected" : "";
+      return `<option value="${val}" ${sel}>${label}</option>`;
+    })
+    .join("");
+}
+
+function addPartRow(prefill = {}) {
+  PART_ROW_COUNT += 1;
+  const n = PART_ROW_COUNT;
+
+  const wrap = document.getElementById("partsRows");
+  if (!wrap) return;
+
+  const rowHtml = `
+    <input class="partInp" data-n="${n}" id="part_${n}" type="text"
+      placeholder="e.g. Battery" value="${esc(prefill.part || "")}" />
+
+    <input class="partCodeInp" data-n="${n}" id="part_code_${n}" type="text"
+      placeholder="e.g. BAT-123" value="${esc(prefill.code || "")}" />
+
+    <input class="partCostInp" data-n="${n}" id="part_cost_${n}" type="number"
+      step="0.01" min="0" value="${Number(prefill.cost || 0)}" />
+
+    <select class="partStatusSel" data-n="${n}" id="part_status_${n}">
+      ${partsStatusOptions(prefill.status || "need_parts")}
+    </select>
+  `;
+
+  wrap.insertAdjacentHTML("beforeend", rowHtml);
+
+  // keep total live-updated
+  const costEl = document.getElementById(`part_cost_${n}`);
+  if (costEl) costEl.addEventListener("input", updatePartsTotal);
+
+  // update total after adding
+  updatePartsTotal();
+}
+
+function clearPartsRows() {
+  PART_ROW_COUNT = 0;
+  const wrap = document.getElementById("partsRows");
+  if (wrap) wrap.innerHTML = "";
+}
+
+function getPartsRowsFromUI() {
+  const rows = [];
+
+  for (let n = 1; n <= PART_ROW_COUNT; n++) {
+    const part = document.getElementById(`part_${n}`)?.value.trim() || "";
+    const code = document.getElementById(`part_code_${n}`)?.value.trim() || "";
+    const cost = Number(document.getElementById(`part_cost_${n}`)?.value || 0);
+    const status =
+      document.getElementById(`part_status_${n}`)?.value || "need_parts";
+
+    // skip empty rows
+    if (!part && !code && cost <= 0) continue;
+
+    rows.push({ part, code, cost, status });
+  }
+
+  return rows;
+}
+
+function updatePartsTotal() {
+  let total = 0;
+  document.querySelectorAll(".partCostInp").forEach((el) => {
+    total += Number(el.value || 0);
+  });
+
+  document.getElementById("parts_total").textContent = total.toFixed(2);
+  document.getElementById("parts_cost").value = total.toFixed(2); // hidden field
+}
+
+
       // Checklist keys (stored in JSON)
       const CHECK_ITEMS = [
         // Row 1
@@ -500,7 +585,7 @@
           );
 
           // load structured parts rows if present
-          let rows = [];
+         
           try {
             if (
               data.parts_needed &&
@@ -510,14 +595,26 @@
             }
           } catch {}
 
-          [1, 2, 3].forEach((n) => {
-            const r = rows[n - 1] || {};
-            if ($("part_" + n)) $("part_" + n).value = r.part || "";
-            if ($("part_code_" + n)) $("part_code_" + n).value = r.code || "";
-            if ($("part_cost_" + n)) $("part_cost_" + n).value = r.cost ?? 0;
-            if ($("part_status_" + n))
-              $("part_status_" + n).value = r.status || "need_parts";
-          });
+          // build dynamic parts rows
+          clearPartsRows();
+
+          let rows = [];
+          try {
+            if (data.parts_needed && String(data.parts_needed).trim().startsWith("[")) {
+              rows = JSON.parse(data.parts_needed);
+            }
+          } catch {}
+
+          // if we have saved rows, render them
+          if (rows.length) {
+            rows.forEach((r) => addPartRow(r));
+          } else {
+            // otherwise default to 3 empty rows like before
+            addPartRow();
+            addPartRow();
+            addPartRow();
+          }
+
 
           updatePartsTotal();
 
@@ -593,14 +690,8 @@
         const id = getRefurbIdFromUrl();
         if (!id) return;
 
-        const partsRows = [1, 2, 3]
-          .map((n) => ({
-            part: $("part_" + n)?.value.trim() || "",
-            code: $("part_code_" + n)?.value.trim() || "",
-            cost: Number($("part_cost_" + n)?.value || 0),
-            status: $("part_status_" + n)?.value || "need_parts",
-          }))
-          .filter((r) => r.part || r.code || r.cost > 0);
+        const partsRows = getPartsRowsFromUI();
+
 
         const body = {
           specs_cpu: $("specs_cpu").value.trim() || null,
@@ -664,6 +755,7 @@
         if (el) el.addEventListener("input", updatePartsTotal);
       });
 
+      $("addPartBtn")?.addEventListener("click", () => addPartRow());
       $("saveBtn").addEventListener("click", save);
       $("saveDeviceBtn").addEventListener("click", saveDevice);
       window.addEventListener("DOMContentLoaded", load);

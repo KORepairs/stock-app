@@ -121,6 +121,7 @@ app.get('/tradeins',       (req, res) => res.sendFile(path.join(PUBLIC_DIR, 'tra
 app.get('/report-sales',   (req, res) => {res.sendFile(path.join(__dirname, '..', 'public', 'report-sales.html'));});
 app.get('/inventory-add', (req, res) => res.sendFile(path.join(PUBLIC_DIR, 'inventory-add.html')));
 app.get('/report/ebay-updates', (req, res) => res.sendFile(path.join(PUBLIC_DIR, 'report-ebay-updates.html')));
+app.get('/refurb/scrapped', (req, res) => res.sendFile(path.join(PUBLIC_DIR, 'refurb-scrapped.html')));
 
 
 
@@ -472,15 +473,40 @@ app.put('/api/ebay-updates/:id', async (req, res) => {
 // Get all refurb items
 app.get('/api/refurb', async (req, res) => {
   try {
-    const result = await pgQuery(
-      'SELECT * FROM refurb_items ORDER BY id DESC;'
+    const view = String(req.query.view || '').trim().toLowerCase();
+
+    // ✅ Default refurb list (hide scrapped items)
+    if (!view || view === 'active') {
+      const { rows } = await pgQuery(
+        `SELECT * FROM refurb_items
+         WHERE status IS DISTINCT FROM 'scrapped'
+         ORDER BY id DESC;`
+      );
+      return res.json(rows);
+    }
+
+    // ✅ Scrapped-only view
+    if (view === 'scrapped') {
+      const { rows } = await pgQuery(
+        `SELECT * FROM refurb_items
+         WHERE status = 'scrapped'
+         ORDER BY id DESC;`
+      );
+      return res.json(rows);
+    }
+
+    // fallback (shouldn't really be needed)
+    const { rows } = await pgQuery(
+      `SELECT * FROM refurb_items ORDER BY id DESC;`
     );
-    res.json(result.rows);
+    res.json(rows);
+
   } catch (err) {
     console.error('Error fetching refurb items:', err);
     res.status(500).json({ error: 'Failed to fetch refurb items' });
   }
 });
+
 
 // Get one refurb + its detail record
 app.get('/api/refurb/:id/detail', async (req, res) => {

@@ -1,0 +1,77 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <title>Scrapped Items</title>
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <link rel="stylesheet" href="/app.css">
+</head>
+<body>
+<div class="wrap">
+  <aside id="sidebar"></aside>
+
+  <main class="page">
+    <div class="row" style="justify-content:space-between;">
+      <div>
+        <h1 style="margin:0;">Scrapped Items</h1>
+        <p class="muted" style="margin-top:6px;">Anything marked as <b>scrapped</b> lives here.</p>
+      </div>
+      <a href="/refurb"><button type="button">← Back to Refurb</button></a>
+    </div>
+
+    <div class="card" style="margin-top:14px;">
+      <div class="row" style="justify-content:space-between;">
+        <div><b id="count">0</b> items</div>
+      </div>
+
+      <div style="overflow:auto; margin-top:10px;">
+        <table class="table" style="width:100%;">
+          <thead>
+            <tr>
+              <th>ID</th>
+              <th>SKU</th>
+              <th>Description</th>
+              <th>Supplier</th>
+              <th>Cost</th>
+              <th>Retail</th>
+              <th>Status</th>
+              <th>Created</th>
+            </tr>
+          </thead>
+          <tbody id="rows"></tbody>
+        </table>
+      </div>
+    </div>
+  </main>
+</div>
+
+<script>
+function esc(s){ return String(s ?? '').replace(/[&<>"']/g, m => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[m])); }
+function money(v){ return '£' + Number(v || 0).toFixed(2); }
+
+async function load(){
+  const res = await fetch('/api/refurb?view=scrapped');
+  const items = await res.json();
+
+  document.getElementById('count').textContent = items.length;
+
+  document.getElementById('rows').innerHTML = items.map(r => `
+    <tr>
+      <td>${esc(r.id)}</td>
+      <td>${esc(r.sku || '')}</td>
+      <td>${esc(r.description || '')}</td>
+      <td>${esc(r.supplier || '')}</td>
+      <td>${money(r.cost)}</td>
+      <td>${money(r.retail)}</td>
+      <td>${esc(r.status)}</td>
+      <td>${esc(r.created_at ? String(r.created_at).slice(0,10) : '')}</td>
+    </tr>
+  `).join('');
+}
+
+window.addEventListener('DOMContentLoaded', load);
+</script>
+
+<script src="/js/sidebar.js"></script>
+</body>
+</html>

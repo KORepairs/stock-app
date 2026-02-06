@@ -120,6 +120,7 @@
       <option value="strip">Strip</option>
       <option value="refurb">Refurb</option>
       <option value="scrap">Scrap</option>
+      <option value="scrapped">Scrapped</option>
       <option value="complete">Complete</option>
     </select>
   </div>
@@ -246,7 +247,7 @@ function partsPillClass(partsStatus) {
     tbody.innerHTML = '<tr><td colspan="10" style="padding:8px">Loading…</td></tr>';
 
     try {
-      const res = await fetch('/api/refurb', { cache: 'no-store' });
+      const res = await fetch('/api/refurb?view=active', { cache: 'no-store' });
       const items = await res.json();
 
       ALL_REFURB = Array.isArray(items) ? items : [];

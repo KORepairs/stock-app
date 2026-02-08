@@ -1,21 +1,387 @@
 <!doctype html>
-<html>
-<head>
-  <meta charset="utf-8">
-  <meta name="viewport" content="width=device-width,initial-scale=1">
-  <link rel="stylesheet" href="/app.css">
-  <title>Dashboard</title>
-</head>
-<body>
-  <div class="wrap">
-    <aside id="sidebar"></aside>
-    <main>
-  <div class="page">
-    <h1>Dashboard</h1>
-    <!-- your cards/widgets here -->
-  </div>
-  </main>
-  </div>
-  <script src="/js/sidebar.js"></script>
-</body>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <title>Dashboard</title>
+    <meta name="viewport" content="width=device-width,initial-scale=1" />
+    <link rel="stylesheet" href="/app.css" />
+    <style>
+      .row { display:flex; gap:12px; align-items:center; flex-wrap:wrap; }
+      .muted { color: var(--muted, #9aa); font-size: 13px; }
+      .card {
+        background: var(--panel);
+        border: 1px solid var(--border);
+        border-radius: 12px;
+        padding: 14px;
+        margin-top: 14px;
+      }
+
+      .kpis {
+        display:grid;
+        grid-template-columns: repeat(5, 1fr);
+        gap: 12px;
+      }
+      @media (max-width: 1100px) { .kpis { grid-template-columns: repeat(3, 1fr); } }
+      @media (max-width: 700px)  { .kpis { grid-template-columns: 1fr; } }
+
+      .kpi {
+        cursor: pointer;
+        transition: transform .08s ease, border-color .08s ease;
+      }
+      .kpi:hover { transform: translateY(-1px); border-color: rgba(255,255,255,.18); }
+
+      .kpi .num { font-size: 28px; font-weight: 800; line-height: 1; }
+      .kpi .label { margin-top: 6px; font-weight: 700; }
+      .kpi .sub { margin-top: 4px; }
+
+      .pipe {
+        display:grid;
+        grid-template-columns: repeat(6, 1fr);
+        gap: 10px;
+      }
+      @media (max-width: 1100px) { .pipe { grid-template-columns: repeat(3, 1fr); } }
+      @media (max-width: 700px)  { .pipe { grid-template-columns: 1fr; } }
+
+      .pipeItem {
+        border: 1px solid var(--border);
+        border-radius: 12px;
+        padding: 12px;
+        cursor: pointer;
+        background: rgba(255,255,255,.02);
+      }
+      .pipeItem:hover { border-color: rgba(255,255,255,.18); }
+
+      .pill {
+        display: inline-flex;
+        align-items: center;
+        border-radius: 999px;
+        padding: 4px 10px;
+        font-size: 12px;
+        font-weight: 700;
+        border: 1px solid rgba(255,255,255,.1);
+      }
+      .pill.strip { background:#ed9507; color:#111; }
+      .pill.refurb { background:#0819d1; color:#fff; }
+      .pill.needs  { background:#a81703; color:#fff; }
+      .pill.await  { background:#d9c61e; color:#111; }
+      .pill.has    { background:#053802; color:#fff; }
+      .pill.complete { background:#158207; color:#fff; }
+
+      .actions {
+        display:flex;
+        gap:10px;
+        flex-wrap:wrap;
+        justify-content:flex-end;
+      }
+
+      .list {
+        display:grid;
+        gap:10px;
+        margin-top: 10px;
+      }
+      .listItem {
+        display:flex;
+        justify-content:space-between;
+        align-items:center;
+        gap:12px;
+        border: 1px solid var(--border);
+        border-radius: 12px;
+        padding: 10px 12px;
+        background: rgba(255,255,255,.02);
+        cursor: pointer;
+      }
+      .listItem:hover { border-color: rgba(255,255,255,.18); }
+      .listItem strong { font-weight: 800; }
+      .right { text-align:right; }
+    </style>
+  </head>
+
+  <body>
+    <div class="wrap">
+      <aside id="sidebar"></aside>
+
+      <main class="page">
+        <div class="row" style="justify-content: space-between">
+          <div>
+            <h1 style="margin:0">Dashboard</h1>
+            <div class="muted">Your daily overview — refurbs first (no low-stock).</div>
+          </div>
+
+          <div class="actions">
+            <a href="/refurb/add"><button type="button">+ Add refurb</button></a>
+            <a href="/refurb"><button type="button">Open refurb list</button></a>
+            <a href="/tradein"><button type="button">Trade-in</button></a>
+            <a href="/report/ebay-updates"><button type="button">eBay updates</button></a>
+          </div>
+        </div>
+
+        <!-- KPI CARDS -->
+        <div class="card">
+          <h2 style="margin:0 0 10px">Today at a glance</h2>
+          <div class="kpis">
+            <div class="card kpi" id="kpiActive">
+              <div class="num" id="kpi_active">–</div>
+              <div class="label">Active refurbs</div>
+              <div class="muted sub">In the queue (not retired)</div>
+            </div>
+
+            <div class="card kpi" id="kpiNeedsParts">
+              <div class="num" id="kpi_needs">–</div>
+              <div class="label">Needs parts</div>
+              <div class="muted sub">You can’t move these yet</div>
+            </div>
+
+            <div class="card kpi" id="kpiAwaiting">
+              <div class="num" id="kpi_awaiting">–</div>
+              <div class="label">Awaiting parts</div>
+              <div class="muted sub">Orders outstanding</div>
+            </div>
+
+            <div class="card kpi" id="kpiComplete">
+              <div class="num" id="kpi_complete">–</div>
+              <div class="label">Complete</div>
+              <div class="muted sub">Ready for till / listing</div>
+            </div>
+
+            <div class="card kpi" id="kpiEbay">
+              <div class="num" id="kpi_ebay">–</div>
+              <div class="label">eBay updates</div>
+              <div class="muted sub">Pending changes</div>
+            </div>
+          </div>
+        </div>
+
+        <!-- REFURB PIPELINE -->
+        <div class="card">
+          <h2 style="margin:0 0 10px">Refurb pipeline</h2>
+          <div class="muted">Click a block to jump into the refurb list with filters.</div>
+
+          <div class="pipe" style="margin-top:12px">
+            <div class="pipeItem" data-go="status:strip">
+              <span class="pill strip">Strip</span>
+              <div class="row" style="justify-content:space-between;margin-top:10px">
+                <strong id="pipe_strip">–</strong>
+                <span class="muted">items</span>
+              </div>
+            </div>
+
+            <div class="pipeItem" data-go="status:refurb">
+              <span class="pill refurb">Refurb</span>
+              <div class="row" style="justify-content:space-between;margin-top:10px">
+                <strong id="pipe_refurb">–</strong>
+                <span class="muted">items</span>
+              </div>
+            </div>
+
+            <div class="pipeItem" data-go="parts:needs_parts">
+              <span class="pill needs">Needs parts</span>
+              <div class="row" style="justify-content:space-between;margin-top:10px">
+                <strong id="pipe_needs">–</strong>
+                <span class="muted">items</span>
+              </div>
+            </div>
+
+            <div class="pipeItem" data-go="parts:awaiting_parts">
+              <span class="pill await">Awaiting</span>
+              <div class="row" style="justify-content:space-between;margin-top:10px">
+                <strong id="pipe_awaiting">–</strong>
+                <span class="muted">items</span>
+              </div>
+            </div>
+
+            <div class="pipeItem" data-go="parts:has_parts">
+              <span class="pill has">Has parts</span>
+              <div class="row" style="justify-content:space-between;margin-top:10px">
+                <strong id="pipe_has">–</strong>
+                <span class="muted">items</span>
+              </div>
+            </div>
+
+            <div class="pipeItem" data-go="status:complete">
+              <span class="pill complete">Complete</span>
+              <div class="row" style="justify-content:space-between;margin-top:10px">
+                <strong id="pipe_complete">–</strong>
+                <span class="muted">items</span>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- ACTION NEEDED -->
+        <div class="card">
+          <h2 style="margin:0 0 10px">Action needed</h2>
+          <div class="muted">These are your “don’t forget” items.</div>
+
+          <div class="list" id="actionList">
+            <div class="listItem">
+              <div>Loading…</div>
+            </div>
+          </div>
+        </div>
+      </main>
+    </div>
+
+    <script>
+      function $(id){ return document.getElementById(id); }
+
+      function setNum(id, n){
+        const el = $(id);
+        if (el) el.textContent = String(n ?? '–');
+      }
+
+      // We’ll use your existing refurb page filters:
+      // /refurb then set dropdowns via querystring you can read later if you want.
+      // For now we’ll just jump to refurb page; later we can support ?status=refurb etc.
+      function goToRefurbWith(filter){
+        // Simple version: just go to refurb page (your filters are on-page)
+        // If you want, I can add querystring support to auto-apply the dropdowns.
+        window.location.href = '/refurb';
+      }
+
+      // Click wiring for pipeline blocks
+      function wirePipelineClicks(){
+        document.querySelectorAll('.pipeItem').forEach(el=>{
+          el.addEventListener('click', ()=> goToRefurbWith(el.dataset.go));
+        });
+      }
+
+      // KPI clicks
+      function wireKpiClicks(){
+        $('kpiActive')?.addEventListener('click', ()=> window.location.href='/refurb');
+        $('kpiNeedsParts')?.addEventListener('click', ()=> window.location.href='/refurb');
+        $('kpiAwaiting')?.addEventListener('click', ()=> window.location.href='/refurb');
+        $('kpiComplete')?.addEventListener('click', ()=> window.location.href='/refurb');
+        $('kpiEbay')?.addEventListener('click', ()=> window.location.href='/report/ebay-updates');
+      }
+
+      function renderActions(actions){
+        const wrap = $('actionList');
+        if (!wrap) return;
+
+        if (!actions || !actions.length){
+          wrap.innerHTML = `
+            <div class="listItem" style="cursor:default">
+              <div><strong>All clear ✅</strong><div class="muted">No urgent items right now.</div></div>
+            </div>
+          `;
+          return;
+        }
+
+        wrap.innerHTML = actions.map(a => `
+          <div class="listItem" data-link="${a.link || ''}">
+            <div>
+              <strong>${a.title}</strong>
+              <div class="muted">${a.subtitle || ''}</div>
+            </div>
+            <div class="right">
+              <strong>${a.value ?? ''}</strong>
+              <div class="muted">open</div>
+            </div>
+          </div>
+        `).join('');
+
+        wrap.querySelectorAll('.listItem').forEach(x=>{
+          const link = x.getAttribute('data-link');
+          if (!link) return;
+          x.addEventListener('click', ()=> window.location.href = link);
+        });
+      }
+
+      // ✅ Dashboard loader (uses your existing endpoints)
+      async function loadDashboard(){
+        // 1) Refurb items (active)
+        const refurbRes = await fetch('/api/refurb?view=active', { cache:'no-store' });
+        const refurbs = await refurbRes.json();
+        const items = Array.isArray(refurbs) ? refurbs : [];
+
+        const active = items.length;
+
+        const countStatus = (s) => items.filter(x => String(x.status||'') === s).length;
+        const countParts  = (p) => items.filter(x => String(x.parts_status||'') === p).length;
+
+        const strip     = countStatus('strip') + countStatus('stripped');
+        const refurb    = countStatus('refurb');
+        const complete  = countStatus('complete');
+
+        const needs     = countParts('needs_parts');
+        const awaiting  = countParts('awaiting_parts');
+        const hasParts  = countParts('has_parts');
+
+        // “Complete but retail missing/0”
+        const completeNoRetail = items.filter(x =>
+          String(x.status||'') === 'complete' && Number(x.retail || 0) <= 0
+        ).length;
+
+        setNum('kpi_active', active);
+        setNum('kpi_needs', needs);
+        setNum('kpi_awaiting', awaiting);
+        setNum('kpi_complete', complete);
+
+        setNum('pipe_strip', strip);
+        setNum('pipe_refurb', refurb);
+        setNum('pipe_needs', needs);
+        setNum('pipe_awaiting', awaiting);
+        setNum('pipe_has', hasParts);
+        setNum('pipe_complete', complete);
+
+        // 2) eBay updates count (pending)
+        let ebayPending = 0;
+        try{
+          const ebayRes = await fetch('/api/ebay-updates?done=false', { cache:'no-store' });
+          const ebay = await ebayRes.json();
+          ebayPending = Array.isArray(ebay) ? ebay.length : 0;
+        } catch {}
+        setNum('kpi_ebay', ebayPending);
+
+        // 3) Action list
+        const actions = [];
+
+        if (needs > 0) {
+          actions.push({
+            title: 'Devices need parts',
+            subtitle: 'Open refurb list and filter parts = needs_parts',
+            value: needs,
+            link: '/refurb'
+          });
+        }
+
+        if (awaiting > 0) {
+          actions.push({
+            title: 'Parts awaiting arrival',
+            subtitle: 'These are waiting on deliveries',
+            value: awaiting,
+            link: '/refurb'
+          });
+        }
+
+        if (completeNoRetail > 0) {
+          actions.push({
+            title: 'Complete items missing retail price',
+            subtitle: 'Set retail so you can put it straight on the till',
+            value: completeNoRetail,
+            link: '/refurb'
+          });
+        }
+
+        if (ebayPending > 0) {
+          actions.push({
+            title: 'eBay updates pending',
+            subtitle: 'Update listings / quantities when you get a minute',
+            value: ebayPending,
+            link: '/report/ebay-updates'
+          });
+        }
+
+        renderActions(actions);
+      }
+
+      window.addEventListener('DOMContentLoaded', () => {
+        wirePipelineClicks();
+        wireKpiClicks();
+        loadDashboard().catch(console.error);
+      });
+    </script>
+
+    <script src="/js/sidebar.js"></script>
+  </body>
 </html>

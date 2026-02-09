@@ -779,6 +779,25 @@ function renderRefurbTable(items) {
   el.addEventListener('change', applyFilters);
 });
 
+function applyQueryFilters() {
+  const params = new URLSearchParams(location.search);
+
+  const view = params.get('view');     // computer | phone | tablet | console
+  const status = params.get('status'); // strip | refurb | complete | scrap etc
+  const parts = params.get('parts');   // none | needs_parts | awaiting_parts | has_parts
+  const sku = params.get('sku');       // partial SKU search
+
+  if (view && $('fView')) $('fView').value = view;
+  syncViewUI();
+
+  if (status && $('fStatus')) $('fStatus').value = status;
+  if (parts && $('fParts')) $('fParts').value = parts;
+  if (sku && $('fSku')) $('fSku').value = sku;
+
+  applyFilters();
+}
+
+
 
 $('fView')?.addEventListener('change', () => {
   syncViewUI();
@@ -788,14 +807,15 @@ $('fView')?.addEventListener('change', () => {
 
 
   // Load table on page open
-  window.addEventListener('DOMContentLoaded', () => {
+  window.addEventListener('DOMContentLoaded', async () => {
   syncViewUI();
-  loadRefurb();
+  await loadRefurb();      // wait for ALL_REFURB to load
+  applyQueryFilters();     // then apply URL filters
 
   const btn = document.getElementById('fClear');
   if (btn) btn.addEventListener('click', clearFilters);
-
 });
+
 
 </script>
 <script src="/js/sidebar.js"></script>

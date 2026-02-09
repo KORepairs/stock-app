@@ -220,19 +220,19 @@
               <div class="label">eBay updates</div>
               <div class="muted sub">Pending changes</div>
             </div>
+
+            <div class="card kpi" id="kpiScrapped">
+              <div class="num" id="kpi_scrapped">–</div>
+              <div class="label">Scrapped</div>
+              <div class="muted sub">Retired (scrap)</div>
+            </div>
+
+            <div class="card kpi" id="kpiStripped">
+              <div class="num" id="kpi_stripped">–</div>
+              <div class="label">Stripped</div>
+              <div class="muted sub">Retired (stripped)</div>
+            </div>
           </div>
-        </div>
-
-        <div class="card kpi" id="kpiScrapped">
-          <div class="num" id="kpi_scrapped">–</div>
-          <div class="label">Scrapped</div>
-          <div class="muted sub">Retired (scrap)</div>
-        </div>
-
-        <div class="card kpi" id="kpiStripped">
-          <div class="num" id="kpi_stripped">–</div>
-          <div class="label">Stripped</div>
-          <div class="muted sub">Retired (stripped)</div>
         </div>
 
         <!-- REFURB PIPELINE -->
@@ -339,9 +339,11 @@
       // /refurb then set dropdowns via querystring you can read later if you want.
       // For now we’ll just jump to refurb page; later we can support ?status=refurb etc.
       function goToRefurbWith(filter) {
-        // Simple version: just go to refurb page (your filters are on-page)
-        // If you want, I can add querystring support to auto-apply the dropdowns.
-        window.location.href = "/refurb";
+        // filter looks like "status:strip" or "parts:needs_parts"
+        const [k, v] = String(filter || "").split(":");
+        const qs = new URLSearchParams();
+        if (k && v) qs.set(k, v);
+        window.location.href = "/refurb?" + qs.toString();
       }
 
       // Click wiring for pipeline blocks
@@ -443,7 +445,11 @@
         setNum("kpi_scrapped", scrapped);
         setNum("kpi_stripped", stripped);
 
+        const refurbRes = await fetch("/api/refurb?view=active", {
+          cache: "no-store",
+        });
         const refurbs = await refurbRes.json();
+
         const items = Array.isArray(refurbs) ? refurbs : [];
 
         const active = items.length;

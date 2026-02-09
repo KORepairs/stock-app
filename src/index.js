@@ -103,7 +103,7 @@ app.use("/api/exports", exportsRouter);
 const PUBLIC_DIR = path.join(__dirname, '..', 'public');
 app.use(express.static(PUBLIC_DIR));
 
-app.get('/',               (req, res) => res.sendFile(path.join(PUBLIC_DIR, 'index.html')));
+app.get('/', (req, res) => res.sendFile(path.join(PUBLIC_DIR, 'dashboard.html')));
 app.get('/products',       (req, res) => res.sendFile(path.join(PUBLIC_DIR, 'products.html')));
 app.get('/products/list',  (req, res) => res.sendFile(path.join(PUBLIC_DIR, 'products-list.html')));
 app.get('/import',         (req, res) => res.sendFile(path.join(PUBLIC_DIR, 'import.html')));

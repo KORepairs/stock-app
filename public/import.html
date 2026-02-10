@@ -26,21 +26,31 @@
   height: 1px;
   opacity: 0;
 }
-.btnLike{
-  display:inline-flex;
-  align-items:center;
-  justify-content:center;
-  padding:.55rem .85rem;
-  border-radius:6px;
-  border:1px solid var(--border);
-  background:#f5f5f5;
-  color:var(--text);
-  cursor:pointer;
-  user-select:none;
+.fileBtn{
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: .55rem .85rem;
+  border-radius: 6px;
+  border: 1px solid var(--border);
+  background: #f5f5f5;
+  color: var(--text);
+  cursor: pointer;
+  user-select: none;
 }
-.btnLike:hover{ background:#ececec; }
 
-  * { outline: 1px solid rgba(255,0,0,.08); }
+.fileBtn:hover{ background:#ececec; }
+
+/* the real file input sits on top of the label */
+.fileBtn input[type="file"]{
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  opacity: 0;
+  cursor: pointer;
+}
 
 
   </style>
@@ -59,11 +69,14 @@
   <div class="panel">
     <div class="grid">
       <div style="display:flex; gap:10px; align-items:center;">
-  <input id="file" type="file" accept=".csv,text/csv" class="fileHidden">
+  <label class="fileBtn">
+    Choose CSV
+    <input id="file" type="file" accept=".csv,text/csv">
+  </label>
 
-  <label for="file" class="btnLike">Choose CSV</label>
   <span class="muted" id="fileName">No file chosen</span>
 </div>
+
 
 
 
@@ -139,17 +152,19 @@
   // ---------- Helpers ----------
   const $ = s => document.querySelector(s);
 
+  fileEl.addEventListener('change', () => {
+    fileName.textContent = fileEl.files?.[0]?.name || 'No file chosen';
+  });
+
+
 window.addEventListener('DOMContentLoaded', () => {
   const fileEl = $('#file');
   const pickBtn = $('#pickFileBtn');
   const fileName = $('#fileName');
-
+});
   
 
-  fileEl.addEventListener('change', () => {
-    fileName.textContent = fileEl.files?.[0]?.name || 'No file chosen';
-  });
-});
+  
 
 
   const log = (msg, clear=false) => {

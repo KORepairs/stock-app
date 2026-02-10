@@ -5,7 +5,8 @@
 
   try {
     // load the shared sidebar HTML
-    const res = await fetch('/partials/sidebar.html');
+    const res = await fetch('/partials/sidebar.html', { cache: 'no-store' });
+
     const html = await res.text();
     host.innerHTML = html;
 

@@ -19,6 +19,23 @@
     td{ text-align:center }
     .log{background:#111;color:#0f0;border-radius:8px;padding:10px;min-height:44px;white-space:pre-wrap}
     @media (max-width:720px){ .grid{grid-template-columns:1fr 1fr} }
+  .btnLike{
+    display:inline-flex;
+    align-items:center;
+    justify-content:center;
+    padding:10px 14px;
+    border-radius:10px;
+    border:1px solid var(--border);
+    background:rgba(255,255,255,.06);
+    color:inherit;
+    cursor:pointer;
+    user-select:none;
+    font:inherit;
+  }
+  .btnLike:hover{ border-color: rgba(255,255,255,.18); }
+  * { outline: 1px solid rgba(255,0,0,.08); }
+
+
   </style>
 </head>
 <body>
@@ -36,11 +53,12 @@
     <div class="grid">
       <div style="display:flex; gap:10px; align-items:center;">
   <input id="file" type="file" accept=".csv,text/csv"
-  style="position:absolute; left:-9999px; width:1px; height:1px; opacity:0;">
+    style="position:absolute; left:-9999px; width:1px; height:1px; opacity:0;">
 
-  <button type="button" id="pickFileBtn">Choose CSV</button>
+  <label for="file" class="btnLike">Choose CSV</label>
   <span class="muted" id="fileName">No file chosen</span>
 </div>
+
 
 
       <div style="display:flex;gap:8px;align-items:center;justify-self:end">
@@ -119,7 +137,7 @@ window.addEventListener('DOMContentLoaded', () => {
   const pickBtn = $('#pickFileBtn');
   const fileName = $('#fileName');
 
-  pickBtn.addEventListener('click', () => fileEl.click());
+  
 
   fileEl.addEventListener('change', () => {
     fileName.textContent = fileEl.files?.[0]?.name || 'No file chosen';

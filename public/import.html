@@ -34,9 +34,11 @@
 
   <div class="panel">
     <div class="grid">
-      <label>
-        <input id="file" type="file" accept=".csv,text/csv">
-      </label>
+      <div style="display:flex;gap:10px;align-items:center;flex-wrap:wrap">
+        <input id="file" type="file" accept=".csv,text/csv" style="display:none">
+        <button type="button" id="chooseFileBtn">Choose CSV…</button>
+        <span id="fileName" class="muted small">No file chosen</span>
+      </div>
 
       <div style="display:flex;gap:8px;align-items:center;justify-self:end">
         <span>Quantity mode</span>
@@ -113,6 +115,20 @@
     t.textContent = (clear ? '' : (t.textContent ? t.textContent + '\n' : '')) + msg;
   };
   const esc = s => String(s ?? '').replace(/[&<>"']/g, m => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[m]));
+
+  // ---- File picker helper (more reliable than clicking the hidden input) ----
+  const fileInput = $('#file');
+  const chooseBtn  = $('#chooseFileBtn');
+  const fileNameEl = $('#fileName');
+
+  if (chooseBtn && fileInput) {
+    chooseBtn.addEventListener('click', () => fileInput.click());
+    fileInput.addEventListener('change', () => {
+      const f = fileInput.files && fileInput.files[0];
+      if (fileNameEl) fileNameEl.textContent = f ? f.name : 'No file chosen';
+    });
+  }
+
 
   function showHeaderChips(found, checked = false) {
     const wrap = $('#headerChips');

@@ -411,3 +411,9 @@ td select {
   margin-top: 4px;
 }
 
+
+/* mobile: stack wrap + sidebar */
+@media (max-width: 900px){
+  .wrap{ grid-template-columns: 1fr; }
+  aside#sidebar{ position: static; height: auto; }
+}

@@ -35,7 +35,9 @@
   <div class="panel">
     <div class="grid">
       <div style="display:flex; gap:10px; align-items:center;">
-  <input id="file" type="file" accept=".csv,text/csv" style="display:none;">
+  <input id="file" type="file" accept=".csv,text/csv"
+  style="position:absolute; left:-9999px; width:1px; height:1px; opacity:0;">
+
   <button type="button" id="pickFileBtn">Choose CSV</button>
   <span class="muted" id="fileName">No file chosen</span>
 </div>
@@ -111,12 +113,19 @@
 
   // ---------- Helpers ----------
   const $ = s => document.querySelector(s);
-  const fileEl = $('#file');
-$('#pickFileBtn').addEventListener('click', () => fileEl.click());
 
-fileEl.addEventListener('change', () => {
-  $('#fileName').textContent = fileEl.files?.[0]?.name || 'No file chosen';
+window.addEventListener('DOMContentLoaded', () => {
+  const fileEl = $('#file');
+  const pickBtn = $('#pickFileBtn');
+  const fileName = $('#fileName');
+
+  pickBtn.addEventListener('click', () => fileEl.click());
+
+  fileEl.addEventListener('change', () => {
+    fileName.textContent = fileEl.files?.[0]?.name || 'No file chosen';
+  });
 });
+
 
   const log = (msg, clear=false) => {
     const t = $('#log');

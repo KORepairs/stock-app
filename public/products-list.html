@@ -59,6 +59,14 @@
       td.actions button {
         margin-right: 6px;
       }
+      .grid2 select {
+        width: 100%;
+        border: 1px solid var(--border);
+        border-radius: 6px;
+        padding: 0.5rem;
+        background: var(--panel);
+        color: var(--text);
+      }
     </style>
   </head>
   <body>
@@ -231,6 +239,15 @@
                 type="checkbox"
                 style="justify-self: start"
               />
+              <label>eBay status</label>
+              <select id="e_ebay_status">
+                <option value="not_listed">Not listed</option>
+                <option value="ready_to_list">Ready to list</option>
+                <option value="listed">Listed</option>
+                <option value="sold_on_ebay">Sold on eBay</option>
+              </select>
+
+              
               <label>Retail</label>
               <input id="e_retail" type="number" step="0.01" min="0" />
               <label>Cost</label>
@@ -443,7 +460,7 @@
         <td>${esc(p.name)}</td>
         <td>${Number(p.quantity) || 0}</td>
         <td>${esc(p.notes || "")}</td>
-        <<td style="text-align:center">${p.ebay_status === 'listed' ? '✓' : ''}</td>
+        <td style="text-align:center">${p.ebay_status === "listed" ? "✓" : ""}</td>
         <td>${GBP(p.retail)}</td>
         <td>${GBP(p.cost)}</td>
         <td>${GBP(p.fees)}</td>
@@ -495,19 +512,26 @@
           }
 
           if (btn.dataset.act === "edit") {
-            $("e_id").value = row.id;
-            $("e_sku").value = row.sku || "";
-            $("e_name").value = row.name || "";
-            $("e_quantity").value = row.quantity || 0;
-            $("e_onEbay").checked = !!row.on_ebay;
-            $("e_retail").value = row.retail || 0;
-            $("e_cost").value = row.cost || 0;
-            $("e_fees").value = row.fees || 0;
-            $("e_postage").value = row.postage || 0;
-            $("e_notes").value = row.notes || "";
-            $("editDlg").showModal();
-          }
-        });
+  $("e_id").value = row.id;
+  $("e_sku").value = row.sku || "";
+  $("e_name").value = row.name || "";
+  $("e_quantity").value = row.quantity || 0;
+  $("e_onEbay").checked = !!row.on_ebay;
+  $("e_retail").value = row.retail || 0;
+  $("e_cost").value = row.cost || 0;
+  $("e_fees").value = row.fees || 0;
+  $("e_postage").value = row.postage || 0;
+  $("e_notes").value = row.notes || "";
+
+  $("e_ebay_status").value =
+    row.ebay_status ||
+    ((row.on_ebay === 1 || row.on_ebay === true) ? "listed" : "not_listed");
+
+  $("e_onEbay").checked = ($("e_ebay_status").value === "listed");
+
+  $("editDlg").showModal();
+}
+});
 
         // ---------- save edits ----------
         $("editForm").addEventListener("submit", async (ev) => {

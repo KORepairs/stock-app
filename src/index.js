@@ -167,6 +167,18 @@ app.get('/api/health/db', async (req, res) => {
   }
 });
 
+async function setEbayStatus(productId, status) {
+  const { rows } = await pgQuery(
+    `UPDATE products
+     SET ebay_status = $2
+     WHERE id = $1
+     RETURNING *;`,
+    [Number(productId), String(status)]
+  );
+  return rows[0] || null;
+}
+
+
 /* ---------- API: Products ---------- */
 
 app.get('/api/products', async (req, res) => {
@@ -424,6 +436,12 @@ app.post('/api/products/add-smart', async (req, res) => {
       const oldQty = Number(existing.quantity) || 0;
       const updated = await adjustQtyPG(existing.id, qtyDelta);
       const newQty = Number(updated.quantity) || 0;
+
+      // if stock comes back from 0, mark as RELIST
+if (oldQty === 0 && newQty > 0) {
+  await setEbayStatus(existing.id, "ready_to_list");
+}
+
 
       // If it’s an eBay item, log it for later
       if (Number(existing.on_ebay) === 1) {
@@ -1035,9 +1053,22 @@ app.post('/api/stock/in', async (req, res) => {
     }
 
     const amount = Number(qty) || 1;
-    const updated = await adjustQtyPG(product.id, amount);
 
-    res.json(updated);
+// remember old qty before change
+const oldQty = Number(product.quantity) || 0;
+
+// update quantity
+const updated = await adjustQtyPG(product.id, amount);
+const newQty = Number(updated.quantity) || 0;
+
+// 🧠 if stock was 0 and now exists → needs RELIST
+if (oldQty === 0 && newQty > 0) {
+  const bumped = await setEbayStatus(product.id, "ready_to_list");
+  return res.json(bumped);
+}
+
+res.json(updated);
+
   } catch (err) {
     console.error('PG stock/in error:', err);
     res.status(500).json({ error: err.message });
@@ -1116,8 +1147,18 @@ app.post('/api/stock/take', async (req, res) => {
       return res.status(404).json({ error: 'product not found' });
     }
 
-    const updated = await setQtyPG(product.id, Number(qty) || 0);
-    res.json(updated);
+    const oldQty = Number(product.quantity) || 0;
+const updated = await setQtyPG(product.id, Number(qty) || 0);
+const newQty = Number(updated.quantity) || 0;
+
+// if stock goes from 0 -> 1+, mark as RELIST
+if (oldQty === 0 && newQty > 0) {
+  const bumped = await setEbayStatus(product.id, "ready_to_list");
+  return res.json(bumped);
+}
+
+res.json(updated);
+
   } catch (err) {
     console.error('PG stock/take error:', err);
     res.status(500).json({ error: err.message });

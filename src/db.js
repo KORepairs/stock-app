@@ -30,6 +30,14 @@ await pgQuery(`
   await pgQuery(`ALTER TABLE products ADD COLUMN IF NOT EXISTS code TEXT;`);
   await pgQuery(`CREATE UNIQUE INDEX IF NOT EXISTS products_code_uq ON products(code) WHERE code IS NOT NULL;`);
 
+  // One-time backfill: keep legacy on_ebay in sync with new ebay_status for existing data
+await pgQuery(`
+  UPDATE products
+  SET ebay_status = 'listed'
+  WHERE on_ebay = 1
+    AND (ebay_status IS NULL OR ebay_status = 'not_listed');
+`);
+
 
   // Sales table
   await pgQuery(`

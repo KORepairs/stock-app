@@ -25,6 +25,9 @@ import {
   listEbayUpdatesPG,
   setEbayUpdateDonePG,
   getNextRefurbSkuPG,
+  updateEbayStatusPG,
+  ebayStatusCountsPG,
+
 
 } from './pgProducts.js';
 import fs from 'node:fs';
@@ -168,7 +171,9 @@ app.get('/api/health/db', async (req, res) => {
 
 app.get('/api/products', async (req, res) => {
   try {
-    const rows = await listProductsPG();
+    const ebay_status = req.query.ebay_status ? String(req.query.ebay_status) : undefined;
+    const rows = await listProductsPG({ ebay_status });
+
     res.json(rows);
   } catch (err) {
     console.error('PG listProducts error:', err);
@@ -268,6 +273,42 @@ app.put('/api/products/:id', async (req, res) => {
   } catch (err) {
     console.error('PG updateProduct error:', err);
     res.status(400).json({ error: err.message });
+  }
+});
+
+// Quick update eBay status / notes
+app.patch('/api/products/:id/ebay', async (req, res) => {
+  try {
+    const id = Number(req.params.id);
+    if (!id) return res.status(400).json({ error: 'invalid id' });
+
+    const { ebay_status = null, ebay_notes = null } = req.body || {};
+
+    // Optional: validate allowed statuses
+    const allowed = new Set(['not_listed', 'ready_to_list', 'listed', 'sold_on_ebay']);
+    if (ebay_status && !allowed.has(String(ebay_status))) {
+      return res.status(400).json({ error: 'invalid ebay_status' });
+    }
+
+    const row = await updateEbayStatusPG(id, {
+      ebay_status: ebay_status ? String(ebay_status) : null,
+      ebay_notes:  ebay_notes  != null ? String(ebay_notes) : null,
+    });
+
+    if (!row) return res.status(404).json({ error: 'not found' });
+    res.json(row);
+  } catch (err) {
+    console.error('PG update ebay status error:', err);
+    res.status(500).json({ error: err.message });
+  }
+});
+
+app.get('/api/stats/ebay', async (req, res) => {
+  try {
+    const rows = await ebayStatusCountsPG();
+    res.json(rows);
+  } catch (err) {
+    res.status(500).json({ error: err.message });
   }
 });
 

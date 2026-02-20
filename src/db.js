@@ -19,6 +19,14 @@ export async function initDb() {
     );
   `);
 
+  // eBay listing workflow fields (safe migrations)
+await pgQuery(`
+  ALTER TABLE products
+    ADD COLUMN IF NOT EXISTS ebay_status TEXT NOT NULL DEFAULT 'not_listed',
+    ADD COLUMN IF NOT EXISTS ebay_notes  TEXT;
+`);
+
+
   await pgQuery(`ALTER TABLE products ADD COLUMN IF NOT EXISTS code TEXT;`);
   await pgQuery(`CREATE UNIQUE INDEX IF NOT EXISTS products_code_uq ON products(code) WHERE code IS NOT NULL;`);
 
@@ -198,3 +206,4 @@ await pgQuery(`
 
 
 }
+

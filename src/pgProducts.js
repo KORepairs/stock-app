@@ -1,16 +1,30 @@
 // src/pgProducts.js
 import { pgQuery } from './pg.js';
 
+
 // List products (used by /api/products)
-export async function listProductsPG() {
+export async function listProductsPG({ ebay_status } = {}) {
+  const params = [];
+  let where = '';
+
+  if (ebay_status) {
+    params.push(String(ebay_status));
+    where = `WHERE ebay_status = $${params.length}`;
+  }
+
   const { rows } = await pgQuery(
     `SELECT id, sku, code, name, quantity, notes, on_ebay,
+            ebay_status, ebay_notes,
             retail, cost, fees, postage
      FROM products
-     ORDER BY sku ASC`
+     ${where}
+     ORDER BY sku ASC`,
+    params
   );
+
   return rows;
 }
+
 
 // Get single product by id
 export async function getProductByIdPG(id) {
@@ -27,27 +41,32 @@ export async function getProductByIdPG(id) {
 // Create a new product
 export async function createProductPG(data) {
   const {
-    sku,
-    code = null,
-    name,
-    notes,
-    on_ebay,
-    cost,
-    retail,
-    fees,
-    postage,
-    quantity
-  } = data;
+  sku,
+  code = null,
+  name,
+  notes,
+  on_ebay,
+  ebay_status = 'not_listed',
+  ebay_notes = null,
+  cost,
+  retail,
+  fees,
+  postage,
+  quantity
+} = data;
+
 
   const { rows } = await pgQuery(
   `INSERT INTO products
-     (sku, code, name, notes, on_ebay, cost, retail, fees, postage, quantity)
+     (sku, code, name, notes, on_ebay, ebay_status, ebay_notes, cost, retail, fees, postage, quantity)
    VALUES
-     ($1,  $2,   $3,   $4,   $5,      $6,   $7,     $8,   $9,      $10)
+     ($1,  $2,   $3,   $4,   $5,      $6,          $7,         $8,   $9,     $10,  $11,     $12)
    RETURNING id, sku, code, name, quantity, notes, on_ebay,
+             ebay_status, ebay_notes,
              retail, cost, fees, postage`,
-  [sku, code, name, notes, on_ebay, cost, retail, fees, postage, quantity]
+  [sku, code, name, notes, on_ebay, ebay_status, ebay_notes, cost, retail, fees, postage, quantity]
 );
+
 
 
   return rows[0];
@@ -269,6 +288,33 @@ export async function getNextRefurbSkuPG(prefix) {
 
   return `${p}${String(nextNum).padStart(4, '0')}`; // 4 digits
 }
+
+export async function updateEbayStatusPG(id, { ebay_status, ebay_notes } = {}) {
+  const { rows } = await pgQuery(
+    `
+    UPDATE products
+    SET ebay_status = COALESCE($2, ebay_status),
+        ebay_notes  = COALESCE($3, ebay_notes)
+    WHERE id = $1
+    RETURNING id, sku, code, name, quantity, notes, on_ebay,
+              ebay_status, ebay_notes,
+              retail, cost, fees, postage;
+    `,
+    [Number(id), ebay_status ?? null, ebay_notes ?? null]
+  );
+
+  return rows[0] || null;
+}
+export async function ebayStatusCountsPG() {
+  const { rows } = await pgQuery(`
+    SELECT ebay_status, COUNT(*)::int AS total
+    FROM products
+    GROUP BY ebay_status
+    ORDER BY ebay_status;
+  `);
+  return rows;
+}
+
 
 
 

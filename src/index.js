@@ -1107,6 +1107,14 @@ app.post('/api/stock/out', async (req, res) => {
     // 1) Update quantity
     const updated = await adjustQtyPG(product.id, -amount);
 
+    const newQty = Number(updated.quantity) || 0;
+
+if (newQty === 0) {
+  await setEbayStatus(product.id, "sold_on_ebay");
+}
+
+
+
     // 2) Insert sale record
     await insertSalePG({
       product_id: product.id,

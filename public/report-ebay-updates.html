@@ -4,230 +4,238 @@
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width,initial-scale=1" />
   <title>eBay Updates</title>
+
+  <!-- ✅ Use your app styling (this is what makes the sidebar look right) -->
   <link rel="stylesheet" href="/app.css" />
+
   <style>
-    body { font: 14px/1.4 -apple-system,BlinkMacSystemFont,Segoe UI,Roboto,Arial; margin: 24px; background:#f3f4f6; }
-    h1 { margin: 0 0 8px; }
-    .sub { color:#555; margin:0 0 16px; }
-    .card { background:#fff; border:1px solid #e5e7eb; border-radius:12px; padding:16px; box-shadow: 0 1px 2px rgba(0,0,0,.04); }
-    .row { display:flex; gap:10px; align-items:center; margin-bottom:12px; flex-wrap:wrap; }
-    button, select { padding:8px 10px; border:1px solid #d1d5db; border-radius:10px; background:#fff; cursor:pointer; }
-    button.primary { background:#111827; color:#fff; border-color:#111827; }
-    table { width:100%; border-collapse: collapse; }
-    th, td { border-bottom: 1px solid #e5e7eb; padding:10px 8px; text-align:left; vertical-align:top; }
-    th { color:#374151; font-weight:600; font-size:13px; }
+    /* only small page-specific bits */
+    .toolbar {
+      display: flex;
+      gap: 10px;
+      align-items: center;
+      flex-wrap: wrap;
+      margin: 12px 0;
+    }
+    .right { text-align: right; }
     .mono { font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace; }
-    .muted { color:#6b7280; }
-    .pill { display:inline-block; padding:2px 8px; border-radius:999px; font-size:12px; border:1px solid #e5e7eb; background:#f9fafb; }
-    .ok { color:#065f46; border-color:#a7f3d0; background:#ecfdf5; }
-    .warn { color:#92400e; border-color:#fde68a; background:#fffbeb; }
-    .msg { margin-top:12px; color:#111827; }
-    .right { text-align:right; }
+    .card { overflow: auto; } /* helps table on small screens */
+    table { width: 100%; border-collapse: collapse; }
+    th, td {
+      border-bottom: 1px solid var(--border);
+      padding: 10px 8px;
+      text-align: left;
+      vertical-align: top;
+    }
+    th { font-size: 13px; color: var(--muted); font-weight: 700; }
+    .pill {
+      display:inline-block;
+      padding: 2px 10px;
+      border-radius: 999px;
+      font-size: 12px;
+      border: 1px solid var(--border);
+      background: rgba(255,255,255,0.03);
+    }
+    .pill.ok { border-color: rgba(16,185,129,.35); }
+    .pill.warn { border-color: rgba(245,158,11,.35); }
+    .msg { margin-top: 12px; }
   </style>
 </head>
+
 <body>
   <div class="wrap">
     <aside id="sidebar"></aside>
 
     <main class="page">
-  <h1>eBay Updates</h1>
-  <p class="sub">Shows stock changes you still need to apply to eBay. Tick items as done when updated.</p>
+      <h1>eBay Updates</h1>
+      <div class="muted">Shows stock changes you still need to apply to eBay. Tick items as done when updated.</div>
 
-  <div class="card">
-    <div class="row">
-      <label class="muted">View:</label>
-      <select id="view">
-        <option value="pending" selected>Pending</option>
-        <option value="done">Done</option>
-        <option value="all">All</option>
-      </select>
+      <div class="card">
+        <div class="toolbar">
+          <span class="muted">View:</span>
+          <select id="view">
+            <option value="pending" selected>Pending</option>
+            <option value="done">Done</option>
+            <option value="all">All</option>
+          </select>
 
-      <button class="primary" id="refreshBtn">Refresh</button>
-      <button id="markAllBtn">Mark all shown as done</button>
+          <button id="refreshBtn" type="button">Refresh</button>
+          <button id="markAllBtn" type="button">Mark all shown as done</button>
 
-      <span class="muted" id="count"></span>
-    </div>
+          <span class="muted" id="count" style="margin-left:auto"></span>
+        </div>
 
-    <div style="overflow:auto">
-      <table>
-        <thead>
-          <tr>
-            <th>Date</th>
-            <th>SKU</th>
-            <th>Part number</th>
-            <th class="right">Delta</th>
-            <th class="right">Old → New</th>
-            <th>Note</th>
-            <th>Status</th>
-            <th class="right">Action</th>
-          </tr>
-        </thead>
-        <tbody id="rows">
-          <tr><td colspan="8" class="muted">Loading…</td></tr>
-        </tbody>
-      </table>
-    </div>
+        <table>
+          <thead>
+            <tr>
+              <th>Date</th>
+              <th>SKU</th>
+              <th>Part number</th>
+              <th class="right">Delta</th>
+              <th class="right">Old → New</th>
+              <th>Note</th>
+              <th>Status</th>
+              <th class="right">Action</th>
+            </tr>
+          </thead>
+          <tbody id="rows">
+            <tr><td colspan="8" class="muted">Loading…</td></tr>
+          </tbody>
+        </table>
 
-    <div class="msg" id="msg"></div>
-  </div>
-
-  </main>
+        <div class="msg" id="msg"></div>
+      </div>
+    </main>
   </div>
 
   <script>
-  const $ = (s) => document.querySelector(s);
+    const $ = (s) => document.querySelector(s);
 
-  function fmtDate(iso) {
-    if (!iso) return '';
-    const d = new Date(iso);
-    return d.toLocaleString();
-  }
-
-  async function fetchJson(url, opts) {
-    const res = await fetch(url, opts);
-
-    // read as text first so we can debug non-JSON responses
-    const text = await res.text();
-
-    // If not OK, throw a useful error
-    if (!res.ok) {
-      throw new Error(`HTTP ${res.status} ${res.statusText}\n${text.slice(0, 300)}`);
+    function fmtDate(iso) {
+      if (!iso) return '';
+      const d = new Date(iso);
+      return d.toLocaleString();
     }
 
-    // Try parse JSON
-    try {
-      return JSON.parse(text);
-    } catch (e) {
-      throw new Error(
-        `Response was not valid JSON.\nURL: ${url}\nFirst 300 chars:\n${text.slice(0, 300)}`
-      );
-    }
-  }
+    async function fetchJson(url, opts) {
+      const res = await fetch(url, opts);
+      const text = await res.text();
 
-  async function fetchRows() {
-    const viewEl = $('#view');
-    const view = viewEl ? viewEl.value : 'pending';
+      if (!res.ok) {
+        throw new Error(`HTTP ${res.status} ${res.statusText}\n${text.slice(0, 300)}`);
+      }
 
-    if (view === 'all') {
-      const [pending, done] = await Promise.all([
-        fetchJson('/api/ebay-updates?done=false'),
-        fetchJson('/api/ebay-updates?done=true'),
-      ]);
-
-      return [...pending, ...done].sort(
-        (a, b) => new Date(b.created_at) - new Date(a.created_at)
-      );
+      try {
+        return JSON.parse(text);
+      } catch (e) {
+        throw new Error(`Response not JSON.\nURL: ${url}\n${text.slice(0, 300)}`);
+      }
     }
 
-    const doneFlag = view === 'done' ? 'true' : 'false';
-    return await fetchJson(`/api/ebay-updates?done=${doneFlag}`);
-  }
+    async function fetchRows() {
+      const view = $('#view')?.value || 'pending';
 
-  async function setDone(id, done) {
-    return await fetchJson(`/api/ebay-updates/${id}`, {
-      method: 'PUT',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ done })
-    });
-  }
+      if (view === 'all') {
+        const [pending, done] = await Promise.all([
+          fetchJson('/api/ebay-updates?done=false'),
+          fetchJson('/api/ebay-updates?done=true'),
+        ]);
 
-  function render(rows) {
-    const tbody = $('#rows');
-    tbody.innerHTML = '';
+        return [...pending, ...done].sort(
+          (a, b) => new Date(b.created_at) - new Date(a.created_at)
+        );
+      }
 
-    $('#count').textContent = `${rows.length} item(s)`;
-
-    if (!rows.length) {
-      tbody.innerHTML = `<tr><td colspan="8" class="muted">No items to show.</td></tr>`;
-      return;
+      const doneFlag = view === 'done' ? 'true' : 'false';
+      return await fetchJson(`/api/ebay-updates?done=${doneFlag}`);
     }
 
-    for (const r of rows) {
-      const status = r.done
-        ? `<span class="pill ok">Done</span>`
-        : `<span class="pill warn">Pending</span>`;
-
-      const actionBtn = r.done
-        ? `<button data-id="${r.id}" data-done="false">Mark pending</button>`
-        : `<button class="primary" data-id="${r.id}" data-done="true">Mark done</button>`;
-
-      const delta = Number(r.delta || 0);
-      const oldQty = (r.old_qty ?? r.oldQty ?? r.oldqty ?? r.old) ?? '';
-      const newQty = (r.new_qty ?? r.newQty ?? r.newqty ?? r.new) ?? '';
-
-      const tr = document.createElement('tr');
-      tr.innerHTML = `
-        <td class="muted">${fmtDate(r.created_at)}</td>
-        <td class="mono"><strong>${r.sku || ''}</strong></td>
-        <td class="mono">${r.code || ''}</td>
-        <td class="right mono">${delta > 0 ? '+' + delta : delta}</td>
-        <td class="right mono">${oldQty} → ${newQty}</td>
-        <td>${r.note ? String(r.note) : ''}</td>
-        <td>${status}</td>
-        <td class="right">${actionBtn}</td>
-      `;
-      tbody.appendChild(tr);
-    }
-
-    tbody.querySelectorAll('button[data-id]').forEach(btn => {
-      btn.addEventListener('click', async () => {
-        $('#msg').textContent = '';
-        const id = btn.getAttribute('data-id');
-        const done = btn.getAttribute('data-done') === 'true';
-
-        try {
-          await setDone(id, done);
-          await refresh();
-          $('#msg').textContent = done ? 'Marked as done ✅' : 'Marked as pending ✅';
-        } catch (e) {
-          $('#msg').textContent = 'Error: ' + e.message;
-        }
+    async function setDone(id, done) {
+      return await fetchJson(`/api/ebay-updates/${id}`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ done })
       });
-    });
-  }
-
-  async function refresh() {
-    $('#msg').textContent = '';
-    $('#rows').innerHTML = `<tr><td colspan="8" class="muted">Loading…</td></tr>`;
-
-    try {
-      const rows = await fetchRows();
-      render(rows);
-    } catch (e) {
-      $('#rows').innerHTML = `<tr><td colspan="8" class="muted">Error loading updates.</td></tr>`;
-      $('#msg').textContent = 'Error: ' + e.message;
     }
-  }
 
-  $('#refreshBtn')?.addEventListener('click', refresh);
+    function render(rows) {
+      const tbody = $('#rows');
+      tbody.innerHTML = '';
 
-  $('#markAllBtn')?.addEventListener('click', async () => {
-    $('#msg').textContent = '';
-    try {
-      const rows = await fetchRows();
-      const pending = rows.filter(r => !r.done);
+      $('#count').textContent = `${rows.length} item(s)`;
 
-      if (!pending.length) {
-        $('#msg').textContent = 'Nothing pending to mark ✅';
+      if (!rows.length) {
+        tbody.innerHTML = `<tr><td colspan="8" class="muted">No items to show.</td></tr>`;
         return;
       }
 
-      for (const r of pending) {
-        await setDone(r.id, true);
+      for (const r of rows) {
+        const status = r.done
+          ? `<span class="pill ok">Done</span>`
+          : `<span class="pill warn">Pending</span>`;
+
+        const actionBtn = r.done
+          ? `<button data-id="${r.id}" data-done="false" type="button">Mark pending</button>`
+          : `<button data-id="${r.id}" data-done="true" type="button">Mark done</button>`;
+
+        const delta = Number(r.delta || 0);
+        const oldQty = (r.old_qty ?? r.oldQty ?? r.oldqty ?? r.old) ?? '';
+        const newQty = (r.new_qty ?? r.newQty ?? r.newqty ?? r.new) ?? '';
+
+        const tr = document.createElement('tr');
+        tr.innerHTML = `
+          <td class="muted">${fmtDate(r.created_at)}</td>
+          <td class="mono"><strong>${r.sku || ''}</strong></td>
+          <td class="mono">${r.code || ''}</td>
+          <td class="right mono">${delta > 0 ? '+' + delta : delta}</td>
+          <td class="right mono">${oldQty} → ${newQty}</td>
+          <td>${r.note ? String(r.note) : ''}</td>
+          <td>${status}</td>
+          <td class="right">${actionBtn}</td>
+        `;
+        tbody.appendChild(tr);
       }
 
-      await refresh();
-      $('#msg').textContent = `Marked ${pending.length} item(s) as done ✅`;
-    } catch (e) {
-      $('#msg').textContent = 'Error: ' + e.message;
+      tbody.querySelectorAll('button[data-id]').forEach(btn => {
+        btn.addEventListener('click', async () => {
+          $('#msg').textContent = '';
+          const id = btn.getAttribute('data-id');
+          const done = btn.getAttribute('data-done') === 'true';
+
+          try {
+            await setDone(id, done);
+            await refresh();
+            $('#msg').textContent = done ? 'Marked as done ✅' : 'Marked as pending ✅';
+          } catch (e) {
+            $('#msg').textContent = 'Error: ' + e.message;
+          }
+        });
+      });
     }
-  });
 
-  $('#view')?.addEventListener('change', refresh);
+    async function refresh() {
+      $('#msg').textContent = '';
+      $('#rows').innerHTML = `<tr><td colspan="8" class="muted">Loading…</td></tr>`;
 
-  refresh();
-</script>
+      try {
+        const rows = await fetchRows();
+        render(rows);
+      } catch (e) {
+        $('#rows').innerHTML = `<tr><td colspan="8" class="muted">Error loading updates.</td></tr>`;
+        $('#msg').textContent = 'Error: ' + e.message;
+      }
+    }
 
-<script src="/js/sidebar.js"></script>
+    $('#refreshBtn')?.addEventListener('click', refresh);
+
+    $('#markAllBtn')?.addEventListener('click', async () => {
+      $('#msg').textContent = '';
+      try {
+        const rows = await fetchRows();
+        const pending = rows.filter(r => !r.done);
+
+        if (!pending.length) {
+          $('#msg').textContent = 'Nothing pending to mark ✅';
+          return;
+        }
+
+        for (const r of pending) {
+          await setDone(r.id, true);
+        }
+
+        await refresh();
+        $('#msg').textContent = `Marked ${pending.length} item(s) as done ✅`;
+      } catch (e) {
+        $('#msg').textContent = 'Error: ' + e.message;
+      }
+    });
+
+    $('#view')?.addEventListener('change', refresh);
+
+    refresh();
+  </script>
+
+  <!-- ✅ Sidebar loader (keep at the end) -->
+  <script src="/js/sidebar.js"></script>
 </body>
 </html>

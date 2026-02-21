@@ -233,6 +233,12 @@
               <div class="muted sub">Currently marked as listed</div>
             </div>
 
+            <div class="card kpi" id="kpiRelist">
+              <div class="num" id="kpi_relist">–</div>
+              <div class="label">Relist needed</div>
+              <div class="muted sub">Stock returned from 0</div>
+            </div>
+
             <div class="card kpi" id="kpiScrapped">
               <div class="num" id="kpi_scrapped">–</div>
               <div class="label">Scrapped</div>
@@ -536,6 +542,21 @@
           }
         } catch {}
 
+        // 2b) get ebay status breakdown
+        let relistCount = 0;
+
+        try {
+          const statsRes = await fetch("/api/stats/ebay", {
+            cache: "no-store",
+          });
+          const stats = await statsRes.json();
+
+          const relist = stats.find((s) => s.ebay_status === "ready_to_list");
+          relistCount = relist ? relist.count : 0;
+        } catch {}
+
+        setNum("kpi_relist", relistCount);
+
         setNum("kpi_ebay_listed", ebayListed);
         setNum("kpi_ebay_not_listed", ebayNotListed);
 
@@ -595,6 +616,11 @@
         wireKpiClicks();
         loadDashboard().catch(console.error);
       });
+
+      $("kpiRelist")?.addEventListener(
+        "click",
+        () => (window.location.href = "/products?ebay_status=ready_to_list"),
+      );
     </script>
 
     <script src="/js/sidebar.js"></script>

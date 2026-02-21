@@ -307,13 +307,14 @@ export async function updateEbayStatusPG(id, { ebay_status, ebay_notes } = {}) {
 }
 export async function ebayStatusCountsPG() {
   const { rows } = await pgQuery(`
-    SELECT ebay_status, COUNT(*)::int AS total
+    SELECT ebay_status, COUNT(*)::int AS count
     FROM products
     GROUP BY ebay_status
-    ORDER BY ebay_status;
   `);
+
   return rows;
 }
+
 
 
 

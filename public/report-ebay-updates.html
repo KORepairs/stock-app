@@ -67,133 +67,157 @@
   </div>
 
   <script>
-    const $ = (s) => document.querySelector(s);
+  const $ = (s) => document.querySelector(s);
 
-    function fmtDate(iso) {
-      if (!iso) return '';
-      const d = new Date(iso);
-      return d.toLocaleString();
+  function fmtDate(iso) {
+    if (!iso) return '';
+    const d = new Date(iso);
+    return d.toLocaleString();
+  }
+
+  async function fetchJson(url, opts) {
+    const res = await fetch(url, opts);
+
+    // read as text first so we can debug non-JSON responses
+    const text = await res.text();
+
+    // If not OK, throw a useful error
+    if (!res.ok) {
+      throw new Error(`HTTP ${res.status} ${res.statusText}\n${text.slice(0, 300)}`);
     }
 
-    async function fetchRows() {
-      const view = $('#view').value;
+    // Try parse JSON
+    try {
+      return JSON.parse(text);
+    } catch (e) {
+      throw new Error(
+        `Response was not valid JSON.\nURL: ${url}\nFirst 300 chars:\n${text.slice(0, 300)}`
+      );
+    }
+  }
 
-      // API supports ?done=true/false in your code. For "all" we fetch pending + done.
-      if (view === 'all') {
-        const [pending, done] = await Promise.all([
-          fetch('/api/ebay-updates?done=false').then(r => r.json()),
-          fetch('/api/ebay-updates?done=true').then(r => r.json()),
-        ]);
-        return [...pending, ...done].sort((a,b) => new Date(b.created_at) - new Date(a.created_at));
-      }
+  async function fetchRows() {
+    const viewEl = $('#view');
+    const view = viewEl ? viewEl.value : 'pending';
 
-      const doneFlag = view === 'done' ? 'true' : 'false';
-      const res = await fetch(`/api/ebay-updates?done=${doneFlag}`);
-      return await res.json();
+    if (view === 'all') {
+      const [pending, done] = await Promise.all([
+        fetchJson('/api/ebay-updates?done=false'),
+        fetchJson('/api/ebay-updates?done=true'),
+      ]);
+
+      return [...pending, ...done].sort(
+        (a, b) => new Date(b.created_at) - new Date(a.created_at)
+      );
     }
 
-    async function setDone(id, done) {
-      const res = await fetch(`/api/ebay-updates/${id}`, {
-        method: 'PUT',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ done })
+    const doneFlag = view === 'done' ? 'true' : 'false';
+    return await fetchJson(`/api/ebay-updates?done=${doneFlag}`);
+  }
+
+  async function setDone(id, done) {
+    return await fetchJson(`/api/ebay-updates/${id}`, {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ done })
+    });
+  }
+
+  function render(rows) {
+    const tbody = $('#rows');
+    tbody.innerHTML = '';
+
+    $('#count').textContent = `${rows.length} item(s)`;
+
+    if (!rows.length) {
+      tbody.innerHTML = `<tr><td colspan="8" class="muted">No items to show.</td></tr>`;
+      return;
+    }
+
+    for (const r of rows) {
+      const status = r.done
+        ? `<span class="pill ok">Done</span>`
+        : `<span class="pill warn">Pending</span>`;
+
+      const actionBtn = r.done
+        ? `<button data-id="${r.id}" data-done="false">Mark pending</button>`
+        : `<button class="primary" data-id="${r.id}" data-done="true">Mark done</button>`;
+
+      const delta = Number(r.delta || 0);
+      const oldQty = (r.old_qty ?? r.oldQty ?? r.oldqty ?? r.old) ?? '';
+      const newQty = (r.new_qty ?? r.newQty ?? r.newqty ?? r.new) ?? '';
+
+      const tr = document.createElement('tr');
+      tr.innerHTML = `
+        <td class="muted">${fmtDate(r.created_at)}</td>
+        <td class="mono"><strong>${r.sku || ''}</strong></td>
+        <td class="mono">${r.code || ''}</td>
+        <td class="right mono">${delta > 0 ? '+' + delta : delta}</td>
+        <td class="right mono">${oldQty} → ${newQty}</td>
+        <td>${r.note ? String(r.note) : ''}</td>
+        <td>${status}</td>
+        <td class="right">${actionBtn}</td>
+      `;
+      tbody.appendChild(tr);
+    }
+
+    tbody.querySelectorAll('button[data-id]').forEach(btn => {
+      btn.addEventListener('click', async () => {
+        $('#msg').textContent = '';
+        const id = btn.getAttribute('data-id');
+        const done = btn.getAttribute('data-done') === 'true';
+
+        try {
+          await setDone(id, done);
+          await refresh();
+          $('#msg').textContent = done ? 'Marked as done ✅' : 'Marked as pending ✅';
+        } catch (e) {
+          $('#msg').textContent = 'Error: ' + e.message;
+        }
       });
+    });
+  }
 
-      if (!res.ok) {
-        const text = await res.text();
-        throw new Error(text || 'Failed to update');
-      }
-      return await res.json();
+  async function refresh() {
+    $('#msg').textContent = '';
+    $('#rows').innerHTML = `<tr><td colspan="8" class="muted">Loading…</td></tr>`;
+
+    try {
+      const rows = await fetchRows();
+      render(rows);
+    } catch (e) {
+      $('#rows').innerHTML = `<tr><td colspan="8" class="muted">Error loading updates.</td></tr>`;
+      $('#msg').textContent = 'Error: ' + e.message;
     }
+  }
 
-    function render(rows) {
-      const tbody = $('#rows');
-      tbody.innerHTML = '';
+  $('#refreshBtn')?.addEventListener('click', refresh);
 
-      $('#count').textContent = `${rows.length} item(s)`;
+  $('#markAllBtn')?.addEventListener('click', async () => {
+    $('#msg').textContent = '';
+    try {
+      const rows = await fetchRows();
+      const pending = rows.filter(r => !r.done);
 
-      if (!rows.length) {
-        tbody.innerHTML = `<tr><td colspan="8" class="muted">No items to show.</td></tr>`;
+      if (!pending.length) {
+        $('#msg').textContent = 'Nothing pending to mark ✅';
         return;
       }
 
-      for (const r of rows) {
-        const status = r.done ? `<span class="pill ok">Done</span>` : `<span class="pill warn">Pending</span>`;
-        const actionBtn = r.done
-          ? `<button data-id="${r.id}" data-done="false">Mark pending</button>`
-          : `<button class="primary" data-id="${r.id}" data-done="true">Mark done</button>`;
-
-        const delta = Number(r.delta || 0);
-        const oldQty = (r.old_qty ?? r.oldQty ?? r.oldqty ?? r.old) || '';
-        const newQty = (r.new_qty ?? r.newQty ?? r.newqty ?? r.new) || '';
-
-        const tr = document.createElement('tr');
-        tr.innerHTML = `
-          <td class="muted">${fmtDate(r.created_at)}</td>
-          <td class="mono"><strong>${r.sku || ''}</strong></td>
-          <td class="mono">${r.code || ''}</td>
-          <td class="right mono">${delta > 0 ? '+'+delta : delta}</td>
-          <td class="right mono">${oldQty} → ${newQty}</td>
-          <td>${r.note ? String(r.note) : ''}</td>
-          <td>${status}</td>
-          <td class="right">${actionBtn}</td>
-        `;
-        tbody.appendChild(tr);
+      for (const r of pending) {
+        await setDone(r.id, true);
       }
 
-      // wire buttons
-      tbody.querySelectorAll('button[data-id]').forEach(btn => {
-        btn.addEventListener('click', async () => {
-          $('#msg').textContent = '';
-          const id = btn.getAttribute('data-id');
-          const done = btn.getAttribute('data-done') === 'true';
-          try {
-            await setDone(id, done);
-            await refresh();
-            $('#msg').textContent = done ? 'Marked as done ✅' : 'Marked as pending ✅';
-          } catch (e) {
-            $('#msg').textContent = 'Error: ' + e.message;
-          }
-        });
-      });
+      await refresh();
+      $('#msg').textContent = `Marked ${pending.length} item(s) as done ✅`;
+    } catch (e) {
+      $('#msg').textContent = 'Error: ' + e.message;
     }
+  });
 
-    async function refresh() {
-      $('#msg').textContent = '';
-      $('#rows').innerHTML = `<tr><td colspan="8" class="muted">Loading…</td></tr>`;
-      try {
-        const rows = await fetchRows();
-        render(rows);
-      } catch (e) {
-        $('#rows').innerHTML = `<tr><td colspan="8" class="muted">Error loading updates.</td></tr>`;
-        $('#msg').textContent = 'Error: ' + e.message;
-      }
-    }
+  $('#view')?.addEventListener('change', refresh);
 
-    $('#refreshBtn').addEventListener('click', refresh);
-
-    $('#markAllBtn').addEventListener('click', async () => {
-      $('#msg').textContent = '';
-      try {
-        const rows = await fetchRows();
-        const pending = rows.filter(r => !r.done);
-        if (!pending.length) {
-          $('#msg').textContent = 'Nothing pending to mark ✅';
-          return;
-        }
-        for (const r of pending) {
-          await setDone(r.id, true);
-        }
-        await refresh();
-        $('#msg').textContent = `Marked ${pending.length} item(s) as done ✅`;
-      } catch (e) {
-        $('#msg').textContent = 'Error: ' + e.message;
-      }
-    });
-
-    $('#view').addEventListener('change', refresh);
-
-    refresh();
-  </script>
+  refresh();
+</script>
 </body>
 </html>

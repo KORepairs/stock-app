@@ -333,6 +333,25 @@ export async function findProductsByCodePG(code) {
   return rows;
 }
 
+export async function findProductsByCodePG(part) {
+  const raw = String(part || "").trim().toUpperCase();
+  const norm = raw.replace(/[^A-Z0-9]/g, ""); // LA-B843P -> LAB843P
+  if (!norm) return [];
+
+  const { rows } = await pgQuery(
+    `
+    SELECT id, sku, code, name, notes, quantity, on_ebay
+    FROM products
+    WHERE
+      regexp_replace(upper(coalesce(code,'')), '[^A-Z0-9]', '', 'g') = $1
+      OR regexp_replace(upper(coalesce(name,'')), '[^A-Z0-9]', '', 'g') = $1
+    ORDER BY sku ASC
+    `,
+    [norm]
+  );
+
+  return rows;
+}
 
 
 

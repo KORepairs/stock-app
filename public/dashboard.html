@@ -141,67 +141,50 @@
       .right {
         text-align: right;
       }
-      #kpis_refurb {
-      margin-bottom: 18px;
-      padding-bottom: 14px;
-      border-bottom: 1px solid var(--border);
-    }
 
-    #kpis_ebay {
-      margin-top: 8px;
-    }
+      #kpis_ebay {
+        margin-top: 8px;
+      }
 
-    /* section titles */
-    .card h3 {
-      font-size: 13px;
-      text-transform: uppercase;
-      letter-spacing: .06em;
-      color: var(--muted);
-    }
+      /* section titles */
+      .card h3 {
+        font-size: 13px;
+        text-transform: uppercase;
+        letter-spacing: 0.06em;
+        color: var(--muted);
+      }
 
-    #kpis_ebay .kpi {
-      background: linear-gradient(
-        to bottom,
-       rgba(40,120,255,0.06),
-        transparent
-      );
-      border-color: rgba(40,120,255,0.25);
-    }
-    /* default */
-.kpis {
-  display: grid;
-  gap: 12px;
-}
+      #kpis_ebay .kpi {
+        background: linear-gradient(
+          to bottom,
+          rgba(40, 120, 255, 0.06),
+          transparent
+        );
+        border-color: rgba(40, 120, 255, 0.25);
+      }
+      /* default */
+      .kpis {
+        display: grid;
+        gap: 12px;
+      }
 
-/* refurb row = 6 cards */
-#kpis_refurb {
-  grid-template-columns: repeat(6, 1fr);
-  margin-bottom: 18px;
-  padding-bottom: 14px;
-  border-bottom: 1px solid var(--border);
-}
+      /* ebay row = 4 cards */
+      #kpis_ebay {
+        grid-template-columns: repeat(4, 1fr);
+        margin-top: 8px;
+      }
 
-/* ebay row = 4 cards */
-#kpis_ebay {
-  grid-template-columns: repeat(4, 1fr);
-  margin-top: 8px;
-}
+      @media (max-width: 700px) {
+        #kpis_refurb,
+        #kpis_ebay {
+          grid-template-columns: 1fr;
+        }
+      }
 
-/* responsive */
-@media (max-width: 1100px) {
-  #kpis_refurb,
-  #kpis_ebay {
-    grid-template-columns: repeat(2, 1fr);
-  }
-}
-@media (max-width: 700px) {
-  #kpis_refurb,
-  #kpis_ebay {
-    grid-template-columns: 1fr;
-  }
-}
-
-
+      .pill.active {
+        background: #0f766e; /* teal-ish */
+        color: #fff;
+      }
     </style>
   </head>
 
@@ -236,50 +219,10 @@
         <div class="card">
           <h2 style="margin: 0 0 10px">Today at a glance</h2>
 
-          <h3 style="margin: 12px 0 6px">Refurb workflow</h3>
-          <div class="kpis" id="kpis_refurb">
-            <!-- keep refurb cards here -->
-             <div class="card kpi" id="kpiActive">
-              <div class="num" id="kpi_active">–</div>
-              <div class="label">Active refurbs</div>
-              <div class="muted sub">In the queue (not retired)</div>
-            </div>
-
-            <div class="card kpi" id="kpiNeedsParts">
-              <div class="num" id="kpi_needs">–</div>
-              <div class="label">Needs parts</div>
-              <div class="muted sub">You can’t move these yet</div>
-            </div>
-
-            <div class="card kpi" id="kpiAwaiting">
-              <div class="num" id="kpi_awaiting">–</div>
-              <div class="label">Awaiting parts</div>
-              <div class="muted sub">Orders outstanding</div>
-            </div>
-
-            <div class="card kpi" id="kpiComplete">
-              <div class="num" id="kpi_complete">–</div>
-              <div class="label">Complete</div>
-              <div class="muted sub">Ready for till / listing</div>
-            </div>
-
-            <div class="card kpi" id="kpiScrapped">
-              <div class="num" id="kpi_scrapped">–</div>
-              <div class="label">Scrapped</div>
-              <div class="muted sub">Retired (scrap)</div>
-            </div>
-
-            <div class="card kpi" id="kpiStripped">
-              <div class="num" id="kpi_stripped">–</div>
-              <div class="label">Stripped</div>
-              <div class="muted sub">Retired (stripped)</div>
-            </div>
-          </div>
-
-          <h3 style="margin:18px 0 6px">eBay workflow</h3>
-            <div class="kpis" id="kpis_ebay">
-              <!-- move ebay cards here -->
-               <div class="card kpi" id="kpiEbay">
+          <h3 style="margin: 18px 0 6px">eBay workflow</h3>
+          <div class="kpis" id="kpis_ebay">
+            <!-- move ebay cards here -->
+            <div class="card kpi" id="kpiEbay">
               <div class="num" id="kpi_ebay">–</div>
               <div class="label">eBay updates</div>
               <div class="muted sub">Pending changes</div>
@@ -302,8 +245,7 @@
               <div class="label">Relist needed</div>
               <div class="muted sub">Stock returned from 0</div>
             </div>
-
-            </div>
+          </div>
         </div>
 
         <!-- REFURB PIPELINE -->
@@ -314,13 +256,13 @@
           </div>
 
           <div class="pipe" style="margin-top: 12px">
-            <div class="pipeItem" data-go="status:strip">
-              <span class="pill strip">Strip</span>
+            <div class="pipeItem" data-go="active:1">
+              <span class="pill active">Active</span>
               <div
                 class="row"
                 style="justify-content: space-between; margin-top: 10px"
               >
-                <strong id="pipe_strip">–</strong>
+                <strong id="pipe_active">–</strong>
                 <span class="muted">items</span>
               </div>
             </div>
@@ -410,8 +352,14 @@
       // /refurb then set dropdowns via querystring you can read later if you want.
       // For now we’ll just jump to refurb page; later we can support ?status=refurb etc.
       function goToRefurbWith(filter) {
-        // filter looks like "status:strip" or "parts:needs_parts"
         const [k, v] = String(filter || "").split(":");
+
+        // NEW: Active shortcut
+        if (k === "active") {
+          window.location.href = "/refurb"; // active view is default
+          return;
+        }
+
         const qs = new URLSearchParams();
         if (k && v) qs.set(k, v);
         window.location.href = "/refurb?" + qs.toString();
@@ -540,7 +488,6 @@
         const countParts = (p) =>
           items.filter((x) => String(x.parts_status || "") === p).length;
 
-        const strip = countStatus("strip") + countStatus("stripped");
         const refurb = countStatus("refurb");
         const complete = countStatus("complete");
 
@@ -558,13 +505,13 @@
         setNum("kpi_needs", needs);
         setNum("kpi_awaiting", awaiting);
         setNum("kpi_complete", complete);
-
-        setNum("pipe_strip", strip);
         setNum("pipe_refurb", refurb);
         setNum("pipe_needs", needs);
         setNum("pipe_awaiting", awaiting);
         setNum("pipe_has", hasParts);
         setNum("pipe_complete", complete);
+        setNum("pipe_active", active);
+
 
         // 2) eBay updates count (pending)
         let ebayPending = 0;
@@ -671,10 +618,10 @@
       });
 
       $("kpiRelist")?.addEventListener(
-  "click",
-  () => (window.location.href = "/products/list?ebay_status=ready_to_list"),
-);
-
+        "click",
+        () =>
+          (window.location.href = "/products/list?ebay_status=ready_to_list"),
+      );
     </script>
 
     <script src="/js/sidebar.js"></script>

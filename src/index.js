@@ -27,6 +27,7 @@ import {
   getNextRefurbSkuPG,
   updateEbayStatusPG,
   ebayStatusCountsPG,
+  findProductsByCodePG,
 
 
 } from './pgProducts.js';
@@ -437,6 +438,7 @@ app.post('/api/products', async (req, res) => {
 
 
     // Smart add product (auto SKU or bump quantity by PART NUMBER)
+// Smart add product (auto SKU or bump quantity by PART NUMBER)
 app.post('/api/products/add-smart', async (req, res) => {
   try {
     const {
@@ -449,7 +451,8 @@ app.post('/api/products/add-smart', async (req, res) => {
       cost = 0,
       retail = 0,
       fees = 0,
-      postage = 0
+      postage = 0,
+      pick_id = null, // when duplicates exist, frontend can send the chosen product id
     } = req.body || {};
 
     const qtyDelta = Number(quantity) || 0;
@@ -460,56 +463,83 @@ app.post('/api/products/add-smart', async (req, res) => {
     const codeNorm = String(code).trim().toUpperCase();
 
     // 1) Duplicate check by PART NUMBER (code)
-let existing = await getProductByCodePG(codeNorm);
+    const matches = await findProductsByCodePG(codeNorm);
 
-// ✅ fallback: if code isn't stored yet, try to find it inside name/notes
-if (!existing) {
-  const candidates = await findProductByLooseCodePG(codeNorm);
+    // MULTIPLE MATCHES -> require pick_id
+    if (matches.length > 1) {
+      const pickId = Number(pick_id);
 
-  if (candidates.length === 1) {
-    existing = candidates[0];
+      if (!Number.isFinite(pickId) || pickId <= 0) {
+        return res.status(409).json({
+          error: `Part number found in multiple products (${matches.length}). Please choose one.`,
+          candidates: matches.map(m => ({
+            id: m.id,
+            sku: m.sku,
+            name: m.name,
+            notes: m.notes,
+            quantity: m.quantity,
+          })),
+        });
+      }
 
-    // ✅ permanently backfill code so next time it's an instant match
-    await pgQuery(
-      `UPDATE products SET code = $2 WHERE id = $1`,
-      [existing.id, codeNorm]
-    );
-  } else if (candidates.length > 1) {
-    return res.status(409).json({
-      error: `Part number found in multiple products (${candidates.length}). Please set the code manually to avoid wrong stock updates.`,
-      candidates: candidates.map(x => ({ id: x.id, sku: x.sku, name: x.name })),
-    });
-  }
-}
+      const chosen = matches.find(m => Number(m.id) === pickId);
+      if (!chosen) return res.status(400).json({ error: 'pick_id not in candidates' });
 
-if (existing) {
-  const oldQty = Number(existing.quantity) || 0;
-  const updated = await adjustQtyPG(existing.id, qtyDelta);
-  const newQty = Number(updated.quantity) || 0;
+      const oldQty = Number(chosen.quantity) || 0;
+      const updated = await adjustQtyPG(chosen.id, qtyDelta);
+      const newQty = Number(updated.quantity) || 0;
 
-  // if stock comes back from 0, mark as RELIST
-  if (oldQty === 0 && newQty > 0) {
-    await setEbayStatus(existing.id, "ready_to_list");
-  }
+      // if stock comes back from 0, mark as RELIST
+      if (oldQty === 0 && newQty > 0) {
+        await setEbayStatus(chosen.id, 'ready_to_list');
+      }
 
-  // If it’s an eBay item, log it for later
-  if (Number(existing.on_ebay) === 1) {
-    await logEbayUpdatePG({
-      sku: existing.sku,
-      code: existing.code || codeNorm,
-      delta: qtyDelta,
-      oldQty,
-      newQty,
-      note: notes || null
-    });
-  }
+      // If it’s an eBay item, log it for later
+      if (Number(chosen.on_ebay) === 1) {
+        await logEbayUpdatePG({
+          sku: chosen.sku,
+          code: chosen.code || codeNorm,
+          delta: qtyDelta,
+          oldQty,
+          newQty,
+          note: notes || null,
+        });
+      }
 
-  return res.json({
-    message: `UPDATED: SKU ${existing.sku} (qty ${oldQty} → ${newQty}) ✅ update eBay listing`
-  });
-}
+      return res.json({
+        message: `UPDATED: SKU ${chosen.sku} (qty ${oldQty} → ${newQty}) ✅`,
+      });
+    }
 
-    // 2) New item → category required to generate SKU
+    // SINGLE MATCH -> update it
+    if (matches.length === 1) {
+      const existing = matches[0];
+
+      const oldQty = Number(existing.quantity) || 0;
+      const updated = await adjustQtyPG(existing.id, qtyDelta);
+      const newQty = Number(updated.quantity) || 0;
+
+      if (oldQty === 0 && newQty > 0) {
+        await setEbayStatus(existing.id, 'ready_to_list');
+      }
+
+      if (Number(existing.on_ebay) === 1) {
+        await logEbayUpdatePG({
+          sku: existing.sku,
+          code: existing.code || codeNorm,
+          delta: qtyDelta,
+          oldQty,
+          newQty,
+          note: notes || null,
+        });
+      }
+
+      return res.json({
+        message: `UPDATED: SKU ${existing.sku} (qty ${oldQty} → ${newQty}) ✅`,
+      });
+    }
+
+    // NO MATCH -> create new item (category required)
     const prefix = String(category || '').trim().toUpperCase();
     if (!prefix) return res.status(400).json({ error: 'category is required for new items' });
 
@@ -525,10 +555,9 @@ if (existing) {
       retail,
       fees,
       postage,
-      quantity: qtyDelta
+      quantity: qtyDelta,
     });
 
-    // Log if created as an eBay item
     if (Number(created.on_ebay) === 1) {
       await logEbayUpdatePG({
         sku: created.sku,
@@ -536,47 +565,18 @@ if (existing) {
         delta: qtyDelta,
         oldQty: 0,
         newQty: Number(created.quantity) || qtyDelta,
-        note: notes || null
+        note: notes || null,
       });
     }
 
     return res.json({
-      message: `CREATED: New SKU ${created.sku} (qty ${created.quantity}) ✅ label the item`
+      message: `CREATED: New SKU ${created.sku} (qty ${created.quantity}) ✅ label the item`,
     });
-
   } catch (err) {
     console.error('add-smart failed:', err);
     res.status(500).json({ error: err.message });
   }
 });
-
-// List pending / done eBay updates
-app.get('/api/ebay-updates', async (req, res) => {
-  try {
-    const done = String(req.query.done || 'false') === 'true';
-    const rows = await listEbayUpdatesPG({ done });
-    res.json(rows);
-  } catch (err) {
-    res.status(500).json({ error: err.message });
-  }
-});
-
-// Mark an update as done/undone
-app.put('/api/ebay-updates/:id', async (req, res) => {
-  try {
-    const id = Number(req.params.id);
-    const done = !!req.body.done;
-
-    const row = await setEbayUpdateDonePG(id, done);
-    if (!row) return res.status(404).json({ error: 'not found' });
-
-    res.json(row);
-  } catch (err) {
-    res.status(500).json({ error: err.message });
-  }
-});
-
-
 
 
 /* ---------- API: Refurb items ---------- */

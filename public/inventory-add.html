@@ -9,6 +9,83 @@
     .panel{background:var(--panel);border:1px solid var(--border);border-radius:12px;padding:14px}
     .log{background:#111;color:#0f0;border-radius:8px;padding:10px;min-height:44px;white-space:pre-wrap}
     .toolbar{display:flex;gap:10px;align-items:center;flex-wrap:wrap;margin:12px 0}
+
+    /* ---------- Picker Modal ---------- */
+    .modalOverlay{
+      position:fixed; inset:0;
+      background:rgba(0,0,0,.55);
+      display:none;
+      align-items:center;
+      justify-content:center;
+      padding:16px;
+      z-index:9999;
+    }
+    .modal{
+      width:min(860px, 100%);
+      background:var(--panel);
+      border:1px solid var(--border);
+      border-radius:14px;
+      padding:14px;
+      box-shadow:0 12px 40px rgba(0,0,0,.35);
+    }
+    .modalHeader{
+      display:flex; align-items:flex-start; justify-content:space-between; gap:12px;
+      margin-bottom:10px;
+    }
+    .modalHeader h3{ margin:0; }
+    .modalHeader .muted{ margin-top:4px; }
+
+    .candidateList{
+      display:grid;
+      gap:10px;
+      margin-top:10px;
+      max-height:55vh;
+      overflow:auto;
+      padding-right:4px;
+    }
+    .candidate{
+      display:flex;
+      gap:12px;
+      border:1px solid var(--border);
+      border-radius:12px;
+      padding:10px 12px;
+      background:rgba(255,255,255,0.02);
+      cursor:pointer;
+    }
+    .candidate:hover{ border-color: rgba(255,255,255,0.18); }
+    .candidate input{ margin-top:3px; }
+    .candMain{ flex:1; }
+    .candTop{
+      display:flex; gap:10px; align-items:baseline; flex-wrap:wrap;
+    }
+    .sku{
+      font-weight:900;
+      font-family: ui-monospace, Menlo, Consolas, monospace;
+      letter-spacing:.02em;
+    }
+    .qtyPill{
+      display:inline-flex;
+      align-items:center;
+      border-radius:999px;
+      padding:3px 10px;
+      font-size:12px;
+      border:1px solid rgba(255,255,255,.12);
+      background:rgba(255,255,255,.04);
+    }
+    .candNotes{
+      margin-top:6px;
+      color: var(--muted, #9aa);
+      font-size: 13px;
+      white-space: pre-wrap;
+      word-break: break-word;
+    }
+    .modalActions{
+      display:flex;
+      justify-content:flex-end;
+      gap:10px;
+      margin-top:12px;
+      flex-wrap:wrap;
+    }
   </style>
 </head>
 
@@ -29,6 +106,7 @@
           <select id="category">
             <option value="A">A</option>
             <option value="B">B</option>
+            <option value="D">D</option>
             <option value="F">F</option>
             <option value="G">G</option>
             <option value="R">R</option>
@@ -47,7 +125,7 @@
           <div class="full">
             <label></label>
             <div class="row">
-              <button id="submitBtn">Add / Update</button>
+              <button id="submitBtn" type="button">Add / Update</button>
               <button id="clearBtn" type="button">Clear</button>
             </div>
           </div>
@@ -61,56 +139,174 @@
     </main>
   </div>
 
+  <!-- ---------- Ambiguous Match Picker Modal ---------- -->
+  <div class="modalOverlay" id="pickerOverlay" aria-hidden="true">
+    <div class="modal" role="dialog" aria-modal="true" aria-labelledby="pickerTitle">
+      <div class="modalHeader">
+        <div>
+          <h3 id="pickerTitle">Multiple matches found</h3>
+          <div class="muted" id="pickerSubtitle">
+            Choose which SKU you meant, and we’ll update its quantity.
+          </div>
+        </div>
+        <button type="button" id="pickerCloseBtn">✕</button>
+      </div>
 
-<script>
-  const $ = (s) => document.querySelector(s);
+      <div class="candidateList" id="candidateList"></div>
 
-  function show(obj) {
-    // ✅ Prefer the simple message from the API
-    if (obj && typeof obj === 'object' && obj.message) {
-      $('#out').textContent = obj.message;
-      return;
+      <div class="modalActions">
+        <button type="button" id="pickerCancelBtn">Cancel</button>
+        <button type="button" id="pickerConfirmBtn">Update selected</button>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    const $ = (sel) => document.querySelector(sel);
+
+    let pendingPayload = null;
+    let pendingCandidates = [];
+    let selectedPickId = null;
+
+    function show(obj) {
+      if (obj && typeof obj === 'object' && obj.message) {
+        $('#out').textContent = obj.message;
+        return;
+      }
+      $('#out').textContent = typeof obj === 'string'
+        ? obj
+        : JSON.stringify(obj, null, 2);
     }
-    // fallback
-    $('#out').textContent = typeof obj === 'string' ? obj : JSON.stringify(obj, null, 2);
-  }
+
+    function openPicker(candidates, payload, errorText) {
+      pendingCandidates = Array.isArray(candidates) ? candidates : [];
+      pendingPayload = payload;
+      selectedPickId = pendingCandidates[0]?.id ?? null;
+
+      $('#pickerSubtitle').textContent = errorText || 'Choose which SKU you meant, and we’ll update its quantity.';
+      const list = $('#candidateList');
+      list.innerHTML = '';
+
+      for (const c of pendingCandidates) {
+        const notesText = (c.notes == null || String(c.notes).trim() === '')
+          ? '—'
+          : String(c.notes);
+
+        const row = document.createElement('div');
+        row.className = 'candidate';
+        row.dataset.id = String(c.id);
+
+        row.innerHTML = `
+          <input type="radio" name="pick" ${c.id === selectedPickId ? 'checked' : ''} />
+          <div class="candMain">
+            <div class="candTop">
+              <span class="sku">${escapeHtml(c.sku || '')}</span>
+              <span>${escapeHtml(c.name || '')}</span>
+              <span class="qtyPill">Qty: ${Number(c.quantity ?? 0)}</span>
+            </div>
+            <div class="candNotes"><strong>Notes:</strong> ${escapeHtml(notesText)}</div>
+          </div>
+        `;
+
+        row.addEventListener('click', () => {
+          selectedPickId = c.id;
+          // update radios
+          list.querySelectorAll('.candidate').forEach(x => {
+            const radio = x.querySelector('input[type="radio"]');
+            radio.checked = (Number(x.dataset.id) === Number(selectedPickId));
+          });
+        });
+
+        list.appendChild(row);
+      }
+
+      $('#pickerOverlay').style.display = 'flex';
+      $('#pickerOverlay').setAttribute('aria-hidden', 'false');
+    }
+
+    function closePicker() {
+      $('#pickerOverlay').style.display = 'none';
+      $('#pickerOverlay').setAttribute('aria-hidden', 'true');
+      pendingPayload = null;
+      pendingCandidates = [];
+      selectedPickId = null;
+    }
+
+    async function submitAddSmart(payload) {
+      const res = await fetch('/api/products/add-smart', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(payload)
+      });
+
+      const json = await res.json();
+
+      // If ambiguous: show picker
+      if (res.status === 409 && json && json.candidates) {
+        openPicker(json.candidates, payload, json.error || null);
+        return { ok: false, handled: true, json };
+      }
+
+      // normal response
+      show(json);
+
+      if (res.ok) {
+        $('#code').value = '';
+        $('#quantity').value = 1;
+        $('#notes').value = '';
+        $('#code').focus();
+      }
+
+      return { ok: res.ok, handled: true, json };
+    }
 
     async function addSmart() {
       const payload = {
         category: $('#category').value,
-        code: $('#code').value.trim(),              // ✅ MUST be called "code"
+        code: $('#code').value.trim(),
         quantity: Number($('#quantity').value || 0),
         notes: $('#notes').value.trim() || null,
         onEbay: false
       };
 
-      if (!payload.code) {
-        show('Please enter a Part Number.');
-        return;
-      }
+      if (!payload.code) return show('Please enter a Part Number.');
+      if (!payload.quantity || payload.quantity <= 0) return show('Quantity must be 1 or more.');
 
       try {
-        const res = await fetch('/api/products/add-smart', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify(payload)
-        });
-
-        const json = await res.json();
-        show(json);
-
-
-        // Optional: after success, clear fields and keep category
-        if (res.ok) {
-          $('#code').value = '';
-          $('#quantity').value = 1;
-          $('#notes').value = '';
-          $('#code').focus();
-        }
+        await submitAddSmart(payload);
       } catch (err) {
         show('ERROR: ' + err.message);
       }
     }
+
+    // Picker buttons
+    $('#pickerCloseBtn').addEventListener('click', closePicker);
+    $('#pickerCancelBtn').addEventListener('click', closePicker);
+
+    $('#pickerConfirmBtn').addEventListener('click', async () => {
+      if (!pendingPayload) return;
+      if (!selectedPickId) return show('Please select a SKU.');
+
+      try {
+        // re-submit with pick_id
+        await submitAddSmart({ ...pendingPayload, pick_id: selectedPickId });
+        closePicker();
+      } catch (err) {
+        show('ERROR: ' + err.message);
+      }
+    });
+
+    // Click overlay to close (optional)
+    $('#pickerOverlay').addEventListener('click', (e) => {
+      if (e.target === $('#pickerOverlay')) closePicker();
+    });
+
+    // Enter key submits
+    ['#code', '#quantity', '#notes'].forEach(sel => {
+      $(sel).addEventListener('keydown', (e) => {
+        if (e.key === 'Enter') addSmart();
+      });
+    });
 
     $('#submitBtn').addEventListener('click', addSmart);
     $('#clearBtn').addEventListener('click', () => {
@@ -120,6 +316,12 @@
       $('#code').focus();
       show('Waiting…');
     });
+
+    function escapeHtml(s='') {
+      return String(s).replace(/[&<>"']/g, m => ({
+        '&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'
+      }[m]));
+    }
   </script>
 
   <script src="/js/sidebar.js"></script>

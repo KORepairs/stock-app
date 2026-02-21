@@ -315,6 +315,25 @@ export async function ebayStatusCountsPG() {
   return rows;
 }
 
+export async function findProductsByCodePG(code) {
+  const codeNorm = String(code || '').trim().toUpperCase();
+  if (!codeNorm) return [];
+
+  const { rows } = await pgQuery(
+    `
+    SELECT id, sku, code, name, notes, quantity, on_ebay, ebay_status
+    FROM products
+    WHERE code = $1
+       OR sku  = $1
+    ORDER BY sku ASC
+    `,
+    [codeNorm]
+  );
+
+  return rows;
+}
+
+
 
 
 

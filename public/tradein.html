@@ -1,242 +1,302 @@
 <!doctype html>
 <html lang="en">
-<head>
-  <meta charset="utf-8">
-  <title>Trade-In</title>
-  <meta name="viewport" content="width=device-width,initial-scale=1">
-  <link rel="stylesheet" href="/app.css">
-</head>
-<body>
+  <head>
+    <meta charset="utf-8" />
+    <title>Trade-In</title>
+    <meta name="viewport" content="width=device-width,initial-scale=1" />
+    <link rel="stylesheet" href="/app.css" />
+  </head>
+  <body>
     <div class="wrap">
-    <aside id="sidebar"></aside>
-  <main class="page">
-    <h1>Trade-In</h1>
-    <p style="color:var(--muted,#9aa);margin-top:4px;">
-      Record customer trade-ins and optionally create a refurb record automatically.
-    </p>
+      <aside id="sidebar"></aside>
+      <main class="page">
+        <h1>Trade-In</h1>
+        <p style="color: var(--muted, #9aa); margin-top: 4px">
+          Record customer trade-ins and optionally create a refurb record
+          automatically.
+        </p>
 
-    <form id="tradeForm" class="form-grid" style="margin-top:16px;" enctype="multipart/form-data">
-      <!-- Find existing customer -->
-      <div class="full">
-        <label for="custSearch">Find customer</label>
-        <input id="custSearch" type="text" placeholder="Search name / phone / email…">
-        <div id="custResults" class="panel" style="display:none;margin-top:8px;padding:10px;"></div>
-      </div>
+        <form
+          id="tradeForm"
+          class="form-grid"
+          style="margin-top: 16px"
+          enctype="multipart/form-data"
+        >
+          <!-- Find existing customer -->
+          <div class="full">
+            <label for="custSearch">Find customer</label>
+            <input
+              id="custSearch"
+              type="text"
+              placeholder="Search name / phone / email…"
+            />
+            <div
+              id="custResults"
+              class="panel"
+              style="display: none; margin-top: 8px; padding: 10px"
+            ></div>
+          </div>
 
-      <!-- selected customer id gets posted -->
-      <input type="hidden" id="customer_id" name="customer_id" value="">
+          <!-- selected customer id gets posted -->
+          <input type="hidden" id="customer_id" name="customer_id" value="" />
 
+          <label for="customer_name">Customer name</label>
+          <input id="customer_name" name="customer_name" type="text" required />
 
-      <label for="customer_name">Customer name</label>
-      <input id="customer_name" name="customer_name" type="text" required>
+          <label for="customer_phone">Phone</label>
+          <input id="customer_phone" name="customer_phone" type="tel" />
 
-      <label for="customer_phone">Phone</label>
-      <input id="customer_phone" name="customer_phone" type="tel">
+          <label for="customer_address">Address</label>
+          <input id="customer_address" name="customer_address" type="text" />
 
-      <label for="customer_email">Email</label>
-      <input id="customer_email" name="customer_email" type="email">
+          <label for="serial">Serial / IMEI</label>
+          <input id="serial" name="serial" type="text" />
 
-      <label for="serial">Serial / IMEI</label>
-      <input id="serial" name="serial" type="text">
+          <label for="device_desc">Device description</label>
+          <input
+            id="device_desc"
+            name="device_desc"
+            type="text"
+            required
+            placeholder="e.g. iPhone 13 128GB Black"
+          />
 
-      <label for="device_desc">Device description</label>
-      <input id="device_desc" name="device_desc" type="text" required placeholder="e.g. iPhone 13 128GB Black">
+          <label for="valuation">Valuation (£)</label>
+          <input
+            id="valuation"
+            name="valuation"
+            type="number"
+            step="0.01"
+            min="0"
+          />
 
-      <label for="valuation">Valuation (£)</label>
-      <input id="valuation" name="valuation" type="number" step="0.01" min="0">
+          <label for="agreed_value">Agreed value (£)</label>
+          <input
+            id="agreed_value"
+            name="agreed_value"
+            type="number"
+            step="0.01"
+            min="0"
+          />
 
-      <label for="agreed_value">Agreed value (£)</label>
-      <input id="agreed_value" name="agreed_value" type="number" step="0.01" min="0">
+          <label for="id_image">ID image (photo of ID)</label>
+          <input id="id_image" name="id_image" type="file" accept="image/*" />
 
-      <label for="id_image">ID image (photo of ID)</label>
-      <input id="id_image" name="id_image" type="file" accept="image/*">
+          <div class="full" style="margin-top: 8px">
+            <label style="display: flex; gap: 8px; align-items: center">
+              <input type="checkbox" name="create_refurb" checked />
+              <span>Create refurb record for this device</span>
+            </label>
+          </div>
 
-      <div class="full" style="margin-top:8px;">
-        <label style="display:flex;gap:8px;align-items:center;">
-          <input type="checkbox" name="create_refurb" checked>
-          <span>Create refurb record for this device</span>
-        </label>
-      </div>
+          <div class="full">
+            <button id="tradeSubmit" type="submit">Save Trade-In</button>
+          </div>
+        </form>
+      </main>
+    </div>
 
-      <div class="full">
-        <button id="tradeSubmit" type="submit">Save Trade-In</button>
-      </div>
-    </form>
-  </main>
-  </div>
+    <script>
+      function toast(msg, kind = "err") {
+        let t = document.getElementById("__toast");
+        if (!t) {
+          t = document.createElement("div");
+          t.id = "__toast";
+          Object.assign(t.style, {
+            position: "fixed",
+            left: "50%",
+            top: "14px",
+            transform: "translateX(-50%)",
+            padding: "8px 14px",
+            borderRadius: "999px",
+            fontSize: "13px",
+            background: "#a52828",
+            color: "#fff",
+            opacity: "0",
+            transition: "opacity .2s",
+            boxShadow: "0 8px 24px rgba(0,0,0,.35)",
+            zIndex: 9999,
+          });
+          document.body.appendChild(t);
+        }
+        t.style.background = kind === "ok" ? "#2c7a2c" : "#a52828";
+        t.textContent = msg;
+        t.style.opacity = "1";
+        clearTimeout(window.__toastTimer);
+        window.__toastTimer = setTimeout(() => (t.style.opacity = "0"), 1800);
+      }
 
-  <script>
-  function toast(msg, kind='err') {
-    let t = document.getElementById('__toast');
-    if (!t) {
-      t = document.createElement('div');
-      t.id = '__toast';
-      Object.assign(t.style, {
-        position:'fixed',left:'50%',top:'14px',transform:'translateX(-50%)',
-        padding:'8px 14px',borderRadius:'999px',fontSize:'13px',
-        background:'#a52828',color:'#fff',opacity:'0',transition:'opacity .2s',
-        boxShadow:'0 8px 24px rgba(0,0,0,.35)',zIndex:9999,
-      });
-      document.body.appendChild(t);
-    }
-    t.style.background = kind==='ok' ? '#2c7a2c' : '#a52828';
-    t.textContent = msg;
-    t.style.opacity = '1';
-    clearTimeout(window.__toastTimer);
-    window.__toastTimer = setTimeout(()=> t.style.opacity='0', 1800);
-  }
+      // -------- Customer search helpers --------
+      const custSearch = document.getElementById("custSearch");
+      const custResults = document.getElementById("custResults");
+      const custIdEl = document.getElementById("customer_id");
 
-  // -------- Customer search helpers --------
-  const custSearch  = document.getElementById('custSearch');
-  const custResults = document.getElementById('custResults');
-  const custIdEl    = document.getElementById('customer_id');
+      const nameEl = document.getElementById("customer_name");
+      const phoneEl = document.getElementById("customer_phone");
+      const addressEl = document.getElementById('customer_address');
 
-  const nameEl  = document.getElementById('customer_name');
-  const phoneEl = document.getElementById('customer_phone');
-  const emailEl = document.getElementById('customer_email');
+      function esc(s) {
+        return String(s ?? "").replace(
+          /[&<>"']/g,
+          (m) =>
+            ({
+              "&": "&amp;",
+              "<": "&lt;",
+              ">": "&gt;",
+              '"': "&quot;",
+              "'": "&#39;",
+            })[m],
+        );
+      }
 
-  function esc(s){
-    return String(s ?? '').replace(/[&<>"']/g, m => ({
-      '&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'
-    }[m]));
-  }
+      function renderCustomerResults(list) {
+        if (!Array.isArray(list) || !list.length) {
+          custResults.style.display = "block";
+          custResults.innerHTML = `<div style="color:#aaa;font-size:13px;">No customers found.</div>`;
+          return;
+        }
 
-  function renderCustomerResults(list) {
-    if (!Array.isArray(list) || !list.length) {
-      custResults.style.display = 'block';
-      custResults.innerHTML = `<div style="color:#aaa;font-size:13px;">No customers found.</div>`;
-      return;
-    }
-
-    custResults.style.display = 'block';
-    custResults.innerHTML = `
+        custResults.style.display = "block";
+        custResults.innerHTML = `
       <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px;">
         <div style="font-weight:600;">Select customer</div>
         <button type="button" id="custClearBtn">Clear</button>
       </div>
       <div style="display:grid;gap:6px;">
-        ${list.map(c => `
+        ${list
+          .map(
+            (c) => `
           <button
             type="button"
             class="custPick"
             data-id="${c.id}"
             data-name="${esc(c.name)}"
-            data-phone="${esc(c.phone || '')}"
-            data-email="${esc(c.email || '')}"
+            data-phone="${esc(c.phone || "")}"
+            data-address="${esc(c.address || '')}"
             style="text-align:left;padding:8px;border:1px solid var(--border);border-radius:10px;background:rgba(255,255,255,.02);"
           >
             <div style="font-weight:600;">${esc(c.name)}</div>
             <div style="font-size:12px;color:#aaa;">
-              ${esc(c.phone || '—')} · ${esc(c.email || '—')}
+              ${esc(c.phone || '—')} · ${esc(c.address || '—')}
             </div>
           </button>
-        `).join('')}
+        `,
+          )
+          .join("")}
       </div>
     `;
 
-    custResults.querySelectorAll('.custPick').forEach(btn => {
-      btn.addEventListener('click', () => {
-        custIdEl.value = btn.dataset.id || '';
-        nameEl.value   = btn.dataset.name || '';
-        phoneEl.value  = btn.dataset.phone || '';
-        emailEl.value  = btn.dataset.email || '';
+        custResults.querySelectorAll(".custPick").forEach((btn) => {
+          btn.addEventListener("click", () => {
+            custIdEl.value = btn.dataset.id || "";
+            nameEl.value = btn.dataset.name || "";
+            phoneEl.value = btn.dataset.phone || "";
+            addressEl.value  = btn.dataset.address || '';
 
-        custResults.style.display = 'none';
-        toast(`Customer selected ✔️`, 'ok');
+            custResults.style.display = "none";
+            toast(`Customer selected ✔️`, "ok");
+          });
+        });
+
+        document
+          .getElementById("custClearBtn")
+          .addEventListener("click", () => {
+            custIdEl.value = "";
+            custSearch.value = "";
+            custResults.style.display = "none";
+            toast("Customer cleared", "ok");
+          });
+      }
+
+      let __custTimer;
+      async function runCustomerSearch(q) {
+        const res = await fetch("/api/customers?q=" + encodeURIComponent(q));
+        const text = await res.text();
+        if (!res.ok) throw new Error(text);
+        let data;
+        try {
+          data = JSON.parse(text);
+        } catch {
+          data = [];
+        }
+        renderCustomerResults(data);
+      }
+
+      custSearch.addEventListener("input", () => {
+        const q = custSearch.value.trim();
+        custIdEl.value = "";
+
+        clearTimeout(__custTimer);
+        if (q.length < 2) {
+          custResults.style.display = "none";
+          custResults.innerHTML = "";
+          return;
+        }
+
+        __custTimer = setTimeout(async () => {
+          try {
+            await runCustomerSearch(q);
+          } catch (e) {
+            console.error(e);
+            toast("Customer search failed");
+          }
+        }, 250);
       });
-    });
 
-    document.getElementById('custClearBtn').addEventListener('click', () => {
-      custIdEl.value = '';
-      custSearch.value = '';
-      custResults.style.display = 'none';
-      toast('Customer cleared', 'ok');
-    });
-  }
+      // -------- Submit trade-in --------
+      const form = document.getElementById("tradeForm");
+      const btn = document.getElementById("tradeSubmit");
 
-  let __custTimer;
-  async function runCustomerSearch(q) {
-    const res = await fetch('/api/customers?q=' + encodeURIComponent(q));
-    const text = await res.text();
-    if (!res.ok) throw new Error(text);
-    let data; try { data = JSON.parse(text); } catch { data = []; }
-    renderCustomerResults(data);
-  }
+      // store last selected customer details so reset doesn’t wipe them
+      let lastCustomer = { id:'', name:'', phone:'', address:'' };
 
-  custSearch.addEventListener('input', () => {
-    const q = custSearch.value.trim();
-    custIdEl.value = '';
+      form.addEventListener("submit", async (e) => {
+        e.preventDefault();
 
-    clearTimeout(__custTimer);
-    if (q.length < 2) {
-      custResults.style.display = 'none';
-      custResults.innerHTML = '';
-      return;
-    }
+        // capture current customer details before reset
+        lastCustomer = {
+          id: custIdEl.value,
+          name: nameEl.value,
+          phone: phoneEl.value,
+          address: addressEl.value
+        };
 
-    __custTimer = setTimeout(async () => {
-      try {
-        await runCustomerSearch(q);
-      } catch (e) {
-        console.error(e);
-        toast('Customer search failed');
-      }
-    }, 250);
-  });
+        const fd = new FormData(form);
 
-  // -------- Submit trade-in --------
-  const form = document.getElementById('tradeForm');
-  const btn  = document.getElementById('tradeSubmit');
+        btn.disabled = true;
+        btn.textContent = "Saving…";
 
-  // store last selected customer details so reset doesn’t wipe them
-  let lastCustomer = { id:'', name:'', phone:'', email:'' };
+        try {
+          const res = await fetch("/api/tradein", { method: "POST", body: fd });
 
-  form.addEventListener('submit', async (e) => {
-    e.preventDefault();
+          const text = await res.text();
+          if (!res.ok) {
+            let msg = "Failed to save trade-in";
+            try {
+              msg = JSON.parse(text).error || msg;
+            } catch {}
+            throw new Error(msg);
+          }
 
-    // capture current customer details before reset
-    lastCustomer = {
-      id: custIdEl.value,
-      name: nameEl.value,
-      phone: phoneEl.value,
-      email: emailEl.value
-    };
+          toast("Trade-in saved ✔️", "ok");
+          form.reset();
 
-    const fd = new FormData(form);
-
-    btn.disabled = true;
-    btn.textContent = 'Saving…';
-
-    try {
-      const res = await fetch('/api/tradein', { method: 'POST', body: fd });
-
-      const text = await res.text();
-      if (!res.ok) {
-        let msg = 'Failed to save trade-in';
-        try { msg = JSON.parse(text).error || msg; } catch {}
-        throw new Error(msg);
-      }
-
-      toast('Trade-in saved ✔️', 'ok');
-      form.reset();
-
-      // restore selected customer after reset (if there was one)
-      if (lastCustomer.id) {
-        custIdEl.value = lastCustomer.id;
-        nameEl.value = lastCustomer.name;
-        phoneEl.value = lastCustomer.phone;
-        emailEl.value = lastCustomer.email;
-      }
-
-    } catch (err) {
-      console.error(err);
-      toast(err.message || 'Failed to save trade-in');
-    } finally {
-      btn.disabled = false;
-      btn.textContent = 'Save Trade-In';
-    }
-  });
-</script>
-<script src="/js/sidebar.js"></script>
-</body>
+          // restore selected customer after reset (if there was one)
+          if (lastCustomer.id) {
+            custIdEl.value = lastCustomer.id;
+            nameEl.value = lastCustomer.name;
+            phoneEl.value = lastCustomer.phone;
+            addressEl.value = lastCustomer.address;
+          }
+        } catch (err) {
+          console.error(err);
+          toast(err.message || "Failed to save trade-in");
+        } finally {
+          btn.disabled = false;
+          btn.textContent = "Save Trade-In";
+        }
+      });
+    </script>
+    <script src="/js/sidebar.js"></script>
+  </body>
 </html>

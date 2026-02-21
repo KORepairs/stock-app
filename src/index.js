@@ -1001,7 +1001,7 @@ app.post('/api/tradein', upload.single('id_image'), async (req, res) => {
       customer_id, 
       customer_name,
       customer_phone,
-      customer_email,
+      customer_address,
       serial,
       device_desc,
       valuation,
@@ -1038,7 +1038,7 @@ app.post('/api/tradein', upload.single('id_image'), async (req, res) => {
         [
           String(customer_name).trim(),
           customer_phone || null,
-          customer_email || null
+          customer_address || null
         ]
       );
       custId = rows[0].id;
@@ -1505,7 +1505,7 @@ app.post('/api/customers', async (req, res) => {
 
     const { rows } = await pgQuery(
       `
-      INSERT INTO customers (name, phone, email, notes, id_image_path)
+      INSERT INTO customers (name, phone, address, notes, id_image_path)
       VALUES ($1,$2,$3,$4,$5)
       RETURNING *;
       `,

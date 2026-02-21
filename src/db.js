@@ -158,6 +158,12 @@ await pgQuery(`
   );
 `);
 
+// Add missing columns safely (schema migrations)
+await pgQuery(`
+  ALTER TABLE customers
+  ADD COLUMN IF NOT EXISTS address TEXT;
+`);
+
 
 // Export log table (tracks last CSV export time)
 await pgQuery(`

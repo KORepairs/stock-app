@@ -41,7 +41,7 @@ function categoryFromSkuPrefix(sku) {
   if (p === 'L') return 'laptop';
   if (p === 'M') return 'pc';
   if (p === 'V') return 'phone';
-  if (p === 'Q') return 'tablet';
+  if (p === 'T' || p === 'Q') return 'tablet';
   if (p === 'H') return 'console';
 
   return null;
@@ -608,6 +608,7 @@ app.put('/api/ebay-updates/:id', async (req, res) => {
     res.status(500).json({ error: err.message });
   }
 });
+
 
 /* ---------- API: Refurb items ---------- */
 

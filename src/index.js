@@ -579,6 +579,36 @@ app.post('/api/products/add-smart', async (req, res) => {
 });
 
 
+// List pending / done eBay updates
+app.get('/api/ebay-updates', async (req, res) => {
+  try {
+    const done = String(req.query.done || 'false') === 'true';
+    const rows = await listEbayUpdatesPG({ done });
+    res.json(rows);
+  } catch (err) {
+    console.error('list ebay updates error:', err);
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// Mark an update as done/undone
+app.put('/api/ebay-updates/:id', async (req, res) => {
+  try {
+    const id = Number(req.params.id);
+    if (!id) return res.status(400).json({ error: 'invalid id' });
+
+    const done = !!req.body?.done;
+
+    const row = await setEbayUpdateDonePG(id, done);
+    if (!row) return res.status(404).json({ error: 'not found' });
+
+    res.json(row);
+  } catch (err) {
+    console.error('set ebay update done error:', err);
+    res.status(500).json({ error: err.message });
+  }
+});
+
 /* ---------- API: Refurb items ---------- */
 
 // Get all refurb items

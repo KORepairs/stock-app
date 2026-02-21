@@ -248,7 +248,6 @@
           </div>
         </div>
 
-        <!-- REFURB PIPELINE -->
         <div class="card">
           <h3 style="margin: 0 0 10px">Refurb Workflow</h3>
           <div class="muted">
@@ -512,7 +511,6 @@
         setNum("pipe_complete", complete);
         setNum("pipe_active", active);
 
-
         // 2) eBay updates count (pending)
         let ebayPending = 0;
         try {
@@ -524,9 +522,9 @@
         } catch {}
         setNum("kpi_ebay", ebayPending);
 
-        // 2b) eBay listing status counts
         let ebayListed = 0;
         let ebayNotListed = 0;
+        let relistCount = 0;
 
         try {
           const statsRes = await fetch("/api/stats/ebay", {
@@ -536,29 +534,16 @@
           const arr = Array.isArray(stats) ? stats : [];
 
           for (const r of arr) {
-            if (r.ebay_status === "listed") ebayListed = Number(r.total) || 0;
-            if (r.ebay_status === "not_listed")
-              ebayNotListed = Number(r.total) || 0;
+            const c = Number(r.count) || 0;
+            if (r.ebay_status === "listed") ebayListed = c;
+            if (r.ebay_status === "not_listed") ebayNotListed = c;
+            if (r.ebay_status === "ready_to_list") relistCount = c;
           }
         } catch {}
 
-        // 2b) get ebay status breakdown
-        let relistCount = 0;
-
-        try {
-          const statsRes = await fetch("/api/stats/ebay", {
-            cache: "no-store",
-          });
-          const stats = await statsRes.json();
-
-          const relist = stats.find((s) => s.ebay_status === "ready_to_list");
-          relistCount = relist ? relist.count : 0;
-        } catch {}
-
-        setNum("kpi_relist", relistCount);
-
         setNum("kpi_ebay_listed", ebayListed);
         setNum("kpi_ebay_not_listed", ebayNotListed);
+        setNum("kpi_relist", relistCount);
 
         // 3) Action list
         const actions = [];

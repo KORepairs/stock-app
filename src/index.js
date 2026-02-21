@@ -178,6 +178,22 @@ async function setEbayStatus(productId, status) {
   return rows[0] || null;
 }
 
+async function findProductByLooseCodePG(codeNorm) {
+  const { rows } = await pgQuery(
+    `
+    SELECT *
+    FROM products
+    WHERE
+      UPPER(name)  LIKE '%' || $1 || '%'
+      OR UPPER(COALESCE(notes,'')) LIKE '%' || $1 || '%'
+    ORDER BY sku ASC
+    LIMIT 5;
+    `,
+    [codeNorm]
+  );
+  return rows;
+}
+
 
 /* ---------- API: Products ---------- */
 
@@ -444,35 +460,54 @@ app.post('/api/products/add-smart', async (req, res) => {
     const codeNorm = String(code).trim().toUpperCase();
 
     // 1) Duplicate check by PART NUMBER (code)
-    const existing = await getProductByCodePG(codeNorm);
+let existing = await getProductByCodePG(codeNorm);
 
-    if (existing) {
-      const oldQty = Number(existing.quantity) || 0;
-      const updated = await adjustQtyPG(existing.id, qtyDelta);
-      const newQty = Number(updated.quantity) || 0;
+// ✅ fallback: if code isn't stored yet, try to find it inside name/notes
+if (!existing) {
+  const candidates = await findProductByLooseCodePG(codeNorm);
 
-      // if stock comes back from 0, mark as RELIST
-if (oldQty === 0 && newQty > 0) {
-  await setEbayStatus(existing.id, "ready_to_list");
+  if (candidates.length === 1) {
+    existing = candidates[0];
+
+    // ✅ permanently backfill code so next time it's an instant match
+    await pgQuery(
+      `UPDATE products SET code = $2 WHERE id = $1`,
+      [existing.id, codeNorm]
+    );
+  } else if (candidates.length > 1) {
+    return res.status(409).json({
+      error: `Part number found in multiple products (${candidates.length}). Please set the code manually to avoid wrong stock updates.`,
+      candidates: candidates.map(x => ({ id: x.id, sku: x.sku, name: x.name })),
+    });
+  }
 }
 
+if (existing) {
+  const oldQty = Number(existing.quantity) || 0;
+  const updated = await adjustQtyPG(existing.id, qtyDelta);
+  const newQty = Number(updated.quantity) || 0;
 
-      // If it’s an eBay item, log it for later
-      if (Number(existing.on_ebay) === 1) {
-        await logEbayUpdatePG({
-          sku: existing.sku,
-          code: existing.code || codeNorm,
-          delta: qtyDelta,
-          oldQty,
-          newQty,
-          note: notes || null
-        });
-      }
+  // if stock comes back from 0, mark as RELIST
+  if (oldQty === 0 && newQty > 0) {
+    await setEbayStatus(existing.id, "ready_to_list");
+  }
 
-      return res.json({
-        message: `UPDATED: SKU ${existing.sku} (qty ${oldQty} → ${newQty}) ✅ update eBay listing`
-      });
-    }
+  // If it’s an eBay item, log it for later
+  if (Number(existing.on_ebay) === 1) {
+    await logEbayUpdatePG({
+      sku: existing.sku,
+      code: existing.code || codeNorm,
+      delta: qtyDelta,
+      oldQty,
+      newQty,
+      note: notes || null
+    });
+  }
+
+  return res.json({
+    message: `UPDATED: SKU ${existing.sku} (qty ${oldQty} → ${newQty}) ✅ update eBay listing`
+  });
+}
 
     // 2) New item → category required to generate SKU
     const prefix = String(category || '').trim().toUpperCase();

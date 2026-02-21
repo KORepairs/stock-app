@@ -24,22 +24,6 @@
         margin-top: 14px;
       }
 
-      .kpis {
-        display: grid;
-        grid-template-columns: repeat(9, 1fr);
-        gap: 12px;
-      }
-      @media (max-width: 1100px) {
-        .kpis {
-          grid-template-columns: repeat(3, 1fr);
-        }
-      }
-      @media (max-width: 700px) {
-        .kpis {
-          grid-template-columns: 1fr;
-        }
-      }
-
       .kpi {
         cursor: pointer;
         transition:
@@ -183,6 +167,40 @@
       );
       border-color: rgba(40,120,255,0.25);
     }
+    /* default */
+.kpis {
+  display: grid;
+  gap: 12px;
+}
+
+/* refurb row = 6 cards */
+#kpis_refurb {
+  grid-template-columns: repeat(6, 1fr);
+  margin-bottom: 18px;
+  padding-bottom: 14px;
+  border-bottom: 1px solid var(--border);
+}
+
+/* ebay row = 4 cards */
+#kpis_ebay {
+  grid-template-columns: repeat(4, 1fr);
+  margin-top: 8px;
+}
+
+/* responsive */
+@media (max-width: 1100px) {
+  #kpis_refurb,
+  #kpis_ebay {
+    grid-template-columns: repeat(2, 1fr);
+  }
+}
+@media (max-width: 700px) {
+  #kpis_refurb,
+  #kpis_ebay {
+    grid-template-columns: 1fr;
+  }
+}
+
 
     </style>
   </head>
@@ -655,9 +673,10 @@
       });
 
       $("kpiRelist")?.addEventListener(
-        "click",
-        () => (window.location.href = "/products?ebay_status=ready_to_list"),
-      );
+  "click",
+  () => (window.location.href = "/products/list?ebay_status=ready_to_list"),
+);
+
     </script>
 
     <script src="/js/sidebar.js"></script>

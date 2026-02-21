@@ -217,6 +217,7 @@ app.put('/api/products/:id', async (req, res) => {
 
     const {
       sku,
+      code = null,
       name,
       quantity = 0,
       onEbay = false,
@@ -228,6 +229,10 @@ app.put('/api/products/:id', async (req, res) => {
     } = req.body || {};
 
     const skuNorm   = String(sku || '').trim().toUpperCase();
+    const codeNorm = (code == null || String(code).trim() === '')
+  ? null
+  : String(code).trim().toUpperCase();
+
     const notesNorm = (notes == null || String(notes).trim() === '')
       ? null
       : String(notes).trim();
@@ -253,19 +258,22 @@ app.put('/api/products/:id', async (req, res) => {
       UPDATE products
       SET
         sku = $1,
-        name = $2,
-        notes = $3,
-        on_ebay = $4,
-        cost = $5,
-        retail = $6,
-        fees = $7,
-        postage = $8,
-        quantity = $9
-      WHERE id = $10
+        code = $2,            -- ✅ add
+        name = $3,
+        notes = $4,
+        on_ebay = $5,
+        cost = $6,
+        retail = $7,
+        fees = $8,
+        postage = $9,
+        quantity = $10
+      WHERE id = $11
       RETURNING *;
+
       `,
       [
         data.sku,
+        codeNorm,
         data.name,
         data.notes,
         data.on_ebay,
@@ -364,6 +372,7 @@ app.post('/api/products', async (req, res) => {
   try {
     const {
       sku,
+      code = null, 
       name,
       quantity = 0,
       notes = null,
@@ -379,12 +388,17 @@ app.post('/api/products', async (req, res) => {
     }
 
     const skuNorm   = String(sku).trim().toUpperCase();
+    const codeNorm = (code == null || String(code).trim() === '')
+  ? null
+  : String(code).trim().toUpperCase();
+
     const notesNorm = (notes == null || String(notes).trim() === '')
       ? null
       : String(notes).trim();
 
     const data = {
       sku: skuNorm,
+      code: codeNorm,  
       name: String(name).trim(),
       notes: notesNorm,
       on_ebay: (onEbay === true || onEbay === 1 || onEbay === '1' ||

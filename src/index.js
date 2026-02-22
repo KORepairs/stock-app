@@ -993,6 +993,104 @@ app.get('/api/tradein', async (req, res) => {
   }
 });
 
+// Update a trade-in (and sync customer details if linked)
+app.put('/api/tradein/:id', async (req, res) => {
+  try {
+    const id = Number(req.params.id);
+    if (!id) return res.status(400).json({ error: 'invalid id' });
+
+    const {
+      customer_name = null,
+      customer_phone = null,
+      customer_address = null,
+      serial = null,
+      device_desc = null,
+      valuation = null,
+      agreed_value = null,
+    } = req.body || {};
+
+    // Get existing trade-in (to see customer_id)
+    const { rows: existingRows } = await pgQuery(
+      `SELECT * FROM trade_ins WHERE id = $1`,
+      [id]
+    );
+    const existing = existingRows[0];
+    if (!existing) return res.status(404).json({ error: 'not found' });
+
+    // Update customer record if linked
+    if (existing.customer_id) {
+      await pgQuery(
+        `
+        UPDATE customers
+        SET
+          name    = COALESCE($1, name),
+          phone   = COALESCE($2, phone),
+          address = COALESCE($3, address),
+          updated_at = NOW()
+        WHERE id = $4
+        `,
+        [
+          customer_name ? String(customer_name).trim() : null,
+          customer_phone != null ? String(customer_phone).trim() : null,
+          customer_address != null ? String(customer_address).trim() : null,
+          Number(existing.customer_id),
+        ]
+      );
+    }
+
+    // Update trade_in row
+    const { rows } = await pgQuery(
+      `
+      UPDATE trade_ins
+      SET
+        customer_name    = COALESCE($1, customer_name),
+        customer_phone   = COALESCE($2, customer_phone),
+        customer_address = COALESCE($3, customer_address),
+        serial           = COALESCE($4, serial),
+        device_desc      = COALESCE($5, device_desc),
+        valuation        = COALESCE($6, valuation),
+        agreed_value     = COALESCE($7, agreed_value)
+      WHERE id = $8
+      RETURNING *;
+      `,
+      [
+        customer_name ? String(customer_name).trim() : null,
+        customer_phone != null ? String(customer_phone).trim() : null,
+        customer_address != null ? String(customer_address).trim() : null,
+        serial != null ? String(serial).trim() : null,
+        device_desc != null ? String(device_desc).trim() : null,
+        valuation == null ? null : Number(valuation),
+        agreed_value == null ? null : Number(agreed_value),
+        id
+      ]
+    );
+
+    res.json(rows[0]);
+  } catch (err) {
+    console.error('Error updating trade-in:', err);
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// Delete a trade-in
+app.delete('/api/tradein/:id', async (req, res) => {
+  try {
+    const id = Number(req.params.id);
+    if (!id) return res.status(400).json({ error: 'invalid id' });
+
+    const { rows } = await pgQuery(
+      `DELETE FROM trade_ins WHERE id = $1 RETURNING id;`,
+      [id]
+    );
+
+    if (!rows[0]) return res.status(404).json({ error: 'not found' });
+    res.json({ deleted: true });
+  } catch (err) {
+    console.error('Error deleting trade-in:', err);
+    res.status(500).json({ error: err.message });
+  }
+});
+
 // Create trade-in + auto-create refurb item
 app.post('/api/tradein', upload.single('id_image'), async (req, res) => {
   console.log('HIT POST /api/tradein');

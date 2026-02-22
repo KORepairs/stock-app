@@ -1001,6 +1001,7 @@ app.post('/api/tradein', upload.single('id_image'), async (req, res) => {
       customer_id, 
       customer_name,
       customer_phone,
+      customer_email,
       customer_address,
       serial,
       device_desc,
@@ -1031,14 +1032,15 @@ app.post('/api/tradein', upload.single('id_image'), async (req, res) => {
 
       const { rows } = await pgQuery(
         `
-        INSERT INTO customers (name, phone, email)
-        VALUES ($1,$2,$3)
+        INSERT INTO customers (name, phone, email, address)
+        VALUES ($1,$2,$3, $4)
         RETURNING id;
         `,
         [
           String(customer_name).trim(),
           customer_phone || null,
-          customer_address || null
+          customer_email || null,
+          customer_address || null,
         ]
       );
       custId = rows[0].id;
@@ -1087,7 +1089,7 @@ app.post('/api/tradein', upload.single('id_image'), async (req, res) => {
       `
       INSERT INTO trade_ins (
         customer_id,
-        customer_name, customer_phone, customer_email,
+        customer_name, customer_phone, customer_email, customer_address,
         serial, device_desc, valuation, agreed_value,
         id_image_path, refurb_id
       )
@@ -1099,6 +1101,7 @@ app.post('/api/tradein', upload.single('id_image'), async (req, res) => {
         customer_name,
         customer_phone || null,
         customer_email || null,
+        customer_address || null,
         serial || null,
         device_desc,
         valuationNum,
@@ -1485,7 +1488,7 @@ app.get('/api/customers', async (req, res) => {
       `
       SELECT *
       FROM customers
-      WHERE name ILIKE $1 OR phone ILIKE $1 OR email ILIKE $1
+      WHERE name ILIKE $1 OR phone ILIKE $1 OR email ILIKE $1 OR address ILIKE $1
       ORDER BY id DESC
       LIMIT 50;
       `,

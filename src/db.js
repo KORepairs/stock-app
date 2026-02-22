@@ -164,6 +164,11 @@ await pgQuery(`
   ADD COLUMN IF NOT EXISTS address TEXT;
 `);
 
+await pgQuery(`
+  ALTER TABLE trade_ins
+  ADD COLUMN IF NOT EXISTS customer_address TEXT;
+`);
+
 
 // Export log table (tracks last CSV export time)
 await pgQuery(`

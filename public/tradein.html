@@ -5,16 +5,45 @@
     <title>Trade-In</title>
     <meta name="viewport" content="width=device-width,initial-scale=1" />
     <link rel="stylesheet" href="/app.css" />
+    <style>
+      .page-head {
+        display: flex;
+        justify-content: space-between;
+        align-items: flex-start;
+        gap: 12px;
+        margin-bottom: 14px;
+      }
+
+      .btn-secondary {
+        background: #1f2937;
+        color: white;
+        padding: 10px 14px;
+        border-radius: 10px;
+        text-decoration: none;
+        font-size: 14px;
+        white-space: nowrap;
+        transition: background 0.15s;
+      }
+
+      .btn-secondary:hover {
+        background: #374151;
+      }
+    </style>
   </head>
   <body>
     <div class="wrap">
       <aside id="sidebar"></aside>
       <main class="page">
-        <h1>Trade-In</h1>
-        <p style="color: var(--muted, #9aa); margin-top: 4px">
-          Record customer trade-ins 
-        </p>
+        <div class="page-head">
+          <div>
+            <h1>Trade-In</h1>
+            <p style="color: var(--muted, #9aa); margin-top: 4px">
+              Record customer trade-ins
+            </p>
+          </div>
 
+          <a href="/tradeins.html" class="btn-secondary">View Trade-Ins</a>
+        </div>
         <form
           id="tradeForm"
           class="form-grid"
@@ -132,7 +161,7 @@
 
       const nameEl = document.getElementById("customer_name");
       const phoneEl = document.getElementById("customer_phone");
-      const addressEl = document.getElementById('customer_address');
+      const addressEl = document.getElementById("customer_address");
 
       function esc(s) {
         return String(s ?? "").replace(
@@ -171,12 +200,12 @@
             data-id="${c.id}"
             data-name="${esc(c.name)}"
             data-phone="${esc(c.phone || "")}"
-            data-address="${esc(c.address || '')}"
+            data-address="${esc(c.address || "")}"
             style="text-align:left;padding:8px;border:1px solid var(--border);border-radius:10px;background:rgba(255,255,255,.02);"
           >
             <div style="font-weight:600;">${esc(c.name)}</div>
             <div style="font-size:12px;color:#aaa;">
-              ${esc(c.phone || '—')} · ${esc(c.address || '—')}
+              ${esc(c.phone || "—")} · ${esc(c.address || "—")}
             </div>
           </button>
         `,
@@ -190,7 +219,7 @@
             custIdEl.value = btn.dataset.id || "";
             nameEl.value = btn.dataset.name || "";
             phoneEl.value = btn.dataset.phone || "";
-            addressEl.value  = btn.dataset.address || '';
+            addressEl.value = btn.dataset.address || "";
 
             custResults.style.display = "none";
             toast(`Customer selected ✔️`, "ok");
@@ -247,7 +276,7 @@
       const btn = document.getElementById("tradeSubmit");
 
       // store last selected customer details so reset doesn’t wipe them
-      let lastCustomer = { id:'', name:'', phone:'', address:'' };
+      let lastCustomer = { id: "", name: "", phone: "", address: "" };
 
       form.addEventListener("submit", async (e) => {
         e.preventDefault();
@@ -257,7 +286,7 @@
           id: custIdEl.value,
           name: nameEl.value,
           phone: phoneEl.value,
-          address: addressEl.value
+          address: addressEl.value,
         };
 
         const fd = new FormData(form);

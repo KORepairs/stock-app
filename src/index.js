@@ -1086,30 +1086,30 @@ app.post('/api/tradein', upload.single('id_image'), async (req, res) => {
     }
 
     const tradeRes = await pgQuery(
-      `
-      INSERT INTO trade_ins (
-        customer_id,
-        customer_name, customer_phone, customer_email, customer_address,
-        serial, device_desc, valuation, agreed_value,
-        id_image_path, refurb_id
-      )
-      VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10)
-      RETURNING *;
-      `,
-      [
-        custId,
-        customer_name,
-        customer_phone || null,
-        customer_email || null,
-        customer_address || null,
-        serial || null,
-        device_desc,
-        valuationNum,
-        agreedNum,
-        idImagePath,
-        refurbId,
-      ]
-    );
+  `
+  INSERT INTO trade_ins (
+    customer_id,
+    customer_name, customer_phone, customer_email, customer_address,
+    serial, device_desc, valuation, agreed_value,
+    id_image_path, refurb_id
+  )
+  VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11)
+  RETURNING *;
+  `,
+  [
+    custId,
+    customer_name,
+    customer_phone || null,
+    customer_email || null,
+    customer_address || null,
+    serial || null,
+    device_desc,
+    valuationNum,
+    agreedNum,
+    idImagePath,
+    refurbId,
+  ]
+);
 
     res.status(201).json(tradeRes.rows[0]);
   } catch (err) {
@@ -1503,19 +1503,19 @@ app.get('/api/customers', async (req, res) => {
 // Create a customer
 app.post('/api/customers', async (req, res) => {
   try {
-    const { name, phone = null, email = null, notes = null, id_image_path = null } = req.body || {};
-    if (!name) return res.status(400).json({ error: 'name is required' });
+    const { name, phone = null, address = null, notes = null, id_image_path = null } = req.body || {};
+if (!name) return res.status(400).json({ error: 'name is required' });
 
-    const { rows } = await pgQuery(
-      `
-      INSERT INTO customers (name, phone, address, notes, id_image_path)
-      VALUES ($1,$2,$3,$4,$5)
-      RETURNING *;
-      `,
-      [String(name).trim(), phone, email, notes, id_image_path]
-    );
+const { rows } = await pgQuery(
+  `
+  INSERT INTO customers (name, phone, address, notes, id_image_path)
+  VALUES ($1,$2,$3,$4,$5)
+  RETURNING *;
+  `,
+  [String(name).trim(), phone, address, notes, id_image_path]
+);
 
-    res.status(201).json(rows[0]);
+res.status(201).json(rows[0]);
   } catch (err) {
     res.status(500).json({ error: err.message });
   }

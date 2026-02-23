@@ -117,6 +117,7 @@ app.get('/report/sales',   (req, res) => res.sendFile(path.join(PUBLIC_DIR, 'rep
 app.get('/report/stock',   (req, res) => res.sendFile(path.join(PUBLIC_DIR, 'report-stock.html')));
 app.get('/quick-add',      (req, res) => res.sendFile(path.join(PUBLIC_DIR, 'quick-add.html')));
 app.get('/refurb',         (req, res) => res.sendFile(path.join(PUBLIC_DIR, 'refurb.html')));
+app.get('/refurb/complete', (req, res) => res.sendFile(path.join(PUBLIC_DIR, 'refurb-complete.html')));
 app.get('/refurb/add',  (req, res) => res.sendFile(path.join(PUBLIC_DIR, 'refurb-add.html')));
 app.get('/refurb/list', (req, res) => res.sendFile(path.join(PUBLIC_DIR, 'refurb.html')));
 app.get('/refurb/retired', (req, res) => res.sendFile(path.join(PUBLIC_DIR, 'refurb-retired.html')));

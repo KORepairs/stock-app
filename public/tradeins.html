@@ -249,8 +249,10 @@
         ].filter(Boolean).join(' · ');
 
         const refurbCell = item.refurb_id
-          ? `#${item.refurb_id}`
-          : '–';
+  ? `<a href="/refurb/${item.refurb_id}" target="_blank" rel="noopener" class="mono" style="text-decoration:underline;">
+       #${item.refurb_id}
+     </a>`
+  : '–';
 
         const idImg = item.id_image_path
           ? `<a href="${esc(item.id_image_path)}" target="_blank" rel="noopener">

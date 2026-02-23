@@ -5,7 +5,7 @@
     
 <head>
   <meta charset="utf-8">
-  <title>Completed Refurb Items</title>
+  <title>Refurb Sold</title>
   <meta name="viewport" content="width=device-width,initial-scale=1">
   <link rel="stylesheet" href="/app.css">
     <style>
@@ -86,15 +86,14 @@
     <div class="wrap">
     <aside id="sidebar"></aside>
   <main class="page">
-    <h1>Refurb Items</h1>
+    <h1>Refurb Sold</h1>
     <p style="color:var(--muted,#9aa);margin-top:4px;">
       Track devices going through strip / refurb / scrap and whether they need or are awaiting parts.
     </p>
 
     <h2 style="margin-top:0">Refurb queue</h2>
     <div style="display:flex;justify-content:space-between;align-items:center;gap:10px;flex-wrap:wrap;">
-  <a href="/refurb"><button type="button">Back to refurb queue</button></a>
-  <a href="/refurb/sold"><button>Sold items</button></a>
+  <a href="/refurb/complete"><button>Back to complete</button></a>
     
     <div class="filters" style="display:flex;gap:10px;flex-wrap:wrap;align-items:flex-end;margin:12px 0 14px;">
         <div>
@@ -259,30 +258,26 @@ function removeLocalRefurb(id) {
 
   let ALL_REFURB = [];
 
-const isCompletePage = window.location.pathname === '/refurb/complete';
+const path = window.location.pathname;
+const isCompletePage = path === '/refurb/complete';
+const isSoldPage = path === '/refurb/sold';
 
   // -----------------------
   // Load refurb items (fetch once, then filter client-side)
   // -----------------------
   async function loadRefurb() {
   const tbody = $('refurbTbody');
-  tbody.innerHTML = '<tr><td colspan="20" style="padding:8px">Loading…</td></tr>';
+  tbody.innerHTML = '<tr><td colspan="20">Loading…</td></tr>';
 
   try {
-    const res = await fetch('/api/refurb?view=active', { cache: 'no-store' });
-    const data = await res.json();
+    let url = '/api/refurb?view=active';
+    if (isCompletePage) url = '/api/refurb?view=complete';
+    if (isSoldPage) url = '/api/refurb?view=sold';
 
-    let items = Array.isArray(data) ? data : [];
+    const res = await fetch(url, { cache: 'no-store' });
+    const items = await res.json();
 
-    if (isCompletePage) {
-      // Complete page: ONLY complete
-      items = items.filter(x => String(x.status || '') === 'complete');
-    } else {
-      // Main refurb page: HIDE complete
-      items = items.filter(x => String(x.status || '') !== 'complete');
-    }
-
-    ALL_REFURB = items;
+    ALL_REFURB = Array.isArray(items) ? items : [];
 
     syncViewUI();
     populateFilters(ALL_REFURB);
@@ -291,7 +286,7 @@ const isCompletePage = window.location.pathname === '/refurb/complete';
   } catch (e) {
     console.error(e);
     tbody.innerHTML =
-      '<tr><td colspan="20" style="padding:8px;color:#900">Failed to load refurb items</td></tr>';
+      '<tr><td colspan="20" style="color:red">Failed to load refurb items</td></tr>';
   }
 }
 

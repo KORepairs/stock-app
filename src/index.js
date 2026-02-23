@@ -128,6 +128,7 @@ app.get('/report-sales',   (req, res) => {res.sendFile(path.join(__dirname, '..'
 app.get('/inventory-add', (req, res) => res.sendFile(path.join(PUBLIC_DIR, 'inventory-add.html')));
 app.get('/report/ebay-updates', (req, res) => res.sendFile(path.join(PUBLIC_DIR, 'report-ebay-updates.html')));
 app.get('/dashboard', (req, res) => res.sendFile(path.join(PUBLIC_DIR, 'dashboard.html')));
+app.get('/refurb/sold', (req, res) => res.sendFile(path.join(PUBLIC_DIR, 'refurb-sold.html')));
 
 
 
@@ -618,15 +619,35 @@ app.get('/api/refurb', async (req, res) => {
   try {
     const view = String(req.query.view || '').trim().toLowerCase();
 
-    // ✅ ACTIVE refurb list (hide scrapped + stripped)
-    if (!view || view === 'active') {
-      const { rows } = await pgQuery(
-        `SELECT * FROM refurb_items
-         WHERE status NOT IN ('scrapped', 'stripped')
-         ORDER BY id DESC;`
-      );
-      return res.json(rows);
-    }
+    // ACTIVE refurb list (queue only)
+if (!view || view === 'active') {
+  const { rows } = await pgQuery(
+    `SELECT * FROM refurb_items
+     WHERE status NOT IN ('scrapped', 'stripped', 'complete', 'sold')
+     ORDER BY id DESC;`
+  );
+  return res.json(rows);
+}
+
+// COMPLETE page
+if (view === 'complete') {
+  const { rows } = await pgQuery(
+    `SELECT * FROM refurb_items
+     WHERE status = 'complete'
+     ORDER BY id DESC;`
+  );
+  return res.json(rows);
+}
+
+// SOLD page
+if (view === 'sold') {
+  const { rows } = await pgQuery(
+    `SELECT * FROM refurb_items
+     WHERE status = 'sold'
+     ORDER BY id DESC;`
+  );
+  return res.json(rows);
+}
 
     // ✅ RETIRED view (scrapped + stripped together)
     if (view === 'retired') {

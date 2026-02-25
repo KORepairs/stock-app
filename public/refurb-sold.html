@@ -432,6 +432,7 @@ function syncViewUI() {
     },
     {
   label: 'Description',
+  thClass: 'col-description',
   render: (item) => `
     <input data-id="${item.id}" class="descInp" type="text"
       value="${esc(item.description || '')}" placeholder="Description">
@@ -440,6 +441,7 @@ function syncViewUI() {
 
     {
       label: 'Category',
+      thClass: 'col-category',
       render: (item) => `
         <select data-id="${item.id}" class="catSel">
           <option value="laptop" ${item.category==='laptop'?'selected':''}>Laptop</option>

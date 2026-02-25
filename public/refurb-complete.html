@@ -8,31 +8,20 @@
   <title>Completed Refurb Items</title>
   <meta name="viewport" content="width=device-width,initial-scale=1">
   <link rel="stylesheet" href="/app.css">
-    <style>
-    /* ===== Status colours (strong) ===== */
-  td.refurb-status-strip    { background:#ed9507; } /* strip = brown */
-  td.refurb-status-refurb   { background:#0819d1; } /* refurb = blue */
-  td.refurb-status-scrap    { background:#e81c0e; } /* scrap = red */
-  td.refurb-status-complete { background:#158207; } /* complete = green */
+   <style>
+  /* ===== Status colours (strong) ===== */
+  td.refurb-status-strip    { background:#ed9507; } /* strip */
+  td.refurb-status-refurb   { background:#0819d1; } /* refurb */
+  td.refurb-status-scrap    { background:#e81c0e; } /* scrap */
+  td.refurb-status-complete { background:#158207; } /* complete */
 
-  /* ===== Parts colours (softer, but still visible) ===== */
+  /* ===== Parts colours ===== */
   td.refurb-parts-none           { background:#919087; }
-  td.refurb-parts-needs_parts    { background:#a81703; } /* red */
-  td.refurb-parts-awaiting_parts { background:#d9c61e; } /* yellow-brown */
-  td.refurb-parts-has_parts      { background:#053802; } /* dark green */
+  td.refurb-parts-needs_parts    { background:#a81703; }
+  td.refurb-parts-awaiting_parts { background:#d9c61e; }
+  td.refurb-parts-has_parts      { background:#053802; }
 
-  /* Optional: make dropdowns readable on coloured cells */
-  td.refurb-status-strip select,
-  td.refurb-status-refurb select,
-  td.refurb-status-scrap select,
-  td.refurb-status-complete select,
-  td.refurb-parts-needs_parts select,
-  td.refurb-parts-awaiting_parts select,
-  td.refurb-parts-has_parts select {
-    background: #fff;
-  }
-
-  /* --- Make the coloured "pill" --- */
+  /* --- Pills --- */
   .pill {
     display: inline-flex;
     align-items: center;
@@ -41,8 +30,6 @@
     min-height: 34px;
     box-shadow: inset 0 0 0 1px rgba(255,255,255,.08);
   }
-
-  /* Make the select sit nicely inside the pill */
   .pill select {
     border: 0;
     outline: none;
@@ -54,7 +41,7 @@
     cursor: pointer;
   }
 
-  /* Remove the big coloured TD backgrounds (optional safety) */
+  /* Remove big coloured TD backgrounds (safety) */
   td.refurb-status-strip,
   td.refurb-status-refurb,
   td.refurb-status-scrap,
@@ -73,13 +60,29 @@
   .pill-status-complete { background:#158207; }
 
   /* ===== Parts pill colours ===== */
-  .pill-parts-none           { background: #919087; }
+  .pill-parts-none           { background:#919087; }
   .pill-parts-needs_parts    { background:#a81703; }
   .pill-parts-awaiting_parts { background:#d9c61e; }
   .pill-parts-has_parts      { background:#053802; }
 
+  /* ===== Table sizing ===== */
+  .table-wrap { overflow: auto; }
 
-  </style>
+  table { width: 100%; border-collapse: collapse; table-layout: fixed; }
+  th, td { padding: 10px 10px; vertical-align: top; }
+  th { white-space: nowrap; }
+
+  /* Column widths (apply via thClass/tdClass) */
+  th.col-sku,     td.col-sku     { width: 90px; }
+  th.col-desc,    td.col-desc    { width: 280px; }
+  th.col-cat,     td.col-cat     { width: 120px; }
+  th.col-status,  td.col-status  { width: 140px; }
+  th.col-parts,   td.col-parts   { width: 140px; }
+  th.col-retail,  td.col-retail  { width: 110px; text-align:right; }
+  th.col-cpu,     td.col-cpu     { width: 140px; }
+  th.col-notes,   td.col-notes   { width: 200px; }
+  th.col-actions, td.col-actions { width: 200px; white-space: nowrap; }
+</style>
 </head>
 
 <body>
@@ -405,15 +408,16 @@ function syncViewUI() {
       `
     },
     {
-  label: 'Description',
-  render: (item) => `
-    <input data-id="${item.id}" class="descInp" type="text"
-      value="${esc(item.description || '')}" placeholder="Description">
-  `
-},
-
+      label: 'Description',
+      thClass: 'col-desc',   // ✅ add this
+      render: (item) => `
+        <input data-id="${item.id}" class="descInp" type="text"
+          value="${esc(item.description || '')}" placeholder="Description">
+      `
+    },
     {
       label: 'Category',
+      thClass: 'col-cat',    // ✅ add this
       render: (item) => `
         <select data-id="${item.id}" class="catSel">
           <option value="laptop" ${item.category==='laptop'?'selected':''}>Laptop</option>
@@ -426,20 +430,17 @@ function syncViewUI() {
     },
     {
       label: 'Status',
+      thClass: 'col-status', // ✅ add this
       render: (item) => `
         <span class="pill ${statusPillClass(item.status)}">
           <select data-id="${item.id}" class="statusSel">
             <option value="strip"     ${item.status==='strip'?'selected':''}>Strip</option>
             <option value="stripped"  ${item.status==='stripped'?'selected':''}>Stripped</option>
-
             <option value="refurb"    ${item.status==='refurb'?'selected':''}>Refurb</option>
-
             <option value="scrap"     ${item.status==='scrap'?'selected':''}>Scrap</option>
             <option value="scrapped"  ${item.status==='scrapped'?'selected':''}>Scrapped</option>
-
             <option value="complete"  ${item.status==='complete'?'selected':''}>Complete</option>
           </select>
-
         </span>
       `
     },
@@ -457,29 +458,26 @@ function syncViewUI() {
         </span>
       `
     },
-
     {
-  label: 'Retail (£)',
-  thClass: 'col-retail',
-  render: (item) => `
-    <input data-id="${item.id}" class="retailInp" type="number"
-      step="0.01" min="0"
-      value="${Number(item.retail || 0).toFixed(2)}">
-  `
-},
+      label: 'Retail (£)',
+      thClass: 'col-retail',
+      render: (item) => `
+        <input data-id="${item.id}" class="retailInp" type="number"
+          step="0.01" min="0"
+          value="${Number(item.retail || 0).toFixed(2)}">
+      `
+    },
   ];
-
-
 
   const actionsCol = {
     label: 'Actions',
+    thClass: 'col-actions', // ✅ add this
     render: (item) => `
       <button type="button" class="detailBtn" data-id="${item.id}">Details</button>
       <button type="button" class="saveRowBtn" data-id="${item.id}">Save</button>
       <button type="button" class="deleteRowBtn" data-id="${item.id}" style="margin-left:6px;">Delete</button>
     `
   };
-
   if (view === 'computer') {
     return {
       categories: ['laptop', 'pc'],
@@ -554,11 +552,9 @@ function syncViewUI() {
 
 function renderHeader(cfg) {
   const thead = document.getElementById('refurbThead');
-  thead.innerHTML = `
-    <tr>
-      ${cfg.cols.map(c => `<th class="${c.thClass || ''}">${c.label}</th>`).join('')}
-    </tr>
-  `;
+  thead.innerHTML = `<tr>${
+    cfg.cols.map(c => `<th class="${c.thClass || ''}">${c.label}</th>`).join('')
+  }</tr>`;
 }
 
 
@@ -577,10 +573,10 @@ function renderRefurbTable(items) {
   }
 
   tbody.innerHTML = items.map(item => `
-    <tr>
-      ${cfg.cols.map(c => `<td>${c.render(item)}</td>`).join('')}
-    </tr>
-  `).join('');
+  <tr>
+    ${cfg.cols.map(c => `<td class="${c.thClass || ''}">${c.render(item)}</td>`).join('')}
+  </tr>
+`).join('');
 
   wireRefurbDropdowns();
   wireRefurbRowSaves();

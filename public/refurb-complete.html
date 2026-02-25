@@ -82,6 +82,17 @@
   th.col-cpu,     td.col-cpu     { width: 140px; }
   th.col-notes,   td.col-notes   { width: 200px; }
   th.col-actions, td.col-actions { width: 200px; white-space: nowrap; }
+
+  /* make the table respect widths */
+table { width: 100%; table-layout: fixed; }
+th, td { overflow: hidden; text-overflow: ellipsis; }
+
+/* last columns need guaranteed space */
+.col-cpu    { width: 140px; }
+.col-notes  { width: 220px; }
+.col-actions{ width: 190px; }
+.col-actions { white-space: nowrap; }
+.col-actions button { padding: 6px 10px; }
 </style>
 </head>
 

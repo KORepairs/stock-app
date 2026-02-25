@@ -454,6 +454,7 @@ function syncViewUI() {
     },
     {
       label: 'Status',
+      thClass: 'col-status',
       render: (item) => `
         <span class="pill ${statusPillClass(item.status)}">
           <select data-id="${item.id}" class="statusSel">

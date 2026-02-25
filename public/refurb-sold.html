@@ -78,6 +78,40 @@
   .pill-parts-awaiting_parts { background:#d9c61e; }
   .pill-parts-has_parts      { background:#053802; }
 
+  .table-wrap table {
+  width: 100%;
+  table-layout: fixed;
+}
+
+.table-wrap th,
+.table-wrap td {
+  vertical-align: middle;
+}
+
+.table-wrap input,
+.table-wrap select {
+  width: 100%;
+  min-width: 0;
+  box-sizing: border-box;
+}
+
+.col-sku { width: 110px; }
+.col-parts { width: 140px; }
+.col-retail { width: 120px; }
+.col-cpu { width: 170px; }
+.col-notes { width: 240px; }
+.col-actions { width: 230px; }
+
+.col-actions .actions {
+  display: flex;
+  gap: 6px;
+  justify-content: flex-end;
+  flex-wrap: nowrap;
+}
+
+.col-actions button {
+  white-space: nowrap;
+}
 
   </style>
 </head>
@@ -464,13 +498,16 @@ function syncViewUI() {
 
 
   const actionsCol = {
-    label: 'Actions',
-    render: (item) => `
+  label: 'Actions',
+  thClass: 'col-actions',
+  render: (item) => `
+    <div class="actions">
       <button type="button" class="detailBtn" data-id="${item.id}">Details</button>
       <button type="button" class="saveRowBtn" data-id="${item.id}">Save</button>
-      <button type="button" class="deleteRowBtn" data-id="${item.id}" style="margin-left:6px;">Delete</button>
-    `
-  };
+      <button type="button" class="deleteRowBtn" data-id="${item.id}">Delete</button>
+    </div>
+  `
+};
 
   if (view === 'computer') {
     return {
@@ -570,7 +607,7 @@ function renderRefurbTable(items) {
 
   tbody.innerHTML = items.map(item => `
     <tr>
-      ${cfg.cols.map(c => `<td>${c.render(item)}</td>`).join('')}
+      ${cfg.cols.map(c => `<td class="${c.thClass || ''}">${c.render(item)}</td>`).join('')}
     </tr>
   `).join('');
 

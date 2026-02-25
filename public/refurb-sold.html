@@ -96,11 +96,13 @@
 }
 
 .col-sku { width: 110px; }
-.col-parts { width: 140px; }
+.col-desc { width: 240px; }
+.col-status { width: 150px; }
+.col-parts { width: 150px; }
 .col-retail { width: 120px; }
 .col-cpu { width: 170px; }
-.col-notes { width: 240px; }
-.col-actions { width: 230px; }
+.col-notes { width: 260px; }
+.col-actions { width: 240px; }
 
 .col-actions .actions {
   display: flex;
@@ -110,6 +112,13 @@
 }
 
 .col-actions button {
+  white-space: nowrap;
+}
+
+.table-wrap th,
+.table-wrap td {
+  overflow: hidden;
+  text-overflow: ellipsis;
   white-space: nowrap;
 }
 

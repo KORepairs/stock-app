@@ -285,7 +285,7 @@ const isCompletePage = window.location.pathname === '/refurb/complete';
   tbody.innerHTML = '<tr><td colspan="20" style="padding:8px">Loading…</td></tr>';
 
   try {
-    const res = await fetch('/api/refurb?view=active', { cache: 'no-store' });
+    const res = await fetch('/api/refurb?view=complete', { cache: 'no-store' });
     const data = await res.json();
 
     let items = Array.isArray(data) ? data : [];

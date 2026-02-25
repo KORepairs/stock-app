@@ -516,6 +516,7 @@ function syncViewUI() {
         ...baseCols,
         {
           label: 'CPU',
+          thClass: 'col-cpu',
           render: (item) => `
             <input data-id="${item.id}" class="cpuInp" type="text"
               value="${esc(item.cpu || '')}" placeholder="e.g. i5-10210U">
@@ -523,6 +524,7 @@ function syncViewUI() {
         },
         {
           label: 'Notes',
+          thClass: 'col-notes',
           render: (item) => `
             <input data-id="${item.id}" class="notesInp" type="text"
               value="${esc(item.notes || '')}">

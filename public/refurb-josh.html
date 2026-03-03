@@ -120,19 +120,12 @@ th, td { overflow: hidden; text-overflow: ellipsis; }
         <div>
             <label style="display:block;font-size:12px;opacity:.7;margin-bottom:4px;">View</label>
             <select id="fView">
+            <option value="all">All</option>    
             <option value="computer">Laptop + PC</option>
             <option value="phone">Phones</option>
             <option value="tablet">Tablets</option>
             <option value="console">Consoles</option>
             </select>
-        </div>
-
-        <div>
-            <label style="display:block;font-size:12px;opacity:.7;margin-bottom:4px;">Status</label>
-            <select class="statusSel">
-  <option value="complete">Complete</option>
-  <option value="sold">Sold</option>
-</select>
         </div>
 
 
@@ -457,6 +450,10 @@ function syncViewUI() {
     <button type="button" class="backQueueBtn" data-id="${item.id}">Back to queue</button>
   `
 };
+
+if (view === 'all') {
+  return { categories: ['laptop','pc','phone','tablet','console'], cols: [...baseCols,] };
+}
   if (view === 'computer') {
     return {
       categories: ['laptop', 'pc'],
@@ -557,10 +554,8 @@ function renderRefurbTable(items) {
   </tr>
 `).join('');
 
-  wireRefurbDropdowns();
-  wireRefurbRowSaves();
-  wireRefurbDeletes();
   wireRefurbDetails();
+  wireBackToQueueButtons();
 }
 
 

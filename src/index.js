@@ -229,6 +229,29 @@ app.get('/api/products/:id', async (req, res) => {
   }
 });
 
+// Move a Josh item back to refurb queue
+app.put('/api/refurb/:id/back-to-queue', async (req, res) => {
+  try {
+    const id = Number(req.params.id);
+    if (!Number.isFinite(id)) return res.status(400).json({ error: 'bad id' });
+
+    const { rows } = await pgQuery(
+      `UPDATE refurb_items
+       SET status = 'refurb'
+       WHERE id = $1
+       RETURNING *;`,
+      [id]
+    );
+
+    if (!rows[0]) return res.status(404).json({ error: 'not found' });
+
+    res.json({ ok: true, item: rows[0] });
+  } catch (e) {
+    console.error(e);
+    res.status(500).json({ error: 'Failed to move back to queue' });
+  }
+});
+
 // Move a retired refurb item back into the refurb queue
 app.put('/api/refurb/:id/unretire', async (req, res) => {
   try {

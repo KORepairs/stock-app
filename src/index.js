@@ -647,7 +647,7 @@ app.get('/api/refurb', async (req, res) => {
 if (!view || view === 'active') {
   const { rows } = await pgQuery(
     `SELECT * FROM refurb_items
-     WHERE status NOT IN ('scrapped', 'stripped', 'complete', 'sold')
+     WHERE status NOT IN ('scrapped', 'stripped', 'complete', 'sold', 'josh')
      ORDER BY id DESC;`
   );
   return res.json(rows);
@@ -668,6 +668,16 @@ if (view === 'sold') {
   const { rows } = await pgQuery(
     `SELECT * FROM refurb_items
      WHERE status = 'sold'
+     ORDER BY id DESC;`
+  );
+  return res.json(rows);
+}
+
+// JOSH page
+if (view === 'josh') {
+  const { rows } = await pgQuery(
+    `SELECT * FROM refurb_items
+     WHERE status = 'josh'
      ORDER BY id DESC;`
   );
   return res.json(rows);

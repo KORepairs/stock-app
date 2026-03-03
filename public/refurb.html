@@ -105,10 +105,12 @@
         <div>
             <label style="display:block;font-size:12px;opacity:.7;margin-bottom:4px;">View</label>
             <select id="fView">
-            <option value="computer">Laptop + PC</option>
-            <option value="phone">Phones</option>
-            <option value="tablet">Tablets</option>
-            <option value="console">Consoles</option>
+              <option value="" selected>All</option>
+              <option value="laptop">Laptop</option>
+              <option value="pc">PC</option>
+              <option value="phone">Phone</option>
+              <option value="tablet">Tablet</option>
+              <option value="console">Console</option>
             </select>
         </div>
 
@@ -325,7 +327,7 @@ const isSoldPage = path === '/refurb/sold';
   const fStatus = $('fStatus')?.value || '';
   const fParts = ($('fParts')?.value || '').trim();
 
-  const view = $('fView')?.value || 'computer';
+  const view = $('fView')?.value || '';
   const cfg = getViewConfig(view);
 
   // View-specific filters
@@ -343,14 +345,14 @@ const isSoldPage = path === '/refurb/sold';
     const parts = String(item.parts_status || '').trim();
     const category = (String(item.category || '').trim().toLowerCase() || 'laptop');
 
-    // lock to current view categories
-    if (!cfg.categories.includes(category)) return false;
+    // Only filter by category if a view is selected
+    if (view && !cfg.categories.includes(category)) return false;
 
     if (qSku && !sku.includes(qSku)) return false;
     if (fStatus && status !== fStatus) return false;
     if (fParts && parts !== fParts) return false;
 
-    if (view === 'computer') {
+    if (view === 'laptop' || view === 'pc') {
       const cpu = String(item.cpu || '').trim().toLowerCase();
       if (fCpu && !cpu.includes(fCpu)) return false;
     }
@@ -396,10 +398,10 @@ const isSoldPage = path === '/refurb/sold';
 
 
 function syncViewUI() {
-  const view = $('fView')?.value || 'computer';
+  const view = $('fView')?.value || '';
 
   // Show/hide filter blocks
-  $('filterComputer').style.display = (view === 'computer') ? '' : 'none';
+  $('filterComputer').style.display = (view === 'laptop' || view === 'pc') ? '' : 'none';
   $('filterMobile').style.display   = (view === 'phone' || view === 'tablet') ? '' : 'none';
   $('filterMobile2').style.display  = (view === 'phone' || view === 'tablet') ? '' : 'none';
   $('filterConsole').style.display  = (view === 'console') ? '' : 'none';
@@ -513,29 +515,29 @@ function syncViewUI() {
     `
   };
 
-  if (view === 'computer') {
-    return {
-      categories: ['laptop', 'pc'],
-      cols: [
-        ...baseCols,
-        {
-          label: 'CPU',
-          render: (item) => `
-            <input data-id="${item.id}" class="cpuInp" type="text"
-              value="${esc(item.cpu || '')}" placeholder="e.g. i5-10210U">
-          `
-        },
-        {
-          label: 'Notes',
-          render: (item) => `
-            <input data-id="${item.id}" class="notesInp" type="text"
-              value="${esc(item.notes || '')}">
-          `
-        },
-        actionsCol
-      ]
-    };
-  }
+  if (view === 'laptop' || view === 'pc') {
+  return {
+    categories: [view],
+    cols: [
+      ...baseCols,
+      {
+        label: 'CPU',
+        render: (item) => `
+          <input data-id="${item.id}" class="cpuInp" type="text"
+            value="${esc(item.cpu || '')}" placeholder="e.g. i5-10210U">
+        `
+      },
+      {
+        label: 'Notes',
+        render: (item) => `
+          <input data-id="${item.id}" class="notesInp" type="text"
+            value="${esc(item.notes || '')}">
+        `
+      },
+      actionsCol
+    ]
+  };
+}
 
   if (view === 'phone' || view === 'tablet') {
     return {
@@ -699,7 +701,7 @@ function renderRefurbTable(items) {
       const retailEl = row.querySelector('.retailInp');
 
 
-      const view = $('fView')?.value || 'computer';
+      const view = $('fView')?.value || '';
 
       // Base payload (always save these)
       const body = {

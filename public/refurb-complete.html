@@ -717,6 +717,16 @@ if (path === '/refurb/sold' && updatedRow.status !== 'sold') {
         const updatedRow = await res.json();
         updateLocalRefurb(updatedRow);
 
+        const path = window.location.pathname;
+
+if (path === '/refurb/complete' && updatedRow.status !== 'complete') {
+  removeLocalRefurb(updatedRow.id);
+}
+
+if (path === '/refurb/sold' && updatedRow.status !== 'sold') {
+  removeLocalRefurb(updatedRow.id);
+}
+
         if (updatedRow.status === 'scrapped' || updatedRow.status === 'stripped') {
           removeLocalRefurb(updatedRow.id);
         }

@@ -445,6 +445,7 @@ function syncViewUI() {
 
   const actionsCol = {
   label: 'Actions',
+  thClass: 'col-actions',
   render: (item) => `
     <button type="button" class="detailBtn" data-id="${item.id}">Details</button>
     <button type="button" class="backQueueBtn" data-id="${item.id}">Back to queue</button>
@@ -452,7 +453,13 @@ function syncViewUI() {
 };
 
 if (view === 'all') {
-  return { categories: ['laptop','pc','phone','tablet','console'], cols: [...baseCols,] };
+  return {
+    categories: ['laptop','pc','phone','tablet','console'],
+    cols: [
+      ...baseCols,
+      actionsCol
+    ]
+  };
 }
   if (view === 'computer') {
     return {
@@ -769,27 +776,6 @@ if (path === '/refurb/sold' && updatedRow.status !== 'sold') {
   });
 }
 
-document.querySelectorAll('.backQueueBtn').forEach(btn => {
-  btn.addEventListener('click', async () => {
-    const id = btn.dataset.id;
-    if (!confirm('Move this item back to the refurb queue?')) return;
-
-    try {
-      const res = await fetch(`/api/refurb/${id}/back-to-queue`, {
-        method: 'PUT',
-        headers: { 'Content-Type': 'application/json' }
-      });
-
-      const text = await res.text();
-      if (!res.ok) throw new Error(text);
-
-      // remove row immediately so it "moves"
-      btn.closest('tr').remove();
-    } catch (e) {
-      alert('Failed: ' + e.message);
-    }
-  });
-});
 
 ['fSku','fStatus','fParts','fCpu','fColour','fStorage','fStorageConsole','fController'].forEach(id => {
   const el = document.getElementById(id);

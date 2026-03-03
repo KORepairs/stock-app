@@ -437,19 +437,7 @@ function syncViewUI() {
         </select>
       `
     },
-    {
-      label: 'Status',
-      thClass: 'col-status', // ✅ add this
-      render: (item) => `
-        <span class="pill ${statusPillClass(item.status)}">
-          <select data-id="${item.id}" class="statusSel">
-            <option value="complete" ${item.status==='complete'?'selected':''}>Complete</option>
-            <option value="sold"     ${item.status==='sold'?'selected':''}>Sold</option>
-            <option value="refurb"   ${item.status==='refurb'?'selected':''}>Refurb</option>
-            </select>
-        </span>
-      `
-    },
+    
     
     {
       label: 'Retail (£)',
@@ -463,14 +451,12 @@ function syncViewUI() {
   ];
 
   const actionsCol = {
-    label: 'Actions',
-    thClass: 'col-actions', // ✅ add this
-    render: (item) => `
-      <button type="button" class="detailBtn" data-id="${item.id}">Details</button>
-      <button type="button" class="saveRowBtn" data-id="${item.id}">Save</button>
-      <button type="button" class="deleteRowBtn" data-id="${item.id}" style="margin-left:6px;">Delete</button>
-    `
-  };
+  label: 'Actions',
+  render: (item) => `
+    <button type="button" class="detailBtn" data-id="${item.id}">Details</button>
+    <button type="button" class="backQueueBtn" data-id="${item.id}">Back to queue</button>
+  `
+};
   if (view === 'computer') {
     return {
       categories: ['laptop', 'pc'],
@@ -787,6 +773,28 @@ if (path === '/refurb/sold' && updatedRow.status !== 'sold') {
     });
   });
 }
+
+document.querySelectorAll('.backQueueBtn').forEach(btn => {
+  btn.addEventListener('click', async () => {
+    const id = btn.dataset.id;
+    if (!confirm('Move this item back to the refurb queue?')) return;
+
+    try {
+      const res = await fetch(`/api/refurb/${id}/back-to-queue`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' }
+      });
+
+      const text = await res.text();
+      if (!res.ok) throw new Error(text);
+
+      // remove row immediately so it "moves"
+      btn.closest('tr').remove();
+    } catch (e) {
+      alert('Failed: ' + e.message);
+    }
+  });
+});
 
 ['fSku','fStatus','fParts','fCpu','fColour','fStorage','fStorageConsole','fController'].forEach(id => {
   const el = document.getElementById(id);

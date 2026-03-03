@@ -444,13 +444,10 @@ function syncViewUI() {
       render: (item) => `
         <span class="pill ${statusPillClass(item.status)}">
           <select data-id="${item.id}" class="statusSel">
-            <option value="strip"     ${item.status==='strip'?'selected':''}>Strip</option>
-            <option value="stripped"  ${item.status==='stripped'?'selected':''}>Stripped</option>
-            <option value="refurb"    ${item.status==='refurb'?'selected':''}>Refurb</option>
-            <option value="scrap"     ${item.status==='scrap'?'selected':''}>Scrap</option>
-            <option value="scrapped"  ${item.status==='scrapped'?'selected':''}>Scrapped</option>
-            <option value="complete"  ${item.status==='complete'?'selected':''}>Complete</option>
-          </select>
+            <option value="complete" ${item.status==='complete'?'selected':''}>Complete</option>
+            <option value="sold"     ${item.status==='sold'?'selected':''}>Sold</option>
+            <option value="refurb"   ${item.status==='refurb'?'selected':''}>Refurb</option>
+            </select>
         </span>
       `
     },
@@ -638,6 +635,17 @@ function renderRefurbTable(items) {
         // ✅ IMPORTANT: update the in-memory list so rerender doesn't snap back
         const updatedRow = await res.json();
         updateLocalRefurb(updatedRow);
+
+        const path = window.location.pathname;
+
+if (path === '/refurb/complete' && updatedRow.status !== 'complete') {
+  removeLocalRefurb(updatedRow.id);
+}
+
+if (path === '/refurb/sold' && updatedRow.status !== 'sold') {
+  removeLocalRefurb(updatedRow.id);
+}
+
 
         if (updatedRow.status === 'scrapped' || updatedRow.status === 'stripped') {
           removeLocalRefurb(updatedRow.id);

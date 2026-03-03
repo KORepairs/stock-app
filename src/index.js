@@ -123,6 +123,7 @@ app.get('/refurb/add',  (req, res) => res.sendFile(path.join(PUBLIC_DIR, 'refurb
 app.get('/refurb/list', (req, res) => res.sendFile(path.join(PUBLIC_DIR, 'refurb.html')));
 app.get('/refurb/retired', (req, res) => res.sendFile(path.join(PUBLIC_DIR, 'refurb-retired.html')));
 app.get('/refurb/:id', (req, res) => res.sendFile(path.join(PUBLIC_DIR, 'refurb-detail.html')));
+app.get('/refurb/josh', (req, res) => res.sendFile(path.join(PUBLIC_DIR, 'refurb-josh.html')));
 app.get('/tradein',        (req, res) => res.sendFile(path.join(PUBLIC_DIR, 'tradein.html')));
 app.get('/tradeins',       (req, res) => res.sendFile(path.join(PUBLIC_DIR, 'tradeins.html')));
 app.get('/report-sales',   (req, res) => {res.sendFile(path.join(__dirname, '..', 'public', 'report-sales.html'));});

@@ -474,20 +474,6 @@ function syncViewUI() {
         </span>
       `
     },
-    {
-      label: 'Parts',
-      thClass: 'col-parts',
-      render: (item) => `
-        <span class="pill ${partsPillClass(item.parts_status)}">
-          <select data-id="${item.id}" class="partsSel">
-            <option value="none" ${item.parts_status==='none'?'selected':''}>None</option>
-            <option value="needs_parts" ${item.parts_status==='needs_parts'?'selected':''}>Needs parts</option>
-            <option value="awaiting_parts" ${item.parts_status==='awaiting_parts'?'selected':''}>Awaiting parts</option>
-            <option value="has_parts" ${item.parts_status==='has_parts'?'selected':''}>Has parts</option>
-          </select>
-        </span>
-      `
-    },
 
     {
   label: 'Retail (£)',

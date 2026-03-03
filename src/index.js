@@ -228,6 +228,29 @@ app.get('/api/products/:id', async (req, res) => {
   }
 });
 
+// Move a retired refurb item back into the refurb queue
+app.put('/api/refurb/:id/unretire', async (req, res) => {
+  try {
+    const id = Number(req.params.id);
+    if (!Number.isFinite(id)) return res.status(400).json({ error: 'Invalid id' });
+
+    // set it back to refurb queue
+    const { rows } = await pgQuery(
+      `UPDATE refurb_items
+       SET status = 'refurb'
+       WHERE id = $1
+       RETURNING *;`,
+      [id]
+    );
+
+    if (!rows.length) return res.status(404).json({ error: 'Not found' });
+    return res.json(rows[0]);
+  } catch (err) {
+    console.error('unretire failed:', err);
+    res.status(500).json({ error: 'Failed to move item back to refurb' });
+  }
+});
+
 
 // Update (normalized, clears notes when blank) - Postgres
 app.put('/api/products/:id', async (req, res) => {

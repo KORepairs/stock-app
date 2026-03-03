@@ -25,10 +25,11 @@
             <th>Description</th>
             <th>Supplier</th>
             <th>Created</th>
+            <th>Actions</th>
           </tr>
         </thead>
         <tbody id="tb">
-          <tr><td colspan="5" style="padding:8px">Loading…</td></tr>
+          <tr><td colspan="6" style="padding:8px">Loading…</td></tr>
         </tbody>
       </table>
     </div>
@@ -45,7 +46,7 @@
       const rows = await res.json();
 
       if (!Array.isArray(rows) || rows.length === 0) {
-        tb.innerHTML = `<tr><td colspan="5" style="padding:8px">No retired items.</td></tr>`;
+        tb.innerHTML = `<tr><td colspan="6" style="padding:8px">No retired items.</td></tr>`;
         return;
       }
 
@@ -56,11 +57,32 @@
           <td>${esc(r.description || '')}</td>
           <td>${esc(r.supplier || '')}</td>
           <td>${r.created_at ? esc(new Date(r.created_at).toLocaleString()) : ''}</td>
+          <td>
+            <button class="unretireBtn" data-id="${r.id}">Move to refurb</button>
+          </td>
         </tr>
       `).join('');
+
+      // wire up buttons
+      tb.querySelectorAll('.unretireBtn').forEach(btn => {
+        btn.addEventListener('click', async () => {
+          const id = btn.dataset.id;
+          if (!confirm('Move this item back to the refurb queue?')) return;
+
+          try {
+            const res = await fetch(`/api/refurb/${id}/unretire`, { method: 'PUT' });
+            const text = await res.text();
+            if (!res.ok) throw new Error(text);
+
+            btn.closest('tr').remove();
+          } catch (e) {
+            alert('Failed to move item: ' + e.message);
+          }
+        });
+      });
     } catch (e) {
       console.error(e);
-      tb.innerHTML = `<tr><td colspan="5" style="padding:8px;color:#900">Failed to load.</td></tr>`;
+      tb.innerHTML = `<tr><td colspan="6" style="padding:8px;color:#900">Failed to load.</td></tr>`;
     }
   }
 

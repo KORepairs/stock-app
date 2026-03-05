@@ -147,10 +147,12 @@
         <div>
             <label style="display:block;font-size:12px;opacity:.7;margin-bottom:4px;">View</label>
             <select id="fView">
-            <option value="computer">Laptop + PC</option>
-            <option value="phone">Phones</option>
-            <option value="tablet">Tablets</option>
-            <option value="console">Consoles</option>
+                <option value="all" selected>All</option>
+                <option value="laptop">Laptops</option>
+                <option value="pc">PCs</option>
+                <option value="phone">Phones</option>
+                <option value="tablet">Tablets</option>
+                <option value="console">Consoles</option>
             </select>
         </div>
 
@@ -346,7 +348,7 @@ const isSoldPage = path === '/refurb/sold';
   const fStatus = $('fStatus')?.value || '';
   const fParts = ($('fParts')?.value || '').trim();
 
-  const view = $('fView')?.value || 'computer';
+  const view = $('fView')?.value || 'all';
   const cfg = getViewConfig(view);
 
   // View-specific filters
@@ -371,9 +373,9 @@ const isSoldPage = path === '/refurb/sold';
     if (fStatus && status !== fStatus) return false;
     if (fParts && parts !== fParts) return false;
 
-    if (view === 'computer') {
-      const cpu = String(item.cpu || '').trim().toLowerCase();
-      if (fCpu && !cpu.includes(fCpu)) return false;
+    if (view === 'all' || view === 'laptop' || view === 'pc') {
+        const cpu = String(item.cpu || '').trim().toLowerCase();
+        if (fCpu && !cpu.includes(fCpu)) return false;
     }
 
     if (view === 'phone' || view === 'tablet') {
@@ -417,12 +419,17 @@ const isSoldPage = path === '/refurb/sold';
 
 
 function syncViewUI() {
-  const view = $('fView')?.value || 'computer';
+  const view = $('fView')?.value || 'all';
 
-  // Show/hide filter blocks
-  $('filterComputer').style.display = (view === 'computer') ? '' : 'none';
+  // CPU filter: show for All/Laptops/PCs
+  $('filterComputer').style.display =
+    (view === 'all' || view === 'laptop' || view === 'pc') ? '' : 'none';
+
+  // Phone/Tablet filters
   $('filterMobile').style.display   = (view === 'phone' || view === 'tablet') ? '' : 'none';
   $('filterMobile2').style.display  = (view === 'phone' || view === 'tablet') ? '' : 'none';
+
+  // Console filters
   $('filterConsole').style.display  = (view === 'console') ? '' : 'none';
   $('filterConsole2').style.display = (view === 'console') ? '' : 'none';
 }
@@ -501,31 +508,35 @@ function syncViewUI() {
   `
 };
 
-  if (view === 'computer') {
-    return {
-      categories: ['laptop', 'pc'],
-      cols: [
-        ...baseCols,
-        {
-          label: 'CPU',
-          thClass: 'col-cpu',
-          render: (item) => `
-            <input data-id="${item.id}" class="cpuInp" type="text"
-              value="${esc(item.cpu || '')}" placeholder="e.g. i5-10210U">
-          `
-        },
-        {
-          label: 'Notes',
-          thClass: 'col-notes',
-          render: (item) => `
-            <input data-id="${item.id}" class="notesInp" type="text"
-              value="${esc(item.notes || '')}">
-          `
-        },
-        actionsCol
-      ]
-    };
-  }
+  // All/Laptop/PC use the "computer" style columns (CPU + Notes)
+if (view === 'all' || view === 'laptop' || view === 'pc') {
+  return {
+    categories:
+      view === 'all'
+        ? ['laptop','pc','phone','tablet','console']
+        : [view], // laptop OR pc
+    cols: [
+      ...baseCols,
+      {
+        label: 'CPU',
+        thClass: 'col-cpu',
+        render: (item) => `
+          <input data-id="${item.id}" class="cpuInp" type="text"
+            value="${esc(item.cpu || '')}" placeholder="e.g. i5-10210U">
+        `
+      },
+      {
+        label: 'Notes',
+        thClass: 'col-notes',
+        render: (item) => `
+          <input data-id="${item.id}" class="notesInp" type="text"
+            value="${esc(item.notes || '')}">
+        `
+      },
+      actionsCol
+    ]
+  };
+}
 
   if (view === 'phone' || view === 'tablet') {
     return {
@@ -698,7 +709,7 @@ if (path === '/refurb/sold' && updatedRow.status !== 'sold') {
       const retailEl = row.querySelector('.retailInp');
 
 
-      const view = $('fView')?.value || 'computer';
+      const view = $('fView')?.value || 'all';
 
       // Base payload (always save these)
       const body = {
@@ -710,15 +721,12 @@ if (path === '/refurb/sold' && updatedRow.status !== 'sold') {
 
       body.retail = retailEl ? Number(retailEl.value || 0) : 0;
 
-      // View-specific fields
-      if (view === 'computer') {
+      if (view === 'all' || view === 'laptop' || view === 'pc') {
         const cpuEl   = row.querySelector('.cpuInp');
         const notesEl = row.querySelector('.notesInp');
         body.cpu   = cpuEl?.value.trim() || null;
         body.notes = notesEl?.value.trim() || null;
-        
-
-      }
+    }
 
       if (view === 'phone' || view === 'tablet') {
         const colourEl  = row.querySelector('.colourInp');

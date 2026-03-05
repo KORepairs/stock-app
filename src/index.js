@@ -812,6 +812,14 @@ app.put('/api/refurb/:id/detail', async (req, res) => {
       ]
     );
 
+    // also sync CPU back to refurb_items table
+    if (specs_cpu !== undefined) {
+      await pgQuery(
+        `UPDATE refurb_items SET cpu = $2 WHERE id = $1`,
+        [Number(id), specs_cpu]
+      );
+    }
+
     res.json(rows[0]);
   } catch (err) {
     console.error('refurb detail save error:', err);
@@ -976,6 +984,19 @@ const categoryToUse = (category ?? null) || autoCat;
 
     const result  = await pgQuery(query, values);
     const updated = result.rows[0];
+
+    // keep refurb_details.specs_cpu synced with refurb_items.cpu
+    if (cpu !== undefined && cpu !== null) {
+      await pgQuery(
+        `
+        INSERT INTO refurb_details (refurb_id, specs_cpu, updated_at)
+        VALUES ($1, $2, NOW())
+        ON CONFLICT (refurb_id)
+        DO UPDATE SET specs_cpu = EXCLUDED.specs_cpu, updated_at = NOW()
+        `,
+        [Number(id), cpu]
+      );
+    }
 
     const newStatus = updated.status;
     const skuToUse  = updated.sku;

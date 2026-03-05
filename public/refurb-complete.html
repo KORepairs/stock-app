@@ -121,19 +121,21 @@ th, td { overflow: hidden; text-overflow: ellipsis; }
         <div>
             <label style="display:block;font-size:12px;opacity:.7;margin-bottom:4px;">View</label>
             <select id="fView">
-            <option value="computer">Laptop + PC</option>
-            <option value="phone">Phones</option>
-            <option value="tablet">Tablets</option>
-            <option value="console">Consoles</option>
+                <option value="all" selected>All</option>
+                <option value="laptop">Laptops</option>
+                <option value="pc">PCs</option>
+                <option value="phone">Phones</option>
+                <option value="tablet">Tablets</option>
+                <option value="console">Consoles</option>
             </select>
         </div>
 
         <div>
             <label style="display:block;font-size:12px;opacity:.7;margin-bottom:4px;">Status</label>
             <select class="statusSel">
-  <option value="complete">Complete</option>
-  <option value="sold">Sold</option>
-</select>
+            <option value="complete">Complete</option>
+            <option value="sold">Sold</option>
+            </select>
         </div>
 
 
@@ -349,9 +351,9 @@ const isCompletePage = window.location.pathname === '/refurb/complete';
     if (fStatus && status !== fStatus) return false;
     if (fParts && parts !== fParts) return false;
 
-    if (view === 'computer') {
-      const cpu = String(item.cpu || '').trim().toLowerCase();
-      if (fCpu && !cpu.includes(fCpu)) return false;
+    if (view === 'all' || view === 'laptop' || view === 'pc') {
+        const cpu = String(item.cpu || '').trim().toLowerCase();
+        if (fCpu && !cpu.includes(fCpu)) return false;
     }
 
     if (view === 'phone' || view === 'tablet') {
@@ -398,7 +400,7 @@ function syncViewUI() {
   const view = $('fView')?.value || 'computer';
 
   // Show/hide filter blocks
-  $('filterComputer').style.display = (view === 'computer') ? '' : 'none';
+  $('filterComputer').style.display = (view === 'all' || view === 'laptop' || view === 'pc') ? '' : 'none';
   $('filterMobile').style.display   = (view === 'phone' || view === 'tablet') ? '' : 'none';
   $('filterMobile2').style.display  = (view === 'phone' || view === 'tablet') ? '' : 'none';
   $('filterConsole').style.display  = (view === 'console') ? '' : 'none';
@@ -419,7 +421,7 @@ function syncViewUI() {
     },
     {
       label: 'Description',
-      thClass: 'col-desc',   // ✅ add this
+      thClass: 'col-desc',
       render: (item) => `
         <input data-id="${item.id}" class="descInp" type="text"
           value="${esc(item.description || '')}" placeholder="Description">
@@ -427,7 +429,7 @@ function syncViewUI() {
     },
     {
       label: 'Category',
-      thClass: 'col-cat',    // ✅ add this
+      thClass: 'col-cat',
       render: (item) => `
         <select data-id="${item.id}" class="catSel">
           <option value="laptop" ${item.category==='laptop'?'selected':''}>Laptop</option>
@@ -440,18 +442,17 @@ function syncViewUI() {
     },
     {
       label: 'Status',
-      thClass: 'col-status', // ✅ add this
+      thClass: 'col-status',
       render: (item) => `
         <span class="pill ${statusPillClass(item.status)}">
           <select data-id="${item.id}" class="statusSel">
             <option value="complete" ${item.status==='complete'?'selected':''}>Complete</option>
             <option value="sold"     ${item.status==='sold'?'selected':''}>Sold</option>
             <option value="refurb"   ${item.status==='refurb'?'selected':''}>Refurb</option>
-            </select>
+          </select>
         </span>
       `
     },
-    
     {
       label: 'Retail (£)',
       thClass: 'col-retail',
@@ -465,20 +466,23 @@ function syncViewUI() {
 
   const actionsCol = {
     label: 'Actions',
-    thClass: 'col-actions', // ✅ add this
+    thClass: 'col-actions',
     render: (item) => `
       <button type="button" class="detailBtn" data-id="${item.id}">Details</button>
       <button type="button" class="saveRowBtn" data-id="${item.id}">Save</button>
       <button type="button" class="deleteRowBtn" data-id="${item.id}" style="margin-left:6px;">Delete</button>
     `
   };
-  if (view === 'computer') {
+
+  // ✅ ALL view (matches main refurb page behaviour)
+  if (view === 'all') {
     return {
-      categories: ['laptop', 'pc'],
+      categories: ['laptop','pc','phone','tablet','console'],
       cols: [
         ...baseCols,
         {
           label: 'CPU',
+          thClass: 'col-cpu',
           render: (item) => `
             <input data-id="${item.id}" class="cpuInp" type="text"
               value="${esc(item.cpu || '')}" placeholder="e.g. i5-10210U">
@@ -486,6 +490,61 @@ function syncViewUI() {
         },
         {
           label: 'Notes',
+          thClass: 'col-notes',
+          render: (item) => `
+            <input data-id="${item.id}" class="notesInp" type="text"
+              value="${esc(item.notes || '')}">
+          `
+        },
+        actionsCol
+      ]
+    };
+  }
+
+  // ✅ Laptops only
+  if (view === 'laptop') {
+    return {
+      categories: ['laptop'],
+      cols: [
+        ...baseCols,
+        {
+          label: 'CPU',
+          thClass: 'col-cpu',
+          render: (item) => `
+            <input data-id="${item.id}" class="cpuInp" type="text"
+              value="${esc(item.cpu || '')}" placeholder="e.g. i5-10210U">
+          `
+        },
+        {
+          label: 'Notes',
+          thClass: 'col-notes',
+          render: (item) => `
+            <input data-id="${item.id}" class="notesInp" type="text"
+              value="${esc(item.notes || '')}">
+          `
+        },
+        actionsCol
+      ]
+    };
+  }
+
+  // ✅ PCs only
+  if (view === 'pc') {
+    return {
+      categories: ['pc'],
+      cols: [
+        ...baseCols,
+        {
+          label: 'CPU',
+          thClass: 'col-cpu',
+          render: (item) => `
+            <input data-id="${item.id}" class="cpuInp" type="text"
+              value="${esc(item.cpu || '')}" placeholder="e.g. i5-10400">
+          `
+        },
+        {
+          label: 'Notes',
+          thClass: 'col-notes',
           render: (item) => `
             <input data-id="${item.id}" class="notesInp" type="text"
               value="${esc(item.notes || '')}">
@@ -680,7 +739,7 @@ if (path === '/refurb/sold' && updatedRow.status !== 'sold') {
       body.retail = retailEl ? Number(retailEl.value || 0) : 0;
 
       // View-specific fields
-      if (view === 'computer') {
+      if (view === 'all' || view === 'laptop' || view === 'pc') {
         const cpuEl   = row.querySelector('.cpuInp');
         const notesEl = row.querySelector('.notesInp');
         body.cpu   = cpuEl?.value.trim() || null;

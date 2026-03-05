@@ -136,67 +136,71 @@
 
     <h2 style="margin-top:0">Sold Refurb Items</h2>
 
-    <button onclick="location.href='/refurb/complete'">
-        Back to complete
-    </button>
+<!-- Row 1: Back button on its own -->
+<div style="margin:10px 0 12px;">
+  <a href="/refurb/complete"><button type="button">Back to complete</button></a>
+</div>
 
-        <div class="filters" style="display:flex;gap:10px;flex-wrap:wrap;align-items:flex-end;margin:12px 0 14px;">
-            <label style="display:block;font-size:12px;opacity:.7;margin-bottom:4px;">Search SKU</label>
-            <input id="fSku" type="text" placeholder="e.g. L0122" style="min-width:180px;">
-        </div>
+<!-- Row 2: Filters all on one row -->
+<div class="filters" style="display:flex;gap:10px;flex-wrap:wrap;align-items:flex-end;margin:0 0 14px;">
 
-        <div>
-            <label style="display:block;font-size:12px;opacity:.7;margin-bottom:4px;">View</label>
-            <select id="fView">
-                <option value="all" selected>All</option>
-                <option value="laptop">Laptops</option>
-                <option value="pc">PCs</option>
-                <option value="phone">Phones</option>
-                <option value="tablet">Tablets</option>
-                <option value="console">Consoles</option>
-            </select>
-        </div>
+  <div>
+    <label style="display:block;font-size:12px;opacity:.7;margin-bottom:4px;">Search SKU</label>
+    <input id="fSku" type="text" placeholder="e.g. L0122" style="min-width:180px;">
+  </div>
 
-        <div>
-            <label style="display:block;font-size:12px;opacity:.7;margin-bottom:4px;">Status</label>
-            <select class="statusSel">
-  <option value="complete">Complete</option>
-  <option value="sold">Sold</option>
-</select>
-        </div>
+  <div>
+    <label style="display:block;font-size:12px;opacity:.7;margin-bottom:4px;">View</label>
+    <select id="fView">
+      <option value="all" selected>All</option>
+      <option value="laptop">Laptops</option>
+      <option value="pc">PCs</option>
+      <option value="phone">Phones</option>
+      <option value="tablet">Tablets</option>
+      <option value="console">Consoles</option>
+    </select>
+  </div>
 
+  <div>
+    <label style="display:block;font-size:12px;opacity:.7;margin-bottom:4px;">Status</label>
+    <select id="fStatus">
+      <option value="">All</option>
+      <option value="complete">Complete</option>
+      <option value="sold" selected>Sold</option>
+      <option value="refurb">Refurb</option>
+    </select>
+  </div>
 
-        <!-- Computer filter -->
-        <div id="filterComputer">
-            <label style="display:block;font-size:12px;opacity:.7;margin-bottom:4px;">CPU contains</label>
-            <input id="fCpu" type="text" placeholder="e.g. i5 / Ryzen" style="min-width:200px;">
-        </div>
+  <!-- Computer filter -->
+  <div id="filterComputer">
+    <label style="display:block;font-size:12px;opacity:.7;margin-bottom:4px;">CPU contains</label>
+    <input id="fCpu" type="text" placeholder="e.g. i5 / Ryzen" style="min-width:200px;">
+  </div>
 
-        <!-- Phone/Tablet filters -->
-        <div id="filterMobile" style="display:none;">
-            <label style="display:block;font-size:12px;opacity:.7;margin-bottom:4px;">Colour contains</label>
-        <input id="fColour" type="text" placeholder="e.g. Black" style="min-width:160px;">
-        </div>
+  <!-- Phone/Tablet filters -->
+  <div id="filterMobile" style="display:none;">
+    <label style="display:block;font-size:12px;opacity:.7;margin-bottom:4px;">Colour contains</label>
+    <input id="fColour" type="text" placeholder="e.g. Black" style="min-width:160px;">
+  </div>
 
-        <div id="filterMobile2" style="display:none;">
-            <label style="display:block;font-size:12px;opacity:.7;margin-bottom:4px;">Storage contains</label>
-            <input id="fStorage" type="text" placeholder="e.g. 128GB" style="min-width:160px;">
-        </div>
+  <div id="filterMobile2" style="display:none;">
+    <label style="display:block;font-size:12px;opacity:.7;margin-bottom:4px;">Storage contains</label>
+    <input id="fStorage" type="text" placeholder="e.g. 128GB" style="min-width:160px;">
+  </div>
 
-        <!-- Console filters -->
-        <div id="filterConsole" style="display:none;">
-            <label style="display:block;font-size:12px;opacity:.7;margin-bottom:4px;">Storage contains</label>
-            <input id="fStorageConsole" type="text" placeholder="e.g. 1TB" style="min-width:160px;">
-        </div>
+  <!-- Console filters -->
+  <div id="filterConsole" style="display:none;">
+    <label style="display:block;font-size:12px;opacity:.7;margin-bottom:4px;">Storage contains</label>
+    <input id="fStorageConsole" type="text" placeholder="e.g. 1TB" style="min-width:160px;">
+  </div>
 
-        <div id="filterConsole2" style="display:none;">
-            <label style="display:block;font-size:12px;opacity:.7;margin-bottom:4px;">Controller contains</label>
-            <input id="fController" type="text" placeholder="e.g. Yes / No / 2" style="min-width:160px;">
-        </div>
+  <div id="filterConsole2" style="display:none;">
+    <label style="display:block;font-size:12px;opacity:.7;margin-bottom:4px;">Controller contains</label>
+    <input id="fController" type="text" placeholder="e.g. Yes / No / 2" style="min-width:160px;">
+  </div>
 
-        <button id="fClear" type="button" style="height:36px;">Clear</button>
-        </div>
-
+  <button id="fClear" type="button" style="height:36px;">Clear</button>
+</div>
         <div class="table-wrap">
         <table>
             <thead id="refurbThead"></thead>

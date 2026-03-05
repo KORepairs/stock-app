@@ -402,7 +402,7 @@ function syncViewUI() {
   const view = $('fView')?.value || '';
 
   // Show/hide filter blocks
-  $('filterComputer').style.display = (view === 'laptop' || view === 'pc') ? '' : 'none';
+  $('filterComputer').style.display = (view === '' || view === 'laptop' || view === 'pc') ? '' : 'none';
   $('filterMobile').style.display   = (view === 'phone' || view === 'tablet') ? '' : 'none';
   $('filterMobile2').style.display  = (view === 'phone' || view === 'tablet') ? '' : 'none';
   $('filterConsole').style.display  = (view === 'console') ? '' : 'none';
@@ -627,7 +627,7 @@ function renderHeader(cfg) {
 function renderRefurbTable(items) {
   const tbody = $('refurbTbody');
 
-  const view = document.getElementById('fView')?.value || 'computer';
+  const view = document.getElementById('fView')?.value || '';
   const cfg = getViewConfig(view);
 
   // build the header for this view
@@ -741,13 +741,11 @@ function renderRefurbTable(items) {
       body.retail = retailEl ? Number(retailEl.value || 0) : 0;
 
       // View-specific fields
-      if (view === 'computer') {
+      if (view === '' || view === 'laptop' || view === 'pc') {
         const cpuEl   = row.querySelector('.cpuInp');
         const notesEl = row.querySelector('.notesInp');
         body.cpu   = cpuEl?.value.trim() || null;
         body.notes = notesEl?.value.trim() || null;
-        
-
       }
 
       if (view === 'phone' || view === 'tablet') {

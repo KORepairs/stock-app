@@ -517,6 +517,8 @@ function syncViewUI() {
     `
   };
 
+  if (view === 'all') view = 'computer'; // ✅ use laptop/pc columns for All
+
   if (view === 'laptop' || view === 'pc') {
   return {
     categories: [view],

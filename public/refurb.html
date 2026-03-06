@@ -714,9 +714,14 @@ function renderRefurbTable(items) {
         const updatedRow = await res.json();
         updateLocalRefurb(updatedRow);
 
-        if (updatedRow.status === 'scrapped' || updatedRow.status === 'stripped') {
-          removeLocalRefurb(updatedRow.id);
-        }
+        if (
+          updatedRow.status === 'scrapped' ||
+          updatedRow.status === 'stripped' ||
+          updatedRow.status === 'complete' ||
+          updatedRow.status === 'sold'
+        ) {
+                  removeLocalRefurb(updatedRow.id);
+}
 
 
         toast('Updated ✔️', 'ok');
@@ -795,7 +800,12 @@ function renderRefurbTable(items) {
         const updatedRow = await res.json();
         updateLocalRefurb(updatedRow);
 
-        if (updatedRow.status === 'scrapped' || updatedRow.status === 'stripped') {
+        if (
+          updatedRow.status === 'scrapped' ||
+          updatedRow.status === 'stripped' ||
+          updatedRow.status === 'complete' ||
+          updatedRow.status === 'sold'
+        ) {
           removeLocalRefurb(updatedRow.id);
         }
 

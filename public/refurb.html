@@ -665,6 +665,7 @@ function renderRefurbTable(items) {
 
   wireRefurbDropdowns();
   wireRefurbRowSaves();
+  wireRefurbAutoSaveInputs();
   wireRefurbDeletes();
   wireRefurbDetails();
 }
@@ -735,7 +736,39 @@ function renderRefurbTable(items) {
   });
 }
 
+function triggerRowAutoSave(row) {
+  const btn = row?.querySelector('.saveRowBtn');
+  if (!btn || btn.disabled) return;
+  btn.click();
+}
 
+
+function wireRefurbAutoSaveInputs() {
+  const timers = new Map();
+
+  document.querySelectorAll(
+    '.descInp, .retailInp, .cpuInp, .notesInp, .colourInp, .storageInp, .controllerInp'
+  ).forEach(input => {
+    input.addEventListener('input', () => {
+      const row = input.closest('tr');
+      if (!row) return;
+
+      const id = row.querySelector('.saveRowBtn')?.getAttribute('data-id') || Math.random();
+
+      clearTimeout(timers.get(id));
+      const timer = setTimeout(() => {
+        triggerRowAutoSave(row);
+      }, 700); // save after 0.7s pause
+
+      timers.set(id, timer);
+    });
+
+    input.addEventListener('change', () => {
+      const row = input.closest('tr');
+      triggerRowAutoSave(row);
+    });
+  });
+}
 
     function wireRefurbRowSaves() {
   document.querySelectorAll('.saveRowBtn').forEach(btn => {
@@ -810,7 +843,7 @@ function renderRefurbTable(items) {
         }
 
 
-        toast('Row updated ✔️', 'ok');
+        toast('Saved ✔️', 'ok');
         applyFilters();
 
 

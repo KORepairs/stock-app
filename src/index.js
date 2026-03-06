@@ -43,6 +43,7 @@ function categoryFromSkuPrefix(sku) {
   if (p === 'V') return 'phone';
   if (p === 'T' || p === 'Q') return 'tablet';
   if (p === 'H') return 'console';
+  if (p === 'K') return 'monitor';
 
   return null;
 }

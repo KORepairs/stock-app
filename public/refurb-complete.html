@@ -127,6 +127,8 @@ th, td { overflow: hidden; text-overflow: ellipsis; }
                 <option value="phone">Phones</option>
                 <option value="tablet">Tablets</option>
                 <option value="console">Consoles</option>
+                <option value="monitor">Monitor</option>
+
             </select>
         </div>
 
@@ -477,7 +479,7 @@ function syncViewUI() {
   // ✅ ALL view (matches main refurb page behaviour)
   if (view === 'all') {
     return {
-      categories: ['laptop','pc','phone','tablet','console'],
+      categories: ['laptop','pc','phone','tablet','console', 'monitor'],
       cols: [
         ...baseCols,
         {
@@ -578,6 +580,24 @@ function syncViewUI() {
       ]
     };
   }
+
+  if (view === 'monitor') {
+  return {
+    categories: ['monitor'],
+    cols: [
+      ...baseCols,
+      {
+        label: 'Notes',
+        thClass: 'col-notes',
+        render: (item) => `
+          <input data-id="${item.id}" class="notesInp" type="text"
+            value="${esc(item.notes || '')}">
+        `
+      },
+      actionsCol
+    ]
+  };
+}
 
   // console view
   return {

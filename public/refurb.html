@@ -112,6 +112,7 @@
               <option value="phone">Phone</option>
               <option value="tablet">Tablet</option>
               <option value="console">Console</option>
+              <option value="monitor">Monitor</option>
             </select>
         </div>
 
@@ -520,7 +521,7 @@ function syncViewUI() {
   // ALL view (show all categories, but use laptop-style columns)
 if (!view) {
   return {
-    categories: ['laptop', 'pc', 'phone', 'tablet', 'console'],
+    categories: ['laptop', 'pc', 'phone', 'tablet', 'console', 'monitor'],
     cols: [
       ...baseCols,
       {
@@ -589,6 +590,24 @@ if (!view) {
       ]
     };
   }
+
+  if (view === 'monitor') {
+  return {
+    categories: ['monitor'],
+    cols: [
+      ...baseCols,
+      {
+        label: 'Notes',
+        thClass: 'col-notes',
+        render: (item) => `
+          <input data-id="${item.id}" class="notesInp" type="text"
+            value="${esc(item.notes || '')}">
+        `
+      },
+      actionsCol
+    ]
+  };
+}
 
   // console view
   return {

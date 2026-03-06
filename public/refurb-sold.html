@@ -158,6 +158,7 @@
       <option value="phone">Phones</option>
       <option value="tablet">Tablets</option>
       <option value="console">Consoles</option>
+      <option value="monitor">Monitor</option>
     </select>
   </div>
 
@@ -518,7 +519,7 @@ if (view === 'all' || view === 'laptop' || view === 'pc') {
   return {
     categories:
       view === 'all'
-        ? ['laptop','pc','phone','tablet','console']
+        ? ['laptop','pc','phone','tablet','console', 'monitor']
         : [view], // laptop OR pc
     cols: [
       ...baseCols,

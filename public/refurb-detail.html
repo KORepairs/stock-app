@@ -219,6 +219,21 @@
               />
             </div>
 
+            <div>
+  <label>Parts Cost (£)</label>
+  <input id="parts_cost_display" type="text" disabled />
+</div>
+
+<div>
+  <label>Total Cost (£)</label>
+  <input id="total_cost" type="text" disabled />
+</div>
+
+<div>
+  <label>Profit (£)</label>
+  <input id="profit" type="text" disabled />
+</div>
+
             <!-- Row 4 -->
             <div>
               <label>Supplier</label>
@@ -462,6 +477,31 @@
         return rows;
       }
 
+      function updateFinancials() {
+  const cost = Number($("cost").value || 0);
+  const retail = Number($("retail").value || 0);
+  const parts = Number($("parts_cost").value || 0);
+
+  const total = cost + parts;
+  const profit = retail - total;
+
+  $("parts_cost_display").value = parts.toFixed(2);
+  $("total_cost").value = total.toFixed(2);
+
+  const profitEl = $("profit");
+  profitEl.value = profit.toFixed(2);
+
+  // 👇 visual feedback (nice touch)
+  if (profit > 0) {
+    profitEl.style.color = "#2c7a2c"; // green
+  } else if (profit < 0) {
+    profitEl.style.color = "#a52828"; // red
+  } else {
+    profitEl.style.color = "";
+  }
+}
+
+
       function updatePartsTotal() {
         let total = 0;
         document.querySelectorAll(".partCostInp").forEach((el) => {
@@ -470,6 +510,7 @@
 
         document.getElementById("parts_total").textContent = total.toFixed(2);
         document.getElementById("parts_cost").value = total.toFixed(2); // hidden field
+        updateFinancials();
       }
 
       // Checklist keys (stored in JSON)
@@ -900,6 +941,8 @@
       $("addPartBtn")?.addEventListener("click", () => addPartRow());
       $("saveBtn").addEventListener("click", save);
       $("saveDeviceBtn").addEventListener("click", saveDevice);
+      $("cost").addEventListener("input", updateFinancials);
+$("retail").addEventListener("input", updateFinancials);
       window.addEventListener("DOMContentLoaded", load);
     </script>
 

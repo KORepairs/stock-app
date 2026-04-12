@@ -894,6 +894,34 @@ const values = [
   }
 });
 
+app.get('/api/refurb/parts-needed-list', async (req, res) => {
+  try {
+    const { rows } = await pgQuery(
+      `
+      SELECT
+        r.id,
+        r.sku,
+        r.description,
+        r.parts_status,
+        r.supplier,
+        r.notes,
+        COALESCE(d.parts_needed, '') AS parts_needed,
+        COALESCE(d.parts_cost, 0) AS parts_cost
+      FROM refurb_items r
+      LEFT JOIN refurb_details d ON d.refurb_id = r.id
+      WHERE r.parts_status = 'needs_parts'
+        AND r.status NOT IN ('scrapped', 'stripped', 'sold')
+      ORDER BY r.id DESC;
+      `
+    );
+
+    res.json(rows);
+  } catch (err) {
+    console.error('Error fetching parts needed list:', err);
+    res.status(500).json({ error: 'Failed to fetch parts needed list' });
+  }
+});
+
 
 // Update refurb item + if marked complete, sync with products by SKU
 app.put('/api/refurb/:id', async (req, res) => {

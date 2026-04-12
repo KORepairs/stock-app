@@ -323,6 +323,17 @@
           </div>
         </div>
 
+        <div class="card">
+  <h2 style="margin: 0 0 10px">Parts to order</h2>
+  <div class="muted">Items marked as needs parts with parts listed in the detail page.</div>
+
+  <div class="list" id="partsOrderList">
+    <div class="listItem">
+      <div>Loading…</div>
+    </div>
+  </div>
+</div>
+
         <!-- ACTION NEEDED -->
         <div class="card">
           <h2 style="margin: 0 0 10px">Action needed</h2>
@@ -449,6 +460,43 @@
           x.addEventListener("click", () => (window.location.href = link));
         });
       }
+
+      function renderPartsOrderList(items) {
+  const wrap = $("partsOrderList");
+  if (!wrap) return;
+
+  if (!items || !items.length) {
+    wrap.innerHTML = `
+      <div class="listItem" style="cursor:default">
+        <div>
+          <strong>Nothing to order ✅</strong>
+          <div class="muted">No items currently marked as needs parts.</div>
+        </div>
+      </div>
+    `;
+    return;
+  }
+
+  wrap.innerHTML = items.map(item => `
+    <div class="listItem" data-link="/refurb/${item.id}">
+      <div>
+        <strong>${item.sku || ''} — ${item.description || ''}</strong>
+        <div class="muted">${item.parts_needed || 'No parts listed'}</div>
+        <div class="muted">Supplier: ${item.supplier || '—'}</div>
+      </div>
+      <div class="right">
+        <strong>£${Number(item.parts_cost || 0).toFixed(2)}</strong>
+        <div class="muted">open</div>
+      </div>
+    </div>
+  `).join("");
+
+  wrap.querySelectorAll(".listItem").forEach(x => {
+    const link = x.getAttribute("data-link");
+    if (!link) return;
+    x.addEventListener("click", () => (window.location.href = link));
+  });
+}
 
       // ✅ Dashboard loader (uses your existing endpoints)
       async function loadDashboard() {
@@ -592,6 +640,19 @@
             link: "/products/list?ebay_status=not_listed",
           });
         }
+
+        // 🔧 Parts to order list
+let partsNeededItems = [];
+
+try {
+  const partsRes = await fetch('/api/refurb/parts-needed-list', {
+    cache: 'no-store',
+  });
+  const partsJson = await partsRes.json();
+  partsNeededItems = Array.isArray(partsJson) ? partsJson : [];
+} catch {}
+
+renderPartsOrderList(partsNeededItems);
 
         renderActions(actions);
       }

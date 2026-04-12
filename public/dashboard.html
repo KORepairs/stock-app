@@ -477,19 +477,52 @@
     return;
   }
 
-  wrap.innerHTML = items.map(item => `
-    <div class="listItem" data-link="/refurb/${item.id}">
-      <div>
-        <strong>${item.sku || ''} — ${item.description || ''}</strong>
-        <div class="muted">${item.parts_needed || 'No parts listed'}</div>
-        <div class="muted">Supplier: ${item.supplier || '—'}</div>
+  function parseParts(partsNeeded) {
+    if (!partsNeeded) return [];
+
+    if (Array.isArray(partsNeeded)) return partsNeeded;
+
+    if (typeof partsNeeded === "string") {
+      try {
+        const parsed = JSON.parse(partsNeeded);
+        return Array.isArray(parsed) ? parsed : [];
+      } catch {
+        return [];
+      }
+    }
+
+    return [];
+  }
+
+  wrap.innerHTML = items.map(item => {
+    const parts = parseParts(item.parts_needed);
+
+    const lines = parts.length
+      ? parts.map(p => {
+          const part = (p.part || '').trim();
+          const code = (p.code || '').trim();
+          return `
+            <div class="muted">
+              ${part || 'Unnamed part'}${code ? ` - ${code}` : ''}
+            </div>
+          `;
+        }).join('')
+      : `<div class="muted">No parts listed</div>`;
+
+    return `
+      <div class="listItem" data-link="/refurb/${item.id}">
+        <div>
+          <strong>${item.sku || ''} — ${item.description || ''}</strong>
+          ${lines}
+          <div class="muted">Supplier: ${item.supplier || '—'}</div>
+        </div>
+        <div class="right">
+          <strong>£${Number(item.parts_cost || 0).toFixed(2)}</strong>
+          <div class="muted">open</div>
+        </div>
       </div>
-      <div class="right">
-        <strong>£${Number(item.parts_cost || 0).toFixed(2)}</strong>
-        <div class="muted">open</div>
-      </div>
-    </div>
-  `).join("");
+    `;
+  }).join("");
 
   wrap.querySelectorAll(".listItem").forEach(x => {
     const link = x.getAttribute("data-link");

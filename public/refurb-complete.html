@@ -134,10 +134,12 @@ th, td { overflow: hidden; text-overflow: ellipsis; }
 
         <div>
             <label style="display:block;font-size:12px;opacity:.7;margin-bottom:4px;">Status</label>
-            <select class="statusSel">
-            <option value="complete">Complete</option>
-            <option value="sold">Sold</option>
-            </select>
+            <select id="fStatus">
+  <option value="">All</option>
+  <option value="complete">Complete</option>
+  <option value="sold">Sold</option>
+  <option value="refurb">Refurb</option>
+</select>
         </div>
 
 
@@ -672,22 +674,27 @@ function renderRefurbTable(items) {
       const row = sel.closest('tr');
 
       const statusSel = row.querySelector('.statusSel');
-      const partsSel  = row.querySelector('.partsSel');
+const partsSel  = row.querySelector('.partsSel');
 
-      // ✅ update pill colours immediately
-      const statusPill = statusSel.closest('.pill');
-      const partsPill  = partsSel.closest('.pill');
+// update pill colours immediately
+const statusPill = statusSel?.closest('.pill');
+const partsPill  = partsSel?.closest('.pill');
 
-      statusPill.className = `pill ${statusPillClass(statusSel.value)}`;
-      partsPill.className  = `pill ${partsPillClass(partsSel.value)}`;
+if (statusPill) {
+  statusPill.className = `pill ${statusPillClass(statusSel.value)}`;
+}
+
+if (partsPill && partsSel) {
+  partsPill.className = `pill ${partsPillClass(partsSel.value)}`;
+}
 
       const catSel = row.querySelector('.catSel');
 
       const body = {
-        status: statusSel.value,
-        parts_status: partsSel.value,
-        category: catSel?.value || null
-      };
+  status: statusSel?.value || null,
+  parts_status: partsSel?.value || null,
+  category: catSel?.value || null
+};
 
       try {
         const res = await fetch(`/api/refurb/${id}`, {

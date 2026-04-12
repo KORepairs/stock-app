@@ -100,6 +100,8 @@
 .col-status { width: 150px; }
 .col-parts { width: 150px; }
 .col-retail { width: 120px; }
+.col-cost { width: 120px; }
+.col-profit { width: 120px; }
 .col-cpu { width: 170px; }
 .col-notes { width: 260px; }
 .col-actions { width: 240px; }
@@ -488,6 +490,16 @@ function syncViewUI() {
       `
     },
 
+    {
+  label: 'Cost (£)',
+  thClass: 'col-cost',
+  render: (item) => `
+    <input data-id="${item.id}" class="costInp" type="number"
+      step="0.01" min="0"
+      value="${Number(item.cost || 0).toFixed(2)}">
+  `
+},
+
 
     {
   label: 'Retail (£)',
@@ -514,30 +526,24 @@ function syncViewUI() {
   `
 };
 
-  // All/Laptop/PC use the "computer" style columns (CPU + Notes)
+  // All/Laptop/PC sold view = Cost / Retail / Profit / Actions
 if (view === 'all' || view === 'laptop' || view === 'pc') {
   return {
     categories:
       view === 'all'
-        ? ['laptop','pc','phone','tablet','console', 'monitor']
-        : [view], // laptop OR pc
+        ? ['laptop','pc','phone','tablet','console','monitor']
+        : [view],
     cols: [
       ...baseCols,
       {
-        label: 'CPU',
-        thClass: 'col-cpu',
-        render: (item) => `
-          <input data-id="${item.id}" class="cpuInp" type="text"
-            value="${esc(item.cpu || '')}" placeholder="e.g. i5-10210U">
-        `
-      },
-      {
-        label: 'Notes',
-        thClass: 'col-notes',
-        render: (item) => `
-          <input data-id="${item.id}" class="notesInp" type="text"
-            value="${esc(item.notes || '')}">
-        `
+        label: 'Profit (£)',
+        thClass: 'col-profit',
+        render: (item) => {
+          const cost = Number(item.cost || 0);
+          const retail = Number(item.retail || 0);
+          const profit = retail - cost;
+          return `<span>£${profit.toFixed(2)}</span>`;
+        }
       },
       actionsCol
     ]
@@ -713,6 +719,7 @@ if (path === '/refurb/sold' && updatedRow.status !== 'sold') {
       const catSel    = row.querySelector('.catSel');
       const descEl = row.querySelector('.descInp');
       const retailEl = row.querySelector('.retailInp');
+      const costEl = row.querySelector('.costInp');
 
 
       const view = $('fView')?.value || 'all';
@@ -726,6 +733,7 @@ if (path === '/refurb/sold' && updatedRow.status !== 'sold') {
       };
 
       body.retail = retailEl ? Number(retailEl.value || 0) : 0;
+      body.cost = costEl ? Number(costEl.value || 0) : 0;
 
       if (view === 'all' || view === 'laptop' || view === 'pc') {
         const cpuEl   = row.querySelector('.cpuInp');

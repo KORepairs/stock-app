@@ -547,7 +547,6 @@ function renderPartsSummaryList(items) {
 
   function parseParts(partsNeeded) {
     if (!partsNeeded) return [];
-
     if (Array.isArray(partsNeeded)) return partsNeeded;
 
     if (typeof partsNeeded === "string") {
@@ -558,7 +557,6 @@ function renderPartsSummaryList(items) {
         return [];
       }
     }
-
     return [];
   }
 
@@ -569,26 +567,25 @@ function renderPartsSummaryList(items) {
 
     for (const p of parts) {
       const part = String(p.part || '').trim();
-      const code = String(p.code || '').trim();
-      const key = `${part}|||${code}`;
+      const code = String(p.code || '').trim() || 'No code';
 
-      if (!part && !code) continue;
+      if (!part) continue;
 
-      if (!grouped.has(key)) {
-        grouped.set(key, {
-          part,
-          code,
-          qty: 0
-        });
+      if (!grouped.has(part)) {
+        grouped.set(part, new Map());
       }
 
-      grouped.get(key).qty += 1;
+      const codesMap = grouped.get(part);
+
+      if (!codesMap.has(code)) {
+        codesMap.set(code, 0);
+      }
+
+      codesMap.set(code, codesMap.get(code) + 1);
     }
   }
 
-  const rows = Array.from(grouped.values()).sort((a, b) =>
-    a.part.localeCompare(b.part)
-  );
+  const rows = Array.from(grouped.entries());
 
   if (!rows.length) {
     wrap.innerHTML = `
@@ -602,17 +599,21 @@ function renderPartsSummaryList(items) {
     return;
   }
 
-  wrap.innerHTML = rows.map(row => `
-    <div class="listItem" style="cursor:default">
-      <div>
-        <strong>${row.part || 'Unnamed part'}</strong>
-        <div class="muted">${row.code || 'No code'}</div>
+  wrap.innerHTML = rows.map(([part, codes]) => {
+    const codeLines = Array.from(codes.entries())
+      .map(([code, qty]) => `
+        <div class="muted">${code} ×${qty}</div>
+      `).join('');
+
+    return `
+      <div class="listItem" style="cursor:default">
+        <div>
+          <strong>${part}</strong>
+          ${codeLines}
+        </div>
       </div>
-      <div class="right">
-        <strong>x${row.qty}</strong>
-      </div>
-    </div>
-  `).join("");
+    `;
+  }).join('');
 }
 
       // ✅ Dashboard loader (uses your existing endpoints)
@@ -771,7 +772,7 @@ try {
 
 renderActions(actions);
 renderPartsSummaryList(partsNeededItems);
-renderPartsOrderList(partsNeededItems);ß
+renderPartsOrderList(partsNeededItems);
       }
 
       window.addEventListener("DOMContentLoaded", () => {

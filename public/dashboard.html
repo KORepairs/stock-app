@@ -323,25 +323,20 @@
           </div>
         </div>
 
-        <div class="card">
-  <h2 style="margin: 0 0 10px">Parts to order</h2>
-  <div class="muted">Items marked as needs parts with parts listed in the detail page.</div>
-
-        <!-- ACTION NEEDED -->
-        <div class="card">
-          <h2 style="margin: 0 0 10px">Action needed</h2>
-          <div class="muted">These are your “don’t forget” items.</div>
-
-          <div class="list" id="actionList">
-            <div class="listItem">
-              <div>Loading…</div>
-            </div>
-          </div>
-        </div>
-      </main>
     
+<!-- ACTION NEEDED -->
+<div class="card">
+  <h2 style="margin: 0 0 10px">Action needed</h2>
+  <div class="muted">These are your “don’t forget” items.</div>
 
-    <div class="card">
+  <div class="list" id="actionList">
+    <div class="listItem">
+      <div>Loading…</div>
+    </div>
+  </div>
+</div>
+
+<div class="card">
   <h2 style="margin: 0 0 10px">Parts quick list</h2>
   <div class="muted">Combined duplicate parts to make ordering easier.</div>
 
@@ -352,14 +347,20 @@
   </div>
 </div>
 
-    <div class="list" id="partsOrderList">
+<div class="card">
+  <h2 style="margin: 0 0 10px">Parts required by device</h2>
+  <div class="muted">Items marked as needs parts with parts listed in the detail page.</div>
+
+  <div class="list" id="partsOrderList">
     <div class="listItem">
       <div>Loading…</div>
     </div>
   </div>
 </div>
-</div>
 
+</main>
+</div>
+</div>
     <script>
       function $(id) {
         return document.getElementById(id);

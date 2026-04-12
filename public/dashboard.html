@@ -327,13 +327,6 @@
   <h2 style="margin: 0 0 10px">Parts to order</h2>
   <div class="muted">Items marked as needs parts with parts listed in the detail page.</div>
 
-  <div class="list" id="partsOrderList">
-    <div class="listItem">
-      <div>Loading…</div>
-    </div>
-  </div>
-</div>
-
         <!-- ACTION NEEDED -->
         <div class="card">
           <h2 style="margin: 0 0 10px">Action needed</h2>
@@ -347,6 +340,24 @@
         </div>
       </main>
     </div>
+
+    <div class="card">
+  <h2 style="margin: 0 0 10px">Parts quick list</h2>
+  <div class="muted">Combined duplicate parts to make ordering easier.</div>
+
+  <div class="list" id="partsSummaryList">
+    <div class="listItem">
+      <div>Loading…</div>
+    </div>
+  </div>
+</div>
+
+    <div class="list" id="partsOrderList">
+    <div class="listItem">
+      <div>Loading…</div>
+    </div>
+  </div>
+</div>
 
     <script>
       function $(id) {
@@ -514,7 +525,6 @@
         <div>
           <strong>${item.sku || ''} — ${item.description || ''}</strong>
           ${lines}
-          <div class="muted">Supplier: ${item.supplier || '—'}</div>
         </div>
         <div class="right">
           <strong>£${Number(item.parts_cost || 0).toFixed(2)}</strong>
@@ -529,6 +539,80 @@
     if (!link) return;
     x.addEventListener("click", () => (window.location.href = link));
   });
+}
+
+function renderPartsSummaryList(items) {
+  const wrap = $("partsSummaryList");
+  if (!wrap) return;
+
+  function parseParts(partsNeeded) {
+    if (!partsNeeded) return [];
+
+    if (Array.isArray(partsNeeded)) return partsNeeded;
+
+    if (typeof partsNeeded === "string") {
+      try {
+        const parsed = JSON.parse(partsNeeded);
+        return Array.isArray(parsed) ? parsed : [];
+      } catch {
+        return [];
+      }
+    }
+
+    return [];
+  }
+
+  const grouped = new Map();
+
+  for (const item of items || []) {
+    const parts = parseParts(item.parts_needed);
+
+    for (const p of parts) {
+      const part = String(p.part || '').trim();
+      const code = String(p.code || '').trim();
+      const key = `${part}|||${code}`;
+
+      if (!part && !code) continue;
+
+      if (!grouped.has(key)) {
+        grouped.set(key, {
+          part,
+          code,
+          qty: 0
+        });
+      }
+
+      grouped.get(key).qty += 1;
+    }
+  }
+
+  const rows = Array.from(grouped.values()).sort((a, b) =>
+    a.part.localeCompare(b.part)
+  );
+
+  if (!rows.length) {
+    wrap.innerHTML = `
+      <div class="listItem" style="cursor:default">
+        <div>
+          <strong>No parts found ✅</strong>
+          <div class="muted">Nothing currently grouped for ordering.</div>
+        </div>
+      </div>
+    `;
+    return;
+  }
+
+  wrap.innerHTML = rows.map(row => `
+    <div class="listItem" style="cursor:default">
+      <div>
+        <strong>${row.part || 'Unnamed part'}</strong>
+        <div class="muted">${row.code || 'No code'}</div>
+      </div>
+      <div class="right">
+        <strong>x${row.qty}</strong>
+      </div>
+    </div>
+  `).join("");
 }
 
       // ✅ Dashboard loader (uses your existing endpoints)
@@ -685,9 +769,9 @@ try {
   partsNeededItems = Array.isArray(partsJson) ? partsJson : [];
 } catch {}
 
-renderPartsOrderList(partsNeededItems);
-
-        renderActions(actions);
+renderActions(actions);
+renderPartsSummaryList(partsNeededItems);
+renderPartsOrderList(partsNeededItems);ß
       }
 
       window.addEventListener("DOMContentLoaded", () => {

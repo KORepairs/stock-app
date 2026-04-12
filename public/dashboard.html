@@ -348,14 +348,22 @@
 </div>
 
 <div class="card">
-  <h2 style="margin: 0 0 10px">Parts required by device</h2>
-  <div class="muted">Items marked as needs parts with parts listed in the detail page.</div>
+  <details>
+    <summary style="cursor:pointer; font-weight:800; font-size:20px; display:flex; align-items:center; justify-content:space-between;">
+      <span>Parts required by device</span>
+      <span style="font-size:14px; opacity:.7;">Click to expand</span>
+    </summary>
 
-  <div class="list" id="partsOrderList">
-    <div class="listItem">
-      <div>Loading…</div>
+    <div class="muted" style="margin-top:10px;">
+      Items marked as needs parts with parts listed in the detail page.
     </div>
-  </div>
+
+    <div class="list" id="partsOrderList">
+      <div class="listItem">
+        <div>Loading…</div>
+      </div>
+    </div>
+  </details>
 </div>
 
 </main>

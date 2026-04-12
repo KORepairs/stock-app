@@ -101,6 +101,7 @@
 .col-parts { width: 150px; }
 .col-retail { width: 120px; }
 .col-cost { width: 120px; }
+.col-partscost { width: 120px; }
 .col-profit { width: 120px; }
 .col-cpu { width: 170px; }
 .col-notes { width: 260px; }
@@ -500,6 +501,13 @@ function syncViewUI() {
   `
 },
 
+{
+  label: 'Parts (£)',
+  thClass: 'col-partscost',
+  render: (item) => `
+    <span>£${Number(item.parts_cost || 0).toFixed(2)}</span>
+  `
+},
 
     {
   label: 'Retail (£)',
@@ -535,16 +543,18 @@ if (view === 'all' || view === 'laptop' || view === 'pc') {
         : [view],
     cols: [
       ...baseCols,
-      {
-        label: 'Profit (£)',
-        thClass: 'col-profit',
-        render: (item) => {
-          const cost = Number(item.cost || 0);
-          const retail = Number(item.retail || 0);
-          const profit = retail - cost;
-          return `<span>£${profit.toFixed(2)}</span>`;
-        }
-      },
+     {
+  label: 'Profit (£)',
+  thClass: 'col-profit',
+  render: (item) => {
+    const cost = Number(item.cost || 0);
+    const partsCost = Number(item.parts_cost || 0);
+    const retail = Number(item.retail || 0);
+    const profit = retail - cost - partsCost;
+
+    return `<span>£${profit.toFixed(2)}</span>`;
+  }
+},
       actionsCol
     ]
   };

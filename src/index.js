@@ -688,12 +688,13 @@ if (view === 'complete') {
   return res.json(rows);
 }
 
-// SOLD page
 if (view === 'sold') {
   const { rows } = await pgQuery(
-    `SELECT * FROM refurb_items
-     WHERE status = 'sold'
-     ORDER BY id DESC;`
+    `SELECT r.*, COALESCE(d.parts_cost, 0) AS parts_cost
+     FROM refurb_items r
+     LEFT JOIN refurb_details d ON d.refurb_id = r.id
+     WHERE r.status = 'sold'
+     ORDER BY r.id DESC;`
   );
   return res.json(rows);
 }

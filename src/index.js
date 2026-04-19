@@ -1350,11 +1350,11 @@ app.post('/api/tradein', upload.single('id_image'), async (req, res) => {
 
 /* ---------- API: Stock ops ---------- */
 
-// Stock IN by barcode / SKU  (Postgres)
 app.post('/api/stock/in', async (req, res) => {
   try {
     const { sku, barcode, qty = 1 } = req.body || {};
     const code = String(sku || barcode || '').trim().toUpperCase();
+
     if (!code) {
       return res.status(400).json({ error: 'sku or barcode is required' });
     }
@@ -1366,27 +1366,37 @@ app.post('/api/stock/in', async (req, res) => {
 
     const amount = Number(qty) || 1;
 
-// remember old qty before change
-const oldQty = Number(product.quantity) || 0;
+    // remember old qty before change
+    const oldQty = Number(product.quantity) || 0;
 
-// update quantity
-const updated = await adjustQtyPG(product.id, amount);
-const newQty = Number(updated.quantity) || 0;
+    // update quantity
+    const updated = await adjustQtyPG(product.id, amount);
+    const newQty = Number(updated.quantity) || 0;
 
-// 🧠 if stock was 0 and now exists → needs RELIST
-if (oldQty === 0 && newQty > 0) {
-  const bumped = await setEbayStatus(product.id, "ready_to_list");
-  return res.json(bumped);
-}
+    // if stock was 0 and now exists → needs RELIST
+    if (oldQty === 0 && newQty > 0) {
+      await setEbayStatus(product.id, "ready_to_list");
+    }
 
-res.json(updated);
+    // ✅ log ebay update if item is on ebay
+    if (Number(product.on_ebay) === 1) {
+      await logEbayUpdatePG({
+        sku: product.sku,
+        code: product.code || code,
+        delta: amount,
+        oldQty,
+        newQty,
+        note: 'Stock IN via scanner',
+      });
+    }
+
+    res.json(updated);
 
   } catch (err) {
     console.error('PG stock/in error:', err);
     res.status(500).json({ error: err.message });
   }
 });
-
 
 
 // Stock OUT by barcode / SKU, log sale (Postgres)
@@ -1471,10 +1481,19 @@ app.post('/api/stock/take', async (req, res) => {
 const updated = await setQtyPG(product.id, Number(qty) || 0);
 const newQty = Number(updated.quantity) || 0;
 
-// if stock goes from 0 -> 1+, mark as RELIST
 if (oldQty === 0 && newQty > 0) {
-  const bumped = await setEbayStatus(product.id, "ready_to_list");
-  return res.json(bumped);
+  await setEbayStatus(product.id, "ready_to_list");
+}
+
+if (Number(product.on_ebay) === 1 && oldQty !== newQty) {
+  await logEbayUpdatePG({
+    sku: product.sku,
+    code: product.code || code,
+    delta: newQty - oldQty,
+    oldQty,
+    newQty,
+    note: 'Stock take adjustment',
+  });
 }
 
 res.json(updated);

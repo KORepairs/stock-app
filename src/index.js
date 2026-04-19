@@ -1373,22 +1373,21 @@ app.post('/api/stock/in', async (req, res) => {
     const updated = await adjustQtyPG(product.id, amount);
     const newQty = Number(updated.quantity) || 0;
 
-    // if stock was 0 and now exists → needs RELIST
-    if (oldQty === 0 && newQty > 0) {
-      await setEbayStatus(product.id, "ready_to_list");
-    }
-
-    // ✅ log ebay update if item is on ebay
-    if (Number(product.on_ebay) === 1) {
-      await logEbayUpdatePG({
-        sku: product.sku,
-        code: product.code || code,
-        delta: amount,
-        oldQty,
-        newQty,
-        note: 'Stock IN via scanner',
-      });
-    }
+    // 0 -> 1+ should be RELIST only, not quantity update
+if (oldQty === 0 && newQty > 0) {
+  await setEbayStatus(product.id, "ready_to_list");
+}
+// otherwise, normal stock increase for eBay item = quantity update
+else if (Number(product.on_ebay) === 1) {
+  await logEbayUpdatePG({
+    sku: product.sku,
+    code: product.code || code,
+    delta: amount,
+    oldQty,
+    newQty,
+    note: 'Stock IN via scanner',
+  });
+}
 
     res.json(updated);
 
@@ -1484,8 +1483,7 @@ const newQty = Number(updated.quantity) || 0;
 if (oldQty === 0 && newQty > 0) {
   await setEbayStatus(product.id, "ready_to_list");
 }
-
-if (Number(product.on_ebay) === 1 && oldQty !== newQty) {
+else if (Number(product.on_ebay) === 1 && oldQty !== newQty) {
   await logEbayUpdatePG({
     sku: product.sku,
     code: product.code || code,

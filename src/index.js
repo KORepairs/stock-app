@@ -1430,8 +1430,9 @@ app.post('/api/stock/out', async (req, res) => {
 
     const newQty = Number(updated.quantity) || 0;
 
-if (newQty === 0) {
-  await setEbayStatus(product.id, "sold_on_ebay");
+// If quantity drops to 0 → remove from eBay listing
+if (newQty === 0 && Number(product.on_ebay) === 1) {
+  await setEbayStatus(product.id, "not_listed");
 }
 
 
@@ -1480,9 +1481,17 @@ app.post('/api/stock/take', async (req, res) => {
 const updated = await setQtyPG(product.id, Number(qty) || 0);
 const newQty = Number(updated.quantity) || 0;
 
+// 0 → 1+ = relist
 if (oldQty === 0 && newQty > 0) {
   await setEbayStatus(product.id, "ready_to_list");
 }
+
+// 1+ → 0 = remove from eBay
+else if (oldQty > 0 && newQty === 0) {
+  await setEbayStatus(product.id, "not_listed");
+}
+
+// otherwise normal quantity change
 else if (Number(product.on_ebay) === 1 && oldQty !== newQty) {
   await logEbayUpdatePG({
     sku: product.sku,

@@ -467,7 +467,12 @@ if (actionsHeader) {
         <td>${esc(p.name)}</td>
         <td>${Number(p.quantity) || 0}</td>
         <td>${esc(p.notes || "")}</td>
-        <td style="text-align:center">${p.ebay_status === "listed" ? "✓" : ""}</td>
+        <td>
+  <select class="ebaySel" data-id="${p.id}">
+    <option value="listed" ${p.ebay_status === "listed" ? "selected" : ""}>Y</option>
+    <option value="not_listed" ${p.ebay_status !== "listed" ? "selected" : ""}>N</option>
+  </select>
+</td>
         <td>${GBP(p.retail)}</td>
         <td>${GBP(p.cost)}</td>
         <td>${GBP(p.fees)}</td>
@@ -575,6 +580,38 @@ if (actionsHeader) {
             $("editDlg").showModal();
           }
         });
+
+        $("prodTbody").addEventListener("change", async (e) => {
+  const sel = e.target.closest(".ebaySel");
+  if (!sel) return;
+
+  const id = Number(sel.dataset.id);
+  const ebay_status = sel.value;
+
+  try {
+    const r = await fetch("/api/products/" + id + "/ebay", {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ ebay_status }),
+    });
+
+    const j = await r.json();
+    if (j.error) {
+      alert(j.error);
+      return;
+    }
+
+    const i = all.findIndex((x) => x.id === id);
+    if (i > -1) {
+      all[i] = { ...all[i], ...j };
+    }
+
+    render();
+  } catch (err) {
+    console.error(err);
+    alert("Failed to update eBay status");
+  }
+});
 
         // ---------- save edits ----------
         $("editForm").addEventListener("submit", async (ev) => {

@@ -212,7 +212,7 @@
                 <th>Cost</th>
                 <th>Fees</th>
                 <th>Postage</th>
-                <th>Actions</th>
+                <th>Relist</th>
               </tr>
             </thead>
             <tbody id="prodTbody">
@@ -465,9 +465,10 @@
         <td>${GBP(p.fees)}</td>
         <td>${GBP(p.postage)}</td>
         <td class="actions">
-          <button data-act="edit" data-id="${p.id}">Edit</button>
-          <button data-act="del"  data-id="${p.id}">Delete</button>
-        </td>
+  ${p.ebay_status === "ready_to_list"
+    ? `<button data-act="relisted" data-id="${p.id}">Mark relisted</button>`
+    : ""}
+</td>
       </tr>
     `,
             )
@@ -509,6 +510,34 @@
             } else alert("Nothing deleted");
             return;
           }
+
+          if (btn.dataset.act === "relisted") {
+  btn.disabled = true;
+  btn.textContent = "Saving…";
+
+  const r = await fetch("/api/products/" + id + "/ebay", {
+    method: "PATCH",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ ebay_status: "listed" }),
+  });
+
+  const j = await r.json();
+
+  if (j.error) {
+    alert(j.error);
+    btn.disabled = false;
+    btn.textContent = "Mark relisted";
+    return;
+  }
+
+  const i = all.findIndex((x) => x.id === id);
+  if (i > -1) {
+    all[i] = { ...all[i], ...j };
+  }
+
+  render();
+  return;
+}
 
           if (btn.dataset.act === "edit") {
             $("e_id").value = row.id;

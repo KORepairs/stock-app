@@ -212,7 +212,7 @@
                 <th>Cost</th>
                 <th>Fees</th>
                 <th>Postage</th>
-                <th>Actions</th>
+                <th id="actionsHeader">Actions</th>
               </tr>
             </thead>
             <tbody id="prodTbody">
@@ -450,6 +450,14 @@
             totalPostage += qty * postage;
           });
 
+          const params = new URLSearchParams(window.location.search);
+const isRelistPage = params.get("ebay_status") === "ready_to_list";
+
+          const actionsHeader = document.getElementById("actionsHeader");
+if (actionsHeader) {
+  actionsHeader.textContent = isRelistPage ? "Relist" : "Actions";
+}
+
           // 6) render normal rows
           const rowsHtml = rows
             .map(
@@ -465,9 +473,15 @@
         <td>${GBP(p.fees)}</td>
         <td>${GBP(p.postage)}</td>
         <td class="actions">
-          <button data-act="edit" data-id="${p.id}">Edit</button>
-          <button data-act="del"  data-id="${p.id}">Delete</button>
-        </td>
+  ${
+    isRelistPage
+      ? `<button data-act="relisted" data-id="${p.id}">Mark relisted</button>`
+      : `
+        <button data-act="edit" data-id="${p.id}">Edit</button>
+        <button data-act="del" data-id="${p.id}">Delete</button>
+      `
+  }
+</td>
       </tr>
     `,
             )
@@ -509,6 +523,34 @@
             } else alert("Nothing deleted");
             return;
           }
+
+          if (btn.dataset.act === "relisted") {
+  btn.disabled = true;
+  btn.textContent = "Saving…";
+
+  const r = await fetch("/api/products/" + id + "/ebay", {
+    method: "PATCH",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ ebay_status: "listed" }),
+  });
+
+  const j = await r.json();
+
+  if (j.error) {
+    alert(j.error);
+    btn.disabled = false;
+    btn.textContent = "Mark relisted";
+    return;
+  }
+
+  const i = all.findIndex((x) => x.id === id);
+  if (i > -1) {
+    all[i] = { ...all[i], ...j };
+  }
+
+  render();
+  return;
+}
 
           if (btn.dataset.act === "edit") {
             $("e_id").value = row.id;

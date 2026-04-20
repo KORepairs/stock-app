@@ -86,6 +86,7 @@
   /* Column widths (apply via thClass/tdClass) */
   th.col-sku,     td.col-sku     { width: 90px; }
   th.col-desc,    td.col-desc    { width: 280px; }
+  th.col-qty,     td.col-qty     { width: 80px; }
   th.col-cat,     td.col-cat     { width: 120px; }
   th.col-status,  td.col-status  { width: 140px; }
   th.col-parts,   td.col-parts   { width: 140px; }
@@ -93,6 +94,7 @@
   th.col-cpu,     td.col-cpu     { width: 140px; }
   th.col-notes,   td.col-notes   { width: 200px; }
   th.col-actions, td.col-actions { width: 200px; white-space: nowrap; }
+  
 
   /* make the table respect widths */
 table { width: 100%; table-layout: fixed; }
@@ -442,6 +444,17 @@ function syncViewUI() {
           value="${esc(item.description || '')}" placeholder="Description">
       `
     },
+
+    {
+  label: 'Qty',
+  thClass: 'col-qty',
+  render: (item) => `
+    <input data-id="${item.id}" class="qtyInp" type="number"
+      min="1"
+      value="${Number(item.quantity || 1)}">
+  `
+},
+
     {
       label: 'Category',
       thClass: 'col-cat',
@@ -667,6 +680,7 @@ function renderRefurbTable(items) {
 
   wireRefurbDropdowns();
   wireRefurbRowSaves();
+  wireRefurbAutoSaveInputs();
   wireRefurbDeletes();
   wireRefurbDetails();
 }
@@ -749,6 +763,39 @@ if (path === '/refurb/sold' && updatedRow.status !== 'sold') {
 }
 
 
+function triggerRowAutoSave(row) {
+  const btn = row?.querySelector('.saveRowBtn');
+  if (!btn || btn.disabled) return;
+  btn.click();
+}
+
+function wireRefurbAutoSaveInputs() {
+  const timers = new Map();
+
+  document.querySelectorAll(
+    '.descInp, .qtyInp, .retailInp, .cpuInp, .notesInp, .colourInp, .storageInp, .controllerInp'
+  ).forEach(input => {
+    input.addEventListener('input', () => {
+      const row = input.closest('tr');
+      if (!row) return;
+
+      const id = row.querySelector('.saveRowBtn')?.getAttribute('data-id') || Math.random();
+
+      clearTimeout(timers.get(id));
+      const timer = setTimeout(() => {
+        triggerRowAutoSave(row);
+      }, 700);
+
+      timers.set(id, timer);
+    });
+
+    input.addEventListener('change', () => {
+      const row = input.closest('tr');
+      triggerRowAutoSave(row);
+    });
+  });
+}
+
 
     function wireRefurbRowSaves() {
   document.querySelectorAll('.saveRowBtn').forEach(btn => {
@@ -762,18 +809,20 @@ if (path === '/refurb/sold' && updatedRow.status !== 'sold') {
       const partsSel  = row.querySelector('.partsSel');
       const catSel    = row.querySelector('.catSel');
       const descEl = row.querySelector('.descInp');
-      const retailEl = row.querySelector('.retailInp');
+const qtyEl = row.querySelector('.qtyInp');
+const retailEl = row.querySelector('.retailInp');
 
 
       const view = $('fView')?.value || 'computer';
 
       // Base payload (always save these)
       const body = {
-        category: catSel?.value || null,
-        status: statusSel?.value || 'refurb',
-        parts_status: partsSel?.value || 'none',
-        description: descEl?.value.trim() || null,
-      };
+  category: catSel?.value || null,
+  status: statusSel?.value || 'refurb',
+  parts_status: partsSel?.value || 'none',
+  description: descEl?.value.trim() || null,
+  quantity: qtyEl ? Number(qtyEl.value || 1) : 1,
+};
 
       body.retail = retailEl ? Number(retailEl.value || 0) : 0;
 

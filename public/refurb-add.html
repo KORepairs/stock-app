@@ -109,6 +109,9 @@
       <label for="retail">Target retail (£)</label>
       <input id="retail" type="number" step="0.01" min="0" value="0">
 
+      <label for="quantity">Quantity</label>
+<input id="quantity" type="number" min="1" value="1">
+
       <div class="full">
         <label for="notes">Notes</label>
         <textarea id="notes" placeholder="Parts required, faults, etc. (optional)"></textarea>
@@ -185,16 +188,17 @@
 
 
     const body = {
-      category: $('category').value,              // ✅ V / M / L / H
-      description,
-      serial: $('serial').value.trim() || null,
-      status: $('status').value,
-      parts_status: $('parts_status').value,
-      supplier: $('supplier').value || null,
-      cost: Number($('cost').value || 0),
-      retail: Number($('retail').value || 0),
-      notes: $('notes').value.trim() || null,
-    };
+  category: $('category').value,
+  description,
+  serial: $('serial').value.trim() || null,
+  status: $('status').value,
+  parts_status: $('parts_status').value,
+  supplier: $('supplier').value || null,
+  cost: Number($('cost').value || 0),
+  retail: Number($('retail').value || 0),
+  quantity: Number($('quantity').value || 1),
+  notes: $('notes').value.trim() || null,
+};
 
     const btn = $('saveBtn');
     btn.disabled = true;
@@ -230,6 +234,7 @@
       $('supplier').value = '';
       $('cost').value = '0';
       $('retail').value = '0';
+      $('quantity').value = '1';
       $('notes').value = '';
 
 

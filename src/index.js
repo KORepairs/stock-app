@@ -843,6 +843,7 @@ app.post('/api/refurb', async (req, res) => {
     cost,
     retail,
     notes,
+    quantity,
   } = req.body || {};
 
   if (!description) {
@@ -861,10 +862,10 @@ app.post('/api/refurb', async (req, res) => {
   try {
     const query = `
       INSERT INTO refurb_items (
-      sku, serial, description, status, parts_status, cpu,
-      supplier, category, cost, retail, notes
-    )
-    VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11)
+  sku, serial, description, status, parts_status, cpu,
+  supplier, category, cost, retail, notes, quantity
+)
+VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12)
 
       RETURNING *;
     `;
@@ -883,6 +884,7 @@ const values = [
   cost ?? 0,
   retail ?? 0,
   notes || null,
+  Number(quantity) || 1,
 ];
 
 
@@ -935,7 +937,8 @@ app.put('/api/refurb/:id', async (req, res) => {
     retail,
     notes,
     sku, // allow editing SKU from the table
-    description, 
+    description,
+    quantity, 
 
     // NEW (optional fields for category-specific views)
     category,
@@ -985,10 +988,10 @@ const categoryToUse = (category ?? null) || autoCat;
         category     = COALESCE($10, category),
         colour       = COALESCE($11, colour),
         storage      = COALESCE($12, storage),
-        controller   = COALESCE($13, controller)
-
-      WHERE id = $14
-      RETURNING *;
+        controller   = COALESCE($13, controller),
+quantity     = COALESCE($14, quantity)
+WHERE id = $15
+RETURNING *;
     `;
 
 
@@ -1007,7 +1010,7 @@ const categoryToUse = (category ?? null) || autoCat;
       colour ?? null,
       storage ?? null,
       controller ?? null,
-
+      quantity ?? null,
       id,
     ];
 

@@ -83,6 +83,8 @@
   .pill-parts-awaiting_parts { background:#d9c61e; }
   .pill-parts-has_parts      { background:#053802; }
 
+  .col-qty { width: 80px; }
+
 
   </style>
 </head>
@@ -433,6 +435,16 @@ function syncViewUI() {
   `
 },
 
+{
+  label: 'Qty',
+  thClass: 'col-qty',
+  render: (item) => `
+    <input data-id="${item.id}" class="qtyInp" type="number"
+      min="1"
+      value="${Number(item.quantity || 1)}">
+  `
+},
+
     {
       label: 'Category',
       render: (item) => `
@@ -751,7 +763,7 @@ function wireRefurbAutoSaveInputs() {
   const timers = new Map();
 
   document.querySelectorAll(
-    '.descInp, .retailInp, .cpuInp, .notesInp, .colourInp, .storageInp, .controllerInp'
+    '.descInp, .qtyInp, .retailInp, .cpuInp, .notesInp, .colourInp, .storageInp, .controllerInp'
   ).forEach(input => {
     input.addEventListener('input', () => {
       const row = input.closest('tr');
@@ -786,6 +798,7 @@ function wireRefurbAutoSaveInputs() {
       const partsSel  = row.querySelector('.partsSel');
       const catSel    = row.querySelector('.catSel');
       const descEl = row.querySelector('.descInp');
+      const qtyEl = row.querySelector('.qtyInp');
       const retailEl = row.querySelector('.retailInp');
 
 
@@ -793,11 +806,12 @@ function wireRefurbAutoSaveInputs() {
 
       // Base payload (always save these)
       const body = {
-        category: catSel?.value || null,
-        status: statusSel?.value || 'refurb',
-        parts_status: partsSel?.value || 'none',
-        description: descEl?.value.trim() || null,
-      };
+  category: catSel?.value || null,
+  status: statusSel?.value || 'refurb',
+  parts_status: partsSel?.value || 'none',
+  description: descEl?.value.trim() || null,
+  quantity: qtyEl ? Number(qtyEl.value || 1) : 1,
+};
 
       body.retail = retailEl ? Number(retailEl.value || 0) : 0;
 

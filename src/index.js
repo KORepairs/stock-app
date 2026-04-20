@@ -316,7 +316,7 @@ app.put('/api/products/:id', async (req, res) => {
           : 0,
       cost: Number(cost) || 0,
       retail: Number(retail) || 0,
-      fees: Number(fees) || 0,
+      fees: Number(retail || 0) * 0.25,
       postage: Number(postage) || 0,
       quantity: Number(quantity) || 0,
     };
@@ -474,7 +474,7 @@ app.post('/api/products', async (req, res) => {
                 ? 1 : 0,
       cost:     Number(cost)     || 0,
       retail:   Number(retail)   || 0,
-      fees:     Number(fees)     || 0,
+      fees: Number(retail) * 0.25 || 0,
       postage:  Number(postage)  || 0,
       quantity: Number(quantity) || 0,
     };

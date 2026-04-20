@@ -575,7 +575,7 @@ if (actionsHeader) {
             $("e_onEbay").checked = !!row.on_ebay;
             $("e_retail").value = row.retail || 0;
             $("e_cost").value = row.cost || 0;
-            $("e_fees").value = row.fees || 0;
+            $("e_fees").value = (Number(row.retail || 0) * 0.25).toFixed(2);
             $("e_postage").value = row.postage || 0;
             $("e_notes").value = row.notes || "";
 
@@ -733,6 +733,11 @@ if (actionsHeader) {
             });
           });
         }
+
+        $("e_retail")?.addEventListener("input", () => {
+  const retail = Number($("e_retail").value || 0);
+  $("e_fees").value = (retail * 0.25).toFixed(2);
+});
 
         // initial load
         document.addEventListener("DOMContentLoaded", () => {

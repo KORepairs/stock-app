@@ -107,6 +107,7 @@
 
 .col-sku { width: 110px; }
 .col-desc { width: 240px; }
+.col-qty { width: 80px; }
 .col-status { width: 150px; }
 .col-parts { width: 150px; }
 .col-retail { width: 120px; }
@@ -474,6 +475,16 @@ function syncViewUI() {
   `
 },
 
+{
+  label: 'Qty',
+  thClass: 'col-qty',
+  render: (item) => `
+    <input data-id="${item.id}" class="qtyInp" type="number"
+      min="1"
+      value="${Number(item.quantity || 1)}">
+  `
+},
+
     {
       label: 'Category',
       thClass: 'col-category',
@@ -484,6 +495,7 @@ function syncViewUI() {
           <option value="phone" ${item.category==='phone'?'selected':''}>Phone</option>
           <option value="tablet" ${item.category==='tablet'?'selected':''}>Tablet</option>
           <option value="console" ${item.category==='console'?'selected':''}>Console</option>
+          <option value="monitor" ${item.category==='monitor'?'selected':''}>Monitor</option>
         </select>
       `
     },
@@ -738,19 +750,21 @@ if (path === '/refurb/sold' && updatedRow.status !== 'sold') {
       const partsSel  = row.querySelector('.partsSel');
       const catSel    = row.querySelector('.catSel');
       const descEl = row.querySelector('.descInp');
-      const retailEl = row.querySelector('.retailInp');
-      const costEl = row.querySelector('.costInp');
+const qtyEl = row.querySelector('.qtyInp');
+const retailEl = row.querySelector('.retailInp');
+const costEl = row.querySelector('.costInp');
 
 
       const view = $('fView')?.value || 'all';
 
       // Base payload (always save these)
       const body = {
-        category: catSel?.value || null,
-        status: statusSel?.value || 'refurb',
-        parts_status: partsSel?.value || 'none',
-        description: descEl?.value.trim() || null,
-      };
+  category: catSel?.value || null,
+  status: statusSel?.value || 'refurb',
+  parts_status: partsSel?.value || 'none',
+  description: descEl?.value.trim() || null,
+  quantity: qtyEl ? Number(qtyEl.value || 1) : 1,
+};
 
       body.retail = retailEl ? Number(retailEl.value || 0) : 0;
       body.cost = costEl ? Number(costEl.value || 0) : 0;

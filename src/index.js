@@ -487,6 +487,22 @@ app.post('/api/products', async (req, res) => {
   }
 });
 
+app.get('/fix-fees', async (req, res) => {
+  try {
+    await pgQuery(`
+      UPDATE products
+      SET fees = retail * 0.25
+      WHERE retail > 0
+        AND (fees IS NULL OR fees = 0)
+    `);
+
+    res.send('Fees updated successfully');
+  } catch (err) {
+    console.error(err);
+    res.status(500).send(err.message);
+  }
+});
+
 
     // Smart add product (auto SKU or bump quantity by PART NUMBER)
 // Smart add product (auto SKU or bump quantity by PART NUMBER)

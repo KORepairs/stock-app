@@ -487,7 +487,19 @@ app.post('/api/products', async (req, res) => {
   }
 });
 
+app.get('/fix-refurb-quantity', async (req, res) => {
+  try {
+    await pgQuery(`
+      ALTER TABLE refurb_items
+      ADD COLUMN IF NOT EXISTS quantity INTEGER NOT NULL DEFAULT 1;
+    `);
 
+    res.send('Refurb quantity column added');
+  } catch (err) {
+    console.error(err);
+    res.status(500).send(err.message);
+  }
+});
 
     // Smart add product (auto SKU or bump quantity by PART NUMBER)
 // Smart add product (auto SKU or bump quantity by PART NUMBER)

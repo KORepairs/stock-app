@@ -48,6 +48,18 @@ function categoryFromSkuPrefix(sku) {
   return null;
 }
 
+const POSTAGE_GROUPS = {
+  large_letter: 1.84,
+  large_letter_tracked: 3.80,
+  small_parcel: 4.65,
+  courier: 8.00,
+  server: 15.00,
+};
+
+function getPostagePrice(postageGroup) {
+  return POSTAGE_GROUPS[String(postageGroup || '').trim()] ?? 0;
+}
+
 
 /* ---------- Paths ---------- */
 const __filename = fileURLToPath(import.meta.url);
@@ -284,17 +296,18 @@ app.put('/api/products/:id', async (req, res) => {
     if (!id) return res.status(400).json({ error: 'invalid id' });
 
     const {
-      sku,
-      code = null,
-      name,
-      quantity = 0,
-      onEbay = false,
-      retail = 0,
-      cost = 0,
-      fees = 0,
-      postage = 0,
-      notes = null,
-    } = req.body || {};
+  sku,
+  code = null,
+  name,
+  quantity = 0,
+  onEbay = false,
+  retail = 0,
+  cost = 0,
+  fees = 0,
+  postage = 0,
+  postage_group = null,
+  notes = null,
+} = req.body || {};
 
     const skuNorm   = String(sku || '').trim().toUpperCase();
     const codeNorm = (code == null || String(code).trim() === '')
@@ -317,41 +330,44 @@ app.put('/api/products/:id', async (req, res) => {
       cost: Number(cost) || 0,
       retail: Number(retail) || 0,
       fees: Number(retail || 0) * 0.25,
-      postage: Number(postage) || 0,
+      postage: postage_group ? getPostagePrice(postage_group) : (Number(postage) || 0),
+      postage_group: postage_group || null,
       quantity: Number(quantity) || 0,
     };
 
     const { rows } = await pgQuery(
       `
       UPDATE products
-      SET
-        sku = $1,
-        code = $2,            -- ✅ add
-        name = $3,
-        notes = $4,
-        on_ebay = $5,
-        cost = $6,
-        retail = $7,
-        fees = $8,
-        postage = $9,
-        quantity = $10
-      WHERE id = $11
-      RETURNING *;
+SET
+  sku = $1,
+  code = $2,
+  name = $3,
+  notes = $4,
+  on_ebay = $5,
+  cost = $6,
+  retail = $7,
+  fees = $8,
+  postage = $9,
+  postage_group = $10,
+  quantity = $11
+WHERE id = $12
+RETURNING *;
 
       `,
       [
-        data.sku,
-        codeNorm,
-        data.name,
-        data.notes,
-        data.on_ebay,
-        data.cost,
-        data.retail,
-        data.fees,
-        data.postage,
-        data.quantity,
-        data.id,
-      ]
+  data.sku,
+  codeNorm,
+  data.name,
+  data.notes,
+  data.on_ebay,
+  data.cost,
+  data.retail,
+  data.fees,
+  data.postage,
+  data.postage_group,
+  data.quantity,
+  data.id,
+]
     );
 
     const row = rows[0];
@@ -439,17 +455,18 @@ app.delete('/api/products/:id', async (req, res) => {
 app.post('/api/products', async (req, res) => {
   try {
     const {
-      sku,
-      code = null, 
-      name,
-      quantity = 0,
-      notes = null,
-      onEbay = false,   // CSV / form uses onEbay
-      cost = 0,
-      retail = 0,
-      fees = 0,
-      postage = 0
-    } = req.body || {};
+  sku,
+  code = null, 
+  name,
+  quantity = 0,
+  notes = null,
+  onEbay = false,
+  cost = 0,
+  retail = 0,
+  fees = 0,
+  postage = 0,
+  postage_group = null
+} = req.body || {};
 
     if (!sku || !name) {
       return res.status(400).json({ error: 'sku and name are required' });
@@ -475,7 +492,8 @@ app.post('/api/products', async (req, res) => {
       cost:     Number(cost)     || 0,
       retail:   Number(retail)   || 0,
       fees: Number(retail) * 0.25 || 0,
-      postage:  Number(postage)  || 0,
+      postage: postage_group ? getPostagePrice(postage_group) : (Number(postage) || 0),
+      postage_group: postage_group || null,
       quantity: Number(quantity) || 0,
     };
 

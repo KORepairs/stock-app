@@ -15,7 +15,7 @@ export async function listProductsPG({ ebay_status } = {}) {
   const { rows } = await pgQuery(
     `SELECT id, sku, code, name, quantity, notes, on_ebay,
             ebay_status, ebay_notes,
-            retail, cost, fees, postage
+            retail, cost, fees, postage, postage_group
      FROM products
      ${where}
      ORDER BY sku ASC`,
@@ -30,7 +30,7 @@ export async function listProductsPG({ ebay_status } = {}) {
 export async function getProductByIdPG(id) {
   const { rows } = await pgQuery(
     `SELECT id, sku, code, name, quantity, notes, on_ebay,
-            retail, cost, fees, postage
+            retail, cost, fees, postage, postage_group
      FROM products
      WHERE id = $1`,
     [id]
@@ -52,19 +52,20 @@ export async function createProductPG(data) {
   retail,
   fees,
   postage,
+  postage_group = null,
   quantity
 } = data;
 
 
   const { rows } = await pgQuery(
-  `INSERT INTO products
-     (sku, code, name, notes, on_ebay, ebay_status, ebay_notes, cost, retail, fees, postage, quantity)
-   VALUES
-     ($1,  $2,   $3,   $4,   $5,      $6,          $7,         $8,   $9,     $10,  $11,     $12)
-   RETURNING id, sku, code, name, quantity, notes, on_ebay,
-             ebay_status, ebay_notes,
-             retail, cost, fees, postage`,
-  [sku, code, name, notes, on_ebay, ebay_status, ebay_notes, cost, retail, fees, postage, quantity]
+     `INSERT INTO products
+   (sku, code, name, notes, on_ebay, ebay_status, ebay_notes, cost, retail, fees, postage, postage_group, quantity)
+ VALUES
+   ($1,  $2,   $3,   $4,   $5,      $6,          $7,         $8,   $9,     $10,  $11,     $12,           $13)
+ RETURNING id, sku, code, name, quantity, notes, on_ebay,
+           ebay_status, ebay_notes,
+           retail, cost, fees, postage, postage_group`,
+[sku, code, name, notes, on_ebay, ebay_status, ebay_notes, cost, retail, fees, postage, postage_group, quantity]
 );
 
 
@@ -201,7 +202,7 @@ export async function stockInPG({ code, delta }) {
        SET quantity = quantity + $2
      WHERE sku = $1
      RETURNING id, sku, name, quantity, notes, on_ebay,
-               retail, cost, fees, postage`,
+          retail, cost, fees, postage, postage_group`,
     [skuNorm, qtyDelta]
   );
 
@@ -297,8 +298,8 @@ export async function updateEbayStatusPG(id, { ebay_status, ebay_notes } = {}) {
         ebay_notes  = COALESCE($3, ebay_notes)
     WHERE id = $1
     RETURNING id, sku, code, name, quantity, notes, on_ebay,
-              ebay_status, ebay_notes,
-              retail, cost, fees, postage;
+          ebay_status, ebay_notes,
+          retail, cost, fees, postage, postage_group;
     `,
     [Number(id), ebay_status ?? null, ebay_notes ?? null]
   );

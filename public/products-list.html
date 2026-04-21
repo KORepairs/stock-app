@@ -263,8 +263,18 @@
               <input id="e_cost" type="number" step="0.01" min="0" />
               <label>Fees</label>
               <input id="e_fees" type="number" step="0.01" min="0" />
-              <label>Postage</label>
-              <input id="e_postage" type="number" step="0.01" min="0" />
+              <label>Postage group</label>
+<select id="e_postage_group">
+  <option value="">-- Select postage group --</option>
+  <option value="large_letter">Large Letter (£1.84)</option>
+  <option value="large_letter_tracked">Large Letter Tracked (£3.80)</option>
+  <option value="small_parcel">Small Parcel (£4.65)</option>
+  <option value="courier">Courier (£8.00)</option>
+  <option value="server">Server (£15.00)</option>
+</select>
+
+<label>Postage</label>
+<input id="e_postage" type="number" step="0.01" min="0" readonly />
               <label>Notes</label> <textarea id="e_notes"></textarea>
             </div>
             <div class="actions">
@@ -295,6 +305,14 @@
                 "'": "&#39;",
               })[m],
           );
+
+          const POSTAGE_GROUPS = {
+  large_letter: { label: "Large Letter", price: 1.84 },
+  large_letter_tracked: { label: "Large Letter Tracked", price: 3.80 },
+  small_parcel: { label: "Small Parcel", price: 4.65 },
+  courier: { label: "Courier", price: 8.00 },
+  server: { label: "Server", price: 15.00 },
+};
 
         // cache of all products from the server
         let all = [];
@@ -576,6 +594,7 @@ if (actionsHeader) {
             $("e_retail").value = row.retail || 0;
             $("e_cost").value = row.cost || 0;
             $("e_fees").value = (Number(row.retail || 0) * 0.25).toFixed(2);
+            $("e_postage_group").value = row.postage_group || "";
             $("e_postage").value = row.postage || 0;
             $("e_notes").value = row.notes || "";
 
@@ -628,16 +647,17 @@ if (actionsHeader) {
           ev.preventDefault();
           const id = Number($("e_id").value);
           const body = {
-            sku: $("e_sku").value.trim(),
-            name: $("e_name").value.trim(),
-            quantity: Number($("e_quantity").value || 0),
-            onEbay: $("e_onEbay").checked,
-            retail: Number($("e_retail").value || 0),
-            cost: Number($("e_cost").value || 0),
-            fees: Number($("e_fees").value || 0),
-            postage: Number($("e_postage").value || 0),
-            notes: $("e_notes").value.trim() || null,
-          };
+  sku: $("e_sku").value.trim(),
+  name: $("e_name").value.trim(),
+  quantity: Number($("e_quantity").value || 0),
+  onEbay: $("e_onEbay").checked,
+  retail: Number($("e_retail").value || 0),
+  cost: Number($("e_cost").value || 0),
+  fees: Number($("e_fees").value || 0),
+  postage_group: $("e_postage_group").value || null,
+  postage: Number($("e_postage").value || 0),
+  notes: $("e_notes").value.trim() || null,
+};
           const r = await fetch("/api/products/" + id, {
             method: "PUT",
             headers: { "Content-Type": "application/json" },
@@ -737,6 +757,17 @@ if (actionsHeader) {
         $("e_retail")?.addEventListener("input", () => {
   const retail = Number($("e_retail").value || 0);
   $("e_fees").value = (retail * 0.25).toFixed(2);
+});
+
+      $("e_postage_group")?.addEventListener("change", () => {
+  const group = $("e_postage_group").value;
+  const match = POSTAGE_GROUPS[group];
+
+  if (match) {
+    $("e_postage").value = match.price.toFixed(2);
+  } else {
+    $("e_postage").value = "0.00";
+  }
 });
 
         // initial load

@@ -318,22 +318,24 @@ app.put('/api/products/:id', async (req, res) => {
       ? null
       : String(notes).trim();
 
-    const data = {
-      id,
-      sku: skuNorm,
-      name: String(name || '').trim(),
-      notes: notesNorm,
-      on_ebay:
-        onEbay === true || onEbay === 'yes' || onEbay === 1
-          ? 1
-          : 0,
-      cost: Number(cost) || 0,
-      retail: Number(retail) || 0,
-      fees: Number(retail || 0) * 0.25,
-      postage: postage_group ? getPostagePrice(postage_group) : (Number(postage) || 0),
-      postage_group: postage_group || null,
-      quantity: Number(quantity) || 0,
-    };
+    const cleanPostageGroup = postage_group ? String(postage_group).trim() : null;
+
+const data = {
+  id,
+  sku: skuNorm,
+  name: String(name || '').trim(),
+  notes: notesNorm,
+  on_ebay:
+    onEbay === true || onEbay === 'yes' || onEbay === 1
+      ? 1
+      : 0,
+  cost: Number(cost) || 0,
+  retail: Number(retail) || 0,
+  fees: Number(retail || 0) * 0.25,
+  postage_group: cleanPostageGroup,
+  postage: cleanPostageGroup ? getPostagePrice(cleanPostageGroup) : (Number(postage) || 0),
+  quantity: Number(quantity) || 0,
+};
 
     const { rows } = await pgQuery(
       `

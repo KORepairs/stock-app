@@ -361,8 +361,8 @@ const data = {
     onEbay === true || onEbay === 'yes' || onEbay === 1
       ? 1
       : 0,
-  cost: Number(cost) || 0,
   retail: Number(retail) || 0,
+  cost: Number(retail || 0) * 0.20,
   fees: Number(retail || 0) * 0.25,
   postage_group: cleanPostageGroup,
   postage: cleanPostageGroup ? getPostagePrice(cleanPostageGroup) : (Number(postage) || 0),
@@ -450,6 +450,21 @@ app.get('/api/stats/ebay', async (req, res) => {
   }
 });
 
+app.get('/fix-costs', async (req, res) => {
+  try {
+    await pgQuery(`
+      UPDATE products
+      SET cost = retail * 0.20
+      WHERE retail > 0
+    `);
+
+    res.send('Costs updated successfully');
+  } catch (err) {
+    console.error(err);
+    res.status(500).send(err.message);
+  }
+});
+
 
 // Lookup a product by code (SKU) using Postgres
 app.get('/api/products/lookup/:code', async (req, res) => {
@@ -523,8 +538,8 @@ app.post('/api/products', async (req, res) => {
       on_ebay: (onEbay === true || onEbay === 1 || onEbay === '1' ||
                 /^yes|y|true$/i.test(String(onEbay)))
                 ? 1 : 0,
-      cost:     Number(cost)     || 0,
-      retail:   Number(retail)   || 0,
+      retail: Number(retail) || 0,
+      cost: Number(retail) * 0.20 || 0,
       fees: Number(retail) * 0.25 || 0,
       postage: postage_group ? getPostagePrice(postage_group) : (Number(postage) || 0),
       postage_group: postage_group || null,

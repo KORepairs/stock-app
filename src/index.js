@@ -450,23 +450,7 @@ app.get('/api/stats/ebay', async (req, res) => {
   }
 });
 
-app.get('/fix-costs', async (req, res) => {
-  try {
-    const result = await pgQuery(`
-      UPDATE products
-      SET cost = retail * 0.20
-      WHERE retail > 0
-    `);
 
-    res.json({
-      ok: true,
-      updated: result.rowCount
-    });
-  } catch (err) {
-    console.error(err);
-    res.status(500).json({ ok: false, error: err.message });
-  }
-});
 
 
 

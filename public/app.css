@@ -240,11 +240,22 @@ body  { margin: 0; }        /* make sure nothing centers the body */
   vertical-align: middle;
 }
 
-/* Keep action buttons centered and tidy */
 #tbl td.actions {
   display: flex;
-  justify-content: center;
-  gap: 8px;
+  flex-direction: column;
+  align-items: center;
+  gap: 6px;
+}
+
+#tbl td.actions button {
+  width: 90px;
+  margin-right: 0;
+}
+
+#tbl th:last-child,
+#tbl td:last-child {
+  width: 110px;
+  max-width: 110px;
 }
 
 .btnFilter,

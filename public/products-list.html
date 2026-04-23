@@ -537,7 +537,13 @@
     <option value="server" ${p.postage_group === "server" ? "selected" : ""}>Server (£15.00)</option>
   </select>
 </td>
-<td>${GBP(Number(p.retail || 0) - Number(p.cost || 0) - Number(p.fees || 0) - Number(p.postage || 0))}</td>
+<td style="color:${
+  (Number(p.retail || 0) - Number(p.cost || 0) - Number(p.fees || 0) - Number(p.postage || 0)) < 0
+    ? '#b91c1c'
+    : '#15803d'
+}; font-weight:700;">
+  ${GBP(Number(p.retail || 0) - Number(p.cost || 0) - Number(p.fees || 0) - Number(p.postage || 0))}
+</td>
 <td class="actions">
   ${
     isRelistPage
@@ -564,8 +570,8 @@
     <td><strong>${GBP(totalCost)}</strong></td>
     <td><strong>${GBP(totalFees)}</strong></td>
     <td><strong>${GBP(totalPostage)}</strong></td>
-    <td style="color:${profit < 0 ? '#b91c1c' : '#15803d'}; font-weight:700;">
-  ${GBP(profit)}
+    <td style="color:${totalProfit < 0 ? '#b91c1c' : '#15803d'}; font-weight:700;">
+  <strong>${GBP(totalProfit)}</strong>
 </td>
     <td></td> <!-- Actions -->
   </tr>

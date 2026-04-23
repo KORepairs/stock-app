@@ -564,7 +564,9 @@
     <td><strong>${GBP(totalCost)}</strong></td>
     <td><strong>${GBP(totalFees)}</strong></td>
     <td><strong>${GBP(totalPostage)}</strong></td>
-    <td><strong>${GBP(totalProfit)}</strong></td>
+    <td style="color:${profit < 0 ? '#b91c1c' : '#15803d'}; font-weight:700;">
+  ${GBP(profit)}
+</td>
     <td></td> <!-- Actions -->
   </tr>
 `;

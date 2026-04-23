@@ -450,20 +450,6 @@ app.get('/api/stats/ebay', async (req, res) => {
   }
 });
 
-app.get('/fix-costs', async (req, res) => {
-  try {
-    await pgQuery(`
-      UPDATE products
-      SET cost = retail * 0.20
-      WHERE retail > 0
-    `);
-
-    res.send('Costs updated successfully');
-  } catch (err) {
-    console.error(err);
-    res.status(500).send(err.message);
-  }
-});
 
 
 // Lookup a product by code (SKU) using Postgres

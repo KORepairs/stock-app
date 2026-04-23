@@ -180,7 +180,7 @@ pre, code{
 }
 
 /* ===== Dark sidebar (matches your left example) ===== */
-.layout{ grid-template-columns: 260px 1fr; }          /* a bit wider nav */
+.layout{ grid-template-columns: 220px 1fr; }          /* a bit wider nav */
 .sidebar{
   background: #0f1218;                                /* deep slate */
   border-right: 1px solid #1b2130;
@@ -277,7 +277,7 @@ body  { margin: 0; }        /* make sure nothing centers the body */
 
 .wrap {
   display: grid;
-  grid-template-columns: 260px minmax(0, 1fr);  /* sidebar | main */
+  grid-template-columns: 220px minmax(0, 1fr);  /* sidebar | main */
   min-height: 100vh;
 }
 

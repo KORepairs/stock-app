@@ -69,25 +69,25 @@
       }
 
       select option {
-  color: #111;
-  background: #fff;
-}
+        color: #111;
+        background: #fff;
+      }
 
-.pill select option {
-  color: #111;
-  background: #fff;
-}
+      .pill select option {
+        color: #111;
+        background: #fff;
+      }
 
-.postageGroupSel {
-  min-width: 130px;
-  max-width: 150px;
-}
+      .postageGroupSel {
+        min-width: 130px;
+        max-width: 150px;
+      }
 
-#tbl th:nth-child(3),
-#tbl td:nth-child(3) {
-  width: 60px;
-  max-width: 60px;
-}
+      #tbl th:nth-child(3),
+      #tbl td:nth-child(3) {
+        width: 60px;
+        max-width: 60px;
+      }
     </style>
   </head>
   <body>
@@ -233,12 +233,13 @@
                 <th>Cost</th>
                 <th>Fees</th>
                 <th>Postage</th>
+                <th>Profit</th>
                 <th id="actionsHeader">Actions</th>
               </tr>
             </thead>
             <tbody id="prodTbody">
               <tr>
-                <td colspan="10" style="padding: 8px">Loading…</td>
+                <td colspan="11" style="padding: 8px">Loading…</td>
               </tr>
             </tbody>
           </table>
@@ -275,17 +276,25 @@
               <label>Fees</label>
               <input id="e_fees" type="number" step="0.01" min="0" />
               <label>Postage group</label>
-<select id="e_postage_group">
-  <option value="">-- Select postage group --</option>
-  <option value="large_letter">Large Letter (£1.84)</option>
-  <option value="large_letter_tracked">Large Letter Tracked (£3.80)</option>
-  <option value="small_parcel">Small Parcel (£4.65)</option>
-  <option value="courier">Courier (£8.00)</option>
-  <option value="server">Server (£15.00)</option>
-</select>
+              <select id="e_postage_group">
+                <option value="">-- Select postage group --</option>
+                <option value="large_letter">Large Letter (£1.84)</option>
+                <option value="large_letter_tracked">
+                  Large Letter Tracked (£3.80)
+                </option>
+                <option value="small_parcel">Small Parcel (£4.65)</option>
+                <option value="courier">Courier (£8.00)</option>
+                <option value="server">Server (£15.00)</option>
+              </select>
 
-<label>Postage</label>
-<input id="e_postage" type="number" step="0.01" min="0" readonly />
+              <label>Postage</label>
+              <input
+                id="e_postage"
+                type="number"
+                step="0.01"
+                min="0"
+                readonly
+              />
               <label>Notes</label> <textarea id="e_notes"></textarea>
             </div>
             <div class="actions">
@@ -317,13 +326,13 @@
               })[m],
           );
 
-          const POSTAGE_GROUPS = {
-  large_letter: { label: "Large Letter", price: 1.84 },
-  large_letter_tracked: { label: "Large Letter Tracked", price: 3.80 },
-  small_parcel: { label: "Small Parcel", price: 4.65 },
-  courier: { label: "Courier", price: 8.00 },
-  server: { label: "Server", price: 15.00 },
-};
+        const POSTAGE_GROUPS = {
+          large_letter: { label: "Large Letter", price: 1.84 },
+          large_letter_tracked: { label: "Large Letter Tracked", price: 3.8 },
+          small_parcel: { label: "Small Parcel", price: 4.65 },
+          courier: { label: "Courier", price: 8.0 },
+          server: { label: "Server", price: 15.0 },
+        };
 
         // cache of all products from the server
         let all = [];
@@ -411,7 +420,7 @@
         async function fetchAll() {
           const tbody = $("prodTbody");
           tbody.innerHTML =
-            '<tr><td colspan="10" style="padding:8px">Loading…</td></tr>';
+            '<tr><td colspan="11" style="padding:8px">Loading…</td></tr>';
 
           try {
             const params = new URLSearchParams(window.location.search);
@@ -464,7 +473,7 @@
           // 4) if nothing left, show message and no totals
           if (!rows.length) {
             tbody.innerHTML =
-              '<tr><td colspan="11" style="padding:8px">No matching products</td></tr>';
+              '<tr><td colspan="12" style="padding:8px">No matching products</td></tr>';
             return;
           }
 
@@ -474,6 +483,7 @@
           let totalRetail = 0;
           let totalFees = 0;
           let totalPostage = 0;
+          let totalProfit = 0;
 
           rows.forEach((p) => {
             const qty = Number(p.quantity) || 0;
@@ -481,21 +491,23 @@
             const retail = Number(p.retail) || 0;
             const fees = Number(p.fees) || 0;
             const postage = Number(p.postage) || 0;
+            const profit = retail - cost - fees - postage;
 
             totalQty += qty;
             totalCost += qty * cost;
             totalRetail += qty * retail;
             totalFees += qty * fees;
             totalPostage += qty * postage;
+            totalProfit += qty * profit;
           });
 
           const params = new URLSearchParams(window.location.search);
-const isRelistPage = params.get("ebay_status") === "ready_to_list";
+          const isRelistPage = params.get("ebay_status") === "ready_to_list";
 
           const actionsHeader = document.getElementById("actionsHeader");
-if (actionsHeader) {
-  actionsHeader.textContent = isRelistPage ? "Relist" : "Actions";
-}
+          if (actionsHeader) {
+            actionsHeader.textContent = isRelistPage ? "Relist" : "Actions";
+          }
 
           // 6) render normal rows
           const rowsHtml = rows
@@ -515,17 +527,18 @@ if (actionsHeader) {
         <td>${GBP(p.retail)}</td>
         <td>${GBP(p.cost)}</td>
         <td>${GBP(p.fees)}</td>
-        <td>
+<td>
   <select class="postageGroupSel" data-id="${p.id}">
     <option value="">-- Select --</option>
     <option value="large_letter" ${p.postage_group === "large_letter" ? "selected" : ""}>LL (£1.84)</option>
     <option value="large_letter_tracked" ${p.postage_group === "large_letter_tracked" ? "selected" : ""}>LL Tracked (£3.80)</option>
-    <option value="small_parcel" ${p.postage_group === "small_parcel" ? "selected" : ""}>S. Parcel (£4.65)</option>
+    <option value="small_parcel" ${p.postage_group === "small_parcel" ? "selected" : ""}>Small Parcel (£4.65)</option>
     <option value="courier" ${p.postage_group === "courier" ? "selected" : ""}>Courier (£8.00)</option>
     <option value="server" ${p.postage_group === "server" ? "selected" : ""}>Server (£15.00)</option>
   </select>
 </td>
-        <td class="actions">
+<td>${GBP(Number(p.retail || 0) - Number(p.cost || 0) - Number(p.fees || 0) - Number(p.postage || 0))}</td>
+<td class="actions">
   ${
     isRelistPage
       ? `<button data-act="relisted" data-id="${p.id}">Mark relisted</button>`
@@ -542,18 +555,19 @@ if (actionsHeader) {
 
           // 7) append totals row as the last row
           const totalsRow = `
-      <tr class="totals-row">
-        <td colspan="2"><strong>Totals</strong></td>
-        <td><strong>${totalQty}</strong></td>
-        <td></td> <!-- Notes -->
-        <td></td> <!-- eBay -->
-        <td><strong>${GBP(totalRetail)}</strong></td>
-        <td><strong>${GBP(totalCost)}</strong></td>
-        <td><strong>${GBP(totalFees)}</strong></td>
-        <td><strong>${GBP(totalPostage)}</strong></td>
-        <td></td> <!-- Actions -->
-      </tr>
-    `;
+  <tr class="totals-row">
+    <td colspan="2"><strong>Totals</strong></td>
+    <td><strong>${totalQty}</strong></td>
+    <td></td> <!-- Notes -->
+    <td></td> <!-- eBay -->
+    <td><strong>${GBP(totalRetail)}</strong></td>
+    <td><strong>${GBP(totalCost)}</strong></td>
+    <td><strong>${GBP(totalFees)}</strong></td>
+    <td><strong>${GBP(totalPostage)}</strong></td>
+    <td><strong>${GBP(totalProfit)}</strong></td>
+    <td></td> <!-- Actions -->
+  </tr>
+`;
 
           tbody.innerHTML = rowsHtml + totalsRow;
         }
@@ -578,32 +592,32 @@ if (actionsHeader) {
           }
 
           if (btn.dataset.act === "relisted") {
-  btn.disabled = true;
-  btn.textContent = "Saving…";
+            btn.disabled = true;
+            btn.textContent = "Saving…";
 
-  const r = await fetch("/api/products/" + id + "/ebay", {
-    method: "PATCH",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ ebay_status: "listed" }),
-  });
+            const r = await fetch("/api/products/" + id + "/ebay", {
+              method: "PATCH",
+              headers: { "Content-Type": "application/json" },
+              body: JSON.stringify({ ebay_status: "listed" }),
+            });
 
-  const j = await r.json();
+            const j = await r.json();
 
-  if (j.error) {
-    alert(j.error);
-    btn.disabled = false;
-    btn.textContent = "Mark relisted";
-    return;
-  }
+            if (j.error) {
+              alert(j.error);
+              btn.disabled = false;
+              btn.textContent = "Mark relisted";
+              return;
+            }
 
-  const i = all.findIndex((x) => x.id === id);
-  if (i > -1) {
-    all[i] = { ...all[i], ...j };
-  }
+            const i = all.findIndex((x) => x.id === id);
+            if (i > -1) {
+              all[i] = { ...all[i], ...j };
+            }
 
-  render();
-  return;
-}
+            render();
+            return;
+          }
 
           if (btn.dataset.act === "edit") {
             $("e_id").value = row.id;
@@ -631,103 +645,102 @@ if (actionsHeader) {
         });
 
         $("prodTbody").addEventListener("change", async (e) => {
-  const sel = e.target.closest(".ebaySel");
-  if (!sel) return;
+          const sel = e.target.closest(".ebaySel");
+          if (!sel) return;
 
-  const id = Number(sel.dataset.id);
-  const ebay_status = sel.value;
+          const id = Number(sel.dataset.id);
+          const ebay_status = sel.value;
 
-  try {
-    const r = await fetch("/api/products/" + id + "/ebay", {
-      method: "PATCH",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ ebay_status }),
-    });
+          try {
+            const r = await fetch("/api/products/" + id + "/ebay", {
+              method: "PATCH",
+              headers: { "Content-Type": "application/json" },
+              body: JSON.stringify({ ebay_status }),
+            });
 
-    const j = await r.json();
-    if (j.error) {
-      alert(j.error);
-      return;
-    }
+            const j = await r.json();
+            if (j.error) {
+              alert(j.error);
+              return;
+            }
 
-    const i = all.findIndex((x) => x.id === id);
-    if (i > -1) {
-      all[i] = { ...all[i], ...j };
-    }
+            const i = all.findIndex((x) => x.id === id);
+            if (i > -1) {
+              all[i] = { ...all[i], ...j };
+            }
 
-    render();
-  } catch (err) {
-    console.error(err);
-    alert("Failed to update eBay status");
-  }
-});
+            render();
+          } catch (err) {
+            console.error(err);
+            alert("Failed to update eBay status");
+          }
+        });
 
+        $("prodTbody").addEventListener("change", async (e) => {
+          const sel = e.target.closest(".postageGroupSel");
+          if (!sel) return;
 
-$("prodTbody").addEventListener("change", async (e) => {
-  const sel = e.target.closest(".postageGroupSel");
-  if (!sel) return;
+          const id = Number(sel.dataset.id);
+          const postage_group = sel.value;
 
-  const id = Number(sel.dataset.id);
-  const postage_group = sel.value;
+          const row = all.find((x) => x.id === id);
+          if (!row) return;
 
-  const row = all.find((x) => x.id === id);
-  if (!row) return;
+          const match = POSTAGE_GROUPS[postage_group];
+          const postage = match ? match.price : 0;
 
-  const match = POSTAGE_GROUPS[postage_group];
-  const postage = match ? match.price : 0;
+          try {
+            const r = await fetch("/api/products/" + id, {
+              method: "PUT",
+              headers: { "Content-Type": "application/json" },
+              body: JSON.stringify({
+                sku: row.sku,
+                name: row.name,
+                quantity: Number(row.quantity || 0),
+                onEbay: !!row.on_ebay,
+                retail: Number(row.retail || 0),
+                cost: Number(row.cost || 0),
+                fees: Number(row.fees || 0),
+                postage_group,
+                postage,
+                notes: row.notes || null,
+              }),
+            });
 
-  try {
-    const r = await fetch("/api/products/" + id, {
-      method: "PUT",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        sku: row.sku,
-        name: row.name,
-        quantity: Number(row.quantity || 0),
-        onEbay: !!row.on_ebay,
-        retail: Number(row.retail || 0),
-        cost: Number(row.cost || 0),
-        fees: Number(row.fees || 0),
-        postage_group,
-        postage,
-        notes: row.notes || null,
-      }),
-    });
+            const j = await r.json();
+            if (j.error) {
+              alert(j.error);
+              return;
+            }
 
-    const j = await r.json();
-    if (j.error) {
-      alert(j.error);
-      return;
-    }
+            const i = all.findIndex((x) => x.id === id);
+            if (i > -1) {
+              all[i] = { ...all[i], ...j };
+            }
 
-    const i = all.findIndex((x) => x.id === id);
-    if (i > -1) {
-      all[i] = { ...all[i], ...j };
-    }
-
-    render();
-  } catch (err) {
-    console.error(err);
-    alert("Failed to update postage");
-  }
-});
+            render();
+          } catch (err) {
+            console.error(err);
+            alert("Failed to update postage");
+          }
+        });
 
         // ---------- save edits ----------
         $("editForm").addEventListener("submit", async (ev) => {
           ev.preventDefault();
           const id = Number($("e_id").value);
           const body = {
-  sku: $("e_sku").value.trim(),
-  name: $("e_name").value.trim(),
-  quantity: Number($("e_quantity").value || 0),
-  onEbay: $("e_onEbay").checked,
-  retail: Number($("e_retail").value || 0),
-  cost: Number($("e_cost").value || 0),
-  fees: Number($("e_fees").value || 0),
-  postage_group: $("e_postage_group").value || null,
-  postage: Number($("e_postage").value || 0),
-  notes: $("e_notes").value.trim() || null,
-};
+            sku: $("e_sku").value.trim(),
+            name: $("e_name").value.trim(),
+            quantity: Number($("e_quantity").value || 0),
+            onEbay: $("e_onEbay").checked,
+            retail: Number($("e_retail").value || 0),
+            cost: Number($("e_cost").value || 0),
+            fees: Number($("e_fees").value || 0),
+            postage_group: $("e_postage_group").value || null,
+            postage: Number($("e_postage").value || 0),
+            notes: $("e_notes").value.trim() || null,
+          };
           const r = await fetch("/api/products/" + id, {
             method: "PUT",
             headers: { "Content-Type": "application/json" },
@@ -825,20 +838,20 @@ $("prodTbody").addEventListener("change", async (e) => {
         }
 
         $("e_retail")?.addEventListener("input", () => {
-  const retail = Number($("e_retail").value || 0);
-  $("e_fees").value = (retail * 0.25).toFixed(2);
-});
+          const retail = Number($("e_retail").value || 0);
+          $("e_fees").value = (retail * 0.25).toFixed(2);
+        });
 
-      $("e_postage_group")?.addEventListener("change", () => {
-  const group = $("e_postage_group").value;
-  const match = POSTAGE_GROUPS[group];
+        $("e_postage_group")?.addEventListener("change", () => {
+          const group = $("e_postage_group").value;
+          const match = POSTAGE_GROUPS[group];
 
-  if (match) {
-    $("e_postage").value = match.price.toFixed(2);
-  } else {
-    $("e_postage").value = "0.00";
-  }
-});
+          if (match) {
+            $("e_postage").value = match.price.toFixed(2);
+          } else {
+            $("e_postage").value = "0.00";
+          }
+        });
 
         // initial load
         document.addEventListener("DOMContentLoaded", () => {

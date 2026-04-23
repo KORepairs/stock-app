@@ -88,6 +88,11 @@
         width: 60px;
         max-width: 60px;
       }
+
+      .retailInp {
+  width: 90px;
+  text-align: center;
+}
     </style>
   </head>
   <body>
@@ -524,7 +529,17 @@
     <option value="not_listed" ${p.ebay_status !== "listed" ? "selected" : ""}>N</option>
   </select>
 </td>
-        <td>${GBP(p.retail)}</td>
+        <td>
+  <input
+    class="retailInp"
+    data-id="${p.id}"
+    type="number"
+    step="0.01"
+    min="0"
+    value="${Number(p.retail || 0).toFixed(2)}"
+    style="width:90px;"
+  />
+</td>
         <td>${GBP(p.cost)}</td>
         <td>${GBP(p.fees)}</td>
 <td>
@@ -732,6 +747,55 @@
             alert("Failed to update postage");
           }
         });
+
+
+        $("prodTbody").addEventListener("change", async (e) => {
+  const inp = e.target.closest(".retailInp");
+  if (!inp) return;
+
+  const id = Number(inp.dataset.id);
+  const retail = Number(inp.value || 0);
+
+  const row = all.find((x) => x.id === id);
+  if (!row) return;
+
+  const fees = Number((retail * 0.25).toFixed(2));
+
+  try {
+    const r = await fetch("/api/products/" + id, {
+      method: "PUT",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        sku: row.sku,
+        name: row.name,
+        quantity: Number(row.quantity || 0),
+        onEbay: !!row.on_ebay,
+        retail,
+        cost: Number(row.cost || 0),
+        fees,
+        postage_group: row.postage_group || null,
+        postage: Number(row.postage || 0),
+        notes: row.notes || null,
+      }),
+    });
+
+    const j = await r.json();
+    if (j.error) {
+      alert(j.error);
+      return;
+    }
+
+    const i = all.findIndex((x) => x.id === id);
+    if (i > -1) {
+      all[i] = { ...all[i], ...j };
+    }
+
+    render();
+  } catch (err) {
+    console.error(err);
+    alert("Failed to update retail");
+  }
+});
 
         // ---------- save edits ----------
         $("editForm").addEventListener("submit", async (ev) => {

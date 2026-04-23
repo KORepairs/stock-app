@@ -212,6 +212,38 @@ async function findProductByLooseCodePG(codeNorm) {
   return rows;
 }
 
+app.get('/api/dashboard/loss-making', async (req, res) => {
+  try {
+    const { rows } = await pgQuery(`
+      SELECT
+        id,
+        sku,
+        name,
+        quantity,
+        retail,
+        cost,
+        fees,
+        postage,
+        (retail - cost - fees - postage) AS profit
+      FROM products
+      WHERE (retail - cost - fees - postage) < 0
+      ORDER BY (retail - cost - fees - postage) ASC, sku ASC
+    `);
+
+    const totalLoss = rows.reduce((sum, row) => {
+      return sum + (Number(row.profit) || 0) * (Number(row.quantity) || 0);
+    }, 0);
+
+    res.json({
+      count: rows.length,
+      totalLoss,
+      rows,
+    });
+  } catch (err) {
+    console.error('dashboard loss-making error:', err);
+    res.status(500).json({ error: err.message });
+  }
+});
 
 /* ---------- API: Products ---------- */
 

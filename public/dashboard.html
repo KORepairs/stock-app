@@ -337,6 +337,17 @@
 </div>
 
 <div class="card">
+  <h2 style="margin: 0 0 10px">Loss-making stock</h2>
+  <div class="muted">Items currently making no profit or a loss.</div>
+
+  <div id="lossWrap" class="list" style="margin-top:12px;">
+    <div class="listItem">
+      <div>Loading…</div>
+    </div>
+  </div>
+</div>
+
+<div class="card">
   <h2 style="margin: 0 0 10px">Parts quick list</h2>
   <div class="muted">Combined duplicate parts to make ordering easier.</div>
 
@@ -626,6 +637,65 @@ function renderPartsSummaryList(items) {
   }).join('');
 }
 
+function fmtGBP(n) {
+  return Number(n || 0).toLocaleString("en-GB", {
+    style: "currency",
+    currency: "GBP",
+  });
+}
+
+function renderLossMaking(items, totalLoss) {
+  const wrap = $("lossWrap");
+  if (!wrap) return;
+
+  if (!items || !items.length) {
+    wrap.innerHTML = `
+      <div class="listItem" style="cursor:default">
+        <div>
+          <strong>No loss-making stock ✅</strong>
+          <div class="muted">Everything currently priced at break-even or better.</div>
+        </div>
+      </div>
+    `;
+    return;
+  }
+
+  const top = items.slice(0, 5);
+
+  wrap.innerHTML = `
+    <div class="listItem" data-link="/products/list?loss=1">
+      <div>
+        <strong>${items.length} item(s) need review</strong>
+        <div class="muted">Total potential loss: ${fmtGBP(totalLoss)}</div>
+      </div>
+      <div class="right">
+        <strong style="color:#b91c1c;">Open list</strong>
+      </div>
+    </div>
+
+    ${top.map(item => `
+      <div class="listItem" data-link="/products/list?loss=1">
+        <div>
+          <strong>${item.sku} — ${item.name}</strong>
+          <div class="muted">Qty: ${Number(item.quantity || 0)}</div>
+        </div>
+        <div class="right">
+          <strong style="color:#b91c1c;">${fmtGBP(item.total_profit)}</strong>
+          <div class="muted">total</div>
+        </div>
+      </div>
+    `).join("")}
+  `;
+
+  wrap.querySelectorAll(".listItem").forEach((x) => {
+    const link = x.getAttribute("data-link");
+    if (!link) return;
+    x.addEventListener("click", () => {
+      window.location.href = link;
+    });
+  });
+}
+
       // ✅ Dashboard loader (uses your existing endpoints)
       async function loadDashboard() {
         // 1) Refurb items (active)
@@ -721,6 +791,20 @@ function renderPartsSummaryList(items) {
         setNum("kpi_ebay_not_listed", ebayNotListed);
         setNum("kpi_relist", relistCount);
 
+                // 3) Loss-making stock
+        let lossItems = [];
+        let totalLoss = 0;
+
+        try {
+          const lossRes = await fetch("/api/dashboard/loss-making", {
+            cache: "no-store",
+          });
+          const lossJson = await lossRes.json();
+
+          lossItems = Array.isArray(lossJson.rows) ? lossJson.rows : [];
+          totalLoss = Number(lossJson.totalLoss || 0);
+        } catch {}
+
         // 3) Action list
         const actions = [];
 
@@ -769,6 +853,15 @@ function renderPartsSummaryList(items) {
           });
         }
 
+        if (lossItems.length > 0) {
+          actions.push({
+            title: "Loss-making stock needs review",
+            subtitle: "Reprice, relist or discard items making a loss",
+            value: lossItems.length,
+            link: "/products/list?loss=1",
+          });
+        }
+
         // 🔧 Parts to order list
 let partsNeededItems = [];
 
@@ -781,6 +874,7 @@ try {
 } catch {}
 
 renderActions(actions);
+renderLossMaking(lossItems, totalLoss);
 renderPartsSummaryList(partsNeededItems);
 renderPartsOrderList(partsNeededItems);
       }

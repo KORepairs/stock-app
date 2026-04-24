@@ -469,7 +469,7 @@ if (currentStockFilter === "refurb" && cat !== "refurb") return false;
   const first = String(p.sku || "").trim().toUpperCase()[0];
 if (lossOnly && ["H", "L", "M", "V", "T", "K"].includes(first)) return false;
 
-if (lossOnly && profit > 0) return false;
+if (lossOnly && profit >= 0) return false;
             const qty = Number(p.quantity) || 0;
             const isListed = p.ebay_status === "listed"; // new workflow field
             const notesHasText = String(p.notes || "").trim().length > 0;

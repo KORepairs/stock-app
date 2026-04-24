@@ -1888,6 +1888,39 @@ app.put('/api/customers/:id', async (req, res) => {
   }
 });
 
+app.get('/api/backup/download', async (req, res) => {
+  try {
+    const tables = [
+      'products',
+      'refurb_items',
+      'refurb_details',
+      'sales',
+      'trade_ins',
+      'customers',
+      'ebay_updates'
+    ];
+
+    const backup = {
+      created_at: new Date().toISOString(),
+      app: 'stock-app',
+      tables: {}
+    };
+
+    for (const table of tables) {
+      const { rows } = await pgQuery(`SELECT * FROM ${table} ORDER BY id ASC`);
+      backup.tables[table] = rows;
+    }
+
+    const filename = `stock-app-backup-${new Date().toISOString().slice(0,10)}.json`;
+
+    res.setHeader('Content-Type', 'application/json');
+    res.setHeader('Content-Disposition', `attachment; filename="${filename}"`);
+    res.send(JSON.stringify(backup, null, 2));
+  } catch (err) {
+    console.error('Backup download failed:', err);
+    res.status(500).json({ error: err.message });
+  }
+});
 
 
 // ---- START SERVER ----

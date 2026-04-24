@@ -34,6 +34,7 @@ import {
 import fs from 'node:fs';
 import multer from 'multer';
 import archiver from 'archiver';
+import cron from 'node-cron';
 
 function categoryFromSkuPrefix(sku) {
   const s = String(sku || '').trim().toUpperCase();
@@ -1950,6 +1951,121 @@ app.get('/api/backup/download', async (req, res) => {
   } catch (err) {
     console.error('CSV backup error:', err);
     res.status(500).json({ error: err.message });
+  }
+});
+
+async function createCsvBackupBuffer() {
+  const tables = [
+    'products',
+    'refurb_items',
+    'refurb_details',
+    'sales',
+    'trade_ins',
+    'customers',
+    'ebay_updates'
+  ];
+
+  function csvEscape(value) {
+    if (value === null || value === undefined) return '';
+    const str = String(value);
+    if (str.includes(',') || str.includes('"') || str.includes('\n')) {
+      return `"${str.replace(/"/g, '""')}"`;
+    }
+    return str;
+  }
+
+  function rowsToCsv(rows) {
+    if (!rows || rows.length === 0) return '';
+    const headers = Object.keys(rows[0]);
+    return [
+      headers.join(','),
+      ...rows.map(row => headers.map(h => csvEscape(row[h])).join(','))
+    ].join('\n');
+  }
+
+  return new Promise(async (resolve, reject) => {
+    const archive = archiver('zip', { zlib: { level: 9 } });
+    const chunks = [];
+
+    archive.on('data', chunk => chunks.push(chunk));
+    archive.on('error', reject);
+    archive.on('end', () => resolve(Buffer.concat(chunks)));
+
+    for (const table of tables) {
+      const { rows } = await pgQuery(`SELECT * FROM ${table}`);
+      archive.append(rowsToCsv(rows), { name: `${table}.csv` });
+    }
+
+    archive.finalize();
+  });
+}
+
+app.post('/api/backup/run', async (req, res) => {
+  try {
+    const date = new Date().toISOString().replace(/[:.]/g, '-');
+    const filename = `stock-app-backup-${date}.zip`;
+
+    const buffer = await createCsvBackupBuffer();
+
+    const { rows } = await pgQuery(
+      `
+      INSERT INTO backup_files (filename, file_data)
+      VALUES ($1, $2)
+      RETURNING id, filename, created_at;
+      `,
+      [filename, buffer]
+    );
+
+    res.json({ ok: true, backup: rows[0] });
+  } catch (err) {
+    console.error('manual backup error:', err);
+    res.status(500).json({ error: err.message });
+  }
+});
+
+app.get('/api/backup/latest', async (req, res) => {
+  try {
+    const { rows } = await pgQuery(`
+      SELECT id, filename, file_data
+      FROM backup_files
+      ORDER BY created_at DESC
+      LIMIT 1;
+    `);
+
+    if (!rows[0]) return res.status(404).json({ error: 'No backups found' });
+
+    res.setHeader('Content-Type', 'application/zip');
+    res.setHeader(
+      'Content-Disposition',
+      `attachment; filename="${rows[0].filename}"`
+    );
+
+    res.send(rows[0].file_data);
+  } catch (err) {
+    console.error('latest backup download error:', err);
+    res.status(500).json({ error: err.message });
+  }
+});
+
+cron.schedule('0 23 * * *', async () => {
+  try {
+    console.log('[backup] Daily CSV backup started');
+
+    const date = new Date().toISOString().replace(/[:.]/g, '-');
+    const filename = `stock-app-backup-${date}.zip`;
+    const buffer = await createCsvBackupBuffer();
+
+    await pgQuery(
+      `
+      INSERT INTO backup_files (filename, file_data)
+      VALUES ($1, $2);
+      `,
+      [filename, buffer]
+    );
+
+    console.log('[backup] Daily CSV backup saved:', filename);
+  } catch (err) {
+    console.error('[backup] Daily CSV backup failed:', err);
   }
 });
 

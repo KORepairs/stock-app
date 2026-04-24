@@ -223,6 +223,15 @@ await pgQuery(`
   ADD COLUMN IF NOT EXISTS customer_id INTEGER REFERENCES customers(id);
 `);
 
+await pgQuery(`
+  CREATE TABLE IF NOT EXISTS backup_files (
+    id SERIAL PRIMARY KEY,
+    filename TEXT NOT NULL,
+    file_data BYTEA NOT NULL,
+    created_at TIMESTAMP DEFAULT NOW()
+  );
+`);
+
 
 
 

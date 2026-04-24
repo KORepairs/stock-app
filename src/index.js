@@ -239,14 +239,17 @@ app.get('/api/dashboard/loss-making', async (req, res) => {
         cost,
         fees,
         postage,
-        (retail - cost - fees - postage) AS profit
+        (retail - cost - fees - postage) AS profit,
+        ((retail - cost - fees - postage) * quantity) AS total_profit
       FROM products
-      WHERE (retail - cost - fees - postage) < 0
+      WHERE quantity > 0
+        AND LEFT(UPPER(sku), 1) NOT IN ('H', 'L', 'M', 'V', 'T', 'K')
+        AND (retail - cost - fees - postage) <= 0
       ORDER BY (retail - cost - fees - postage) ASC, sku ASC
     `);
 
     const totalLoss = rows.reduce((sum, row) => {
-      return sum + (Number(row.profit) || 0) * (Number(row.quantity) || 0);
+      return sum + Number(row.total_profit || 0);
     }, 0);
 
     res.json({
@@ -259,7 +262,6 @@ app.get('/api/dashboard/loss-making', async (req, res) => {
     res.status(500).json({ error: err.message });
   }
 });
-
 /* ---------- API: Products ---------- */
 
 app.get('/api/products', async (req, res) => {

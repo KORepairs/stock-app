@@ -364,7 +364,7 @@
             "R",
             "S",
           ];
-          const refurbPrefixes = ["H", "L", "M", "V"];
+          const refurbPrefixes = ["H", "L", "M", "V", "T", "K"];
 
           if (ebayPrefixes.includes(first)) return "ebay";
           if (refurbPrefixes.includes(first)) return "refurb";
@@ -381,9 +381,9 @@
             if (cat === "refurb") return false;
 
             // 1) filter by stock type first
-            if (currentStockFilter === "ebay" && cat !== "ebay") return false;
-            if (currentStockFilter === "refurb" && cat !== "refurb")
-              return false;
+            if (currentStockFilter === "all" && cat === "refurb") return false;
+if (currentStockFilter === "ebay" && cat !== "ebay") return false;
+if (currentStockFilter === "refurb" && cat !== "refurb") return false;
 
             // 2) filter by starting letter, if set
             if (currentPrefixFilter !== "all") {

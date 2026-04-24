@@ -13,6 +13,7 @@
     "dev:auth": "BASIC_USER=me BASIC_PASS=secret nodemon src/index.js"
   },
   "dependencies": {
+    "archiver": "^7.0.1",
     "basic-auth": "^2.0.1",
     "cors": "^2.8.5",
     "dotenv": "^17.2.1",

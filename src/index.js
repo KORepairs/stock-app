@@ -33,6 +33,7 @@ import {
 } from './pgProducts.js';
 import fs from 'node:fs';
 import multer from 'multer';
+import archiver from 'archiver';
 
 function categoryFromSkuPrefix(sku) {
   const s = String(sku || '').trim().toUpperCase();
@@ -1900,24 +1901,54 @@ app.get('/api/backup/download', async (req, res) => {
       'ebay_updates'
     ];
 
-    const backup = {
-      created_at: new Date().toISOString(),
-      app: 'stock-app',
-      tables: {}
-    };
+    function csvEscape(value) {
+      if (value === null || value === undefined) return '';
+      const str = String(value);
+      if (str.includes(',') || str.includes('"') || str.includes('\n')) {
+        return `"${str.replace(/"/g, '""')}"`;
+      }
+      return str;
+    }
+
+    function rowsToCsv(rows) {
+      if (!rows || rows.length === 0) return '';
+
+      const headers = Object.keys(rows[0]);
+
+      const csvRows = [
+        headers.join(','),
+        ...rows.map(row =>
+          headers.map(header => csvEscape(row[header])).join(',')
+        )
+      ];
+
+      return csvRows.join('\n');
+    }
+
+    const date = new Date().toISOString().slice(0, 10);
+    const filename = `stock-app-backup-${date}.zip`;
+
+    res.setHeader('Content-Type', 'application/zip');
+    res.setHeader('Content-Disposition', `attachment; filename="${filename}"`);
+
+    const archive = archiver('zip', { zlib: { level: 9 } });
+
+    archive.on('error', err => {
+      throw err;
+    });
+
+    archive.pipe(res);
 
     for (const table of tables) {
       const { rows } = await pgQuery(`SELECT * FROM ${table}`);
-      backup.tables[table] = rows;
+      const csv = rowsToCsv(rows);
+      archive.append(csv, { name: `${table}.csv` });
     }
 
-    const filename = `stock-app-backup-${new Date().toISOString().slice(0,10)}.json`;
+    await archive.finalize();
 
-    res.setHeader('Content-Type', 'application/json');
-    res.setHeader('Content-Disposition', `attachment; filename="${filename}"`);
-    res.send(JSON.stringify(backup, null, 2));
   } catch (err) {
-    console.error('Backup download failed:', err);
+    console.error('CSV backup error:', err);
     res.status(500).json({ error: err.message });
   }
 });

@@ -60,6 +60,21 @@ function getPostagePrice(postageGroup) {
   return POSTAGE_GROUPS[String(postageGroup || '').trim()] ?? 0;
 }
 
+function autoPostageGroup(sku, retail) {
+  const prefix = String(sku || "").trim().toUpperCase()[0];
+  const price = Number(retail || 0);
+
+  if (prefix === "F") {
+    return price >= 20 ? "large_letter_tracked" : "large_letter";
+  }
+
+  if (prefix === "S") return "small_parcel";
+  if (prefix === "P") return "small_parcel";
+  if (prefix === "R") return "large_letter";
+
+  return null;
+}
+
 
 /* ---------- Paths ---------- */
 const __filename = fileURLToPath(import.meta.url);
@@ -350,6 +365,12 @@ app.put('/api/products/:id', async (req, res) => {
       ? null
       : String(notes).trim();
 
+      const autoGroup = autoPostageGroup(skuNorm, Number(retail) || 0);
+const finalPostageGroup = autoGroup || postage_group;
+const finalPostage = finalPostageGroup
+  ? getPostagePrice(finalPostageGroup)
+  : Number(postage) || 0;
+
     const cleanPostageGroup = postage_group ? String(postage_group).trim() : null;
 
 const data = {
@@ -364,8 +385,8 @@ const data = {
   retail: Number(retail) || 0,
   cost: Number(retail || 0) * 0.20,
   fees: Number(retail || 0) * 0.25,
-  postage_group: cleanPostageGroup,
-  postage: cleanPostageGroup ? getPostagePrice(cleanPostageGroup) : (Number(postage) || 0),
+  postage_group: finalPostageGroup,
+postage: finalPostage,
   quantity: Number(quantity) || 0,
 };
 

@@ -377,6 +377,9 @@
             const sku = item.sku || "";
             const cat = getCategoryFromSKU(sku);
 
+            // Hide refurb/shop stock from this inventory page
+            if (cat === "refurb") return false;
+
             // 1) filter by stock type first
             if (currentStockFilter === "ebay" && cat !== "ebay") return false;
             if (currentStockFilter === "refurb" && cat !== "refurb")

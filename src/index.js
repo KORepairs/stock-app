@@ -1907,7 +1907,7 @@ app.get('/api/backup/download', async (req, res) => {
     };
 
     for (const table of tables) {
-      const { rows } = await pgQuery(`SELECT * FROM ${table} ORDER BY id ASC`);
+      const { rows } = await pgQuery(`SELECT * FROM ${table}`);
       backup.tables[table] = rows;
     }
 

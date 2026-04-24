@@ -35,6 +35,8 @@ import fs from 'node:fs';
 import multer from 'multer';
 import archiver from 'archiver';
 import cron from 'node-cron';
+import AdmZip from 'adm-zip';
+import { parse } from 'csv-parse/sync';
 
 function categoryFromSkuPrefix(sku) {
   const s = String(sku || '').trim().toUpperCase();
@@ -160,6 +162,7 @@ app.get('/report-sales',   (req, res) => {res.sendFile(path.join(__dirname, '..'
 app.get('/inventory-add', (req, res) => res.sendFile(path.join(PUBLIC_DIR, 'inventory-add.html')));
 app.get('/report/ebay-updates', (req, res) => res.sendFile(path.join(PUBLIC_DIR, 'report-ebay-updates.html')));
 app.get('/dashboard', (req, res) => res.sendFile(path.join(PUBLIC_DIR, 'dashboard.html')));
+app.get('/restore', (req, res) => res.sendFile(path.join(PUBLIC_DIR, 'restore.html')));
 
 
 
@@ -2066,6 +2069,100 @@ cron.schedule('0 23 * * *', async () => {
     console.log('[backup] Daily CSV backup saved:', filename);
   } catch (err) {
     console.error('[backup] Daily CSV backup failed:', err);
+  }
+});
+
+app.post('/api/backup/restore', upload.single('backup_zip'), async (req, res) => {
+  try {
+    if (!req.file) {
+      return res.status(400).json({ error: 'No backup file uploaded' });
+    }
+
+    const confirm = String(req.body.confirm || '').toLowerCase();
+
+    if (confirm !== 'restore') {
+      return res.status(400).json({
+        error: 'Restore not confirmed. Type restore to continue.'
+      });
+    }
+
+    const zip = new AdmZip(req.file.path);
+
+    const restoreOrder = [
+      'customers',
+      'products',
+      'refurb_items',
+      'refurb_details',
+      'sales',
+      'trade_ins',
+      'ebay_updates'
+    ];
+
+    function cleanValue(value) {
+      if (value === '') return null;
+      if (value === undefined) return null;
+      return value;
+    }
+
+    await pgQuery('BEGIN');
+
+    try {
+      await pgQuery(`
+        TRUNCATE TABLE
+          ebay_updates,
+          sales,
+          trade_ins,
+          refurb_details,
+          refurb_items,
+          products,
+          customers
+        RESTART IDENTITY CASCADE;
+      `);
+
+      for (const table of restoreOrder) {
+        const entry = zip.getEntry(`${table}.csv`);
+        if (!entry) continue;
+
+        const csvText = entry.getData().toString('utf8').trim();
+        if (!csvText) continue;
+
+        const records = parse(csvText, {
+          columns: true,
+          skip_empty_lines: true,
+        });
+
+        for (const row of records) {
+          const columns = Object.keys(row);
+          const values = columns.map(col => cleanValue(row[col]));
+
+          const placeholders = columns.map((_, i) => `$${i + 1}`).join(', ');
+          const columnNames = columns.map(col => `"${col}"`).join(', ');
+
+          await pgQuery(
+            `
+            INSERT INTO ${table} (${columnNames})
+            VALUES (${placeholders});
+            `,
+            values
+          );
+        }
+      }
+
+      await pgQuery('COMMIT');
+
+      res.json({
+        ok: true,
+        message: 'Backup restored successfully'
+      });
+
+    } catch (err) {
+      await pgQuery('ROLLBACK');
+      throw err;
+    }
+
+  } catch (err) {
+    console.error('restore backup error:', err);
+    res.status(500).json({ error: err.message });
   }
 });
 

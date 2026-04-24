@@ -1,0 +1,81 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <title>Restore Backup</title>
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <link rel="stylesheet" href="/app.css">
+</head>
+<body>
+  <div class="wrap">
+    <aside id="sidebar"></aside>
+
+    <main class="page">
+      <h1>Restore Backup</h1>
+
+      <div class="card">
+        <p style="color:#b91c1c;font-weight:700;">
+          Warning: this will replace your current products, refurb items, sales, trade-ins and customer data.
+        </p>
+
+        <form id="restoreForm">
+          <label>Backup ZIP file</label><br>
+          <input type="file" id="backup_zip" name="backup_zip" accept=".zip" required>
+
+          <br><br>
+
+          <label>Type <strong>restore</strong> to confirm</label><br>
+          <input type="text" id="confirm" name="confirm" placeholder="restore" required>
+
+          <br><br>
+
+          <button type="submit">Restore Backup</button>
+        </form>
+
+        <p id="msg"></p>
+      </div>
+    </main>
+  </div>
+
+  <script>
+    document.getElementById('restoreForm').addEventListener('submit', async (e) => {
+      e.preventDefault();
+
+      if (!confirm('Are you absolutely sure? This will replace current database data.')) {
+        return;
+      }
+
+      const msg = document.getElementById('msg');
+      msg.textContent = 'Restoring... please wait.';
+
+      const formData = new FormData();
+      formData.append('backup_zip', document.getElementById('backup_zip').files[0]);
+      formData.append('confirm', document.getElementById('confirm').value);
+
+      try {
+        const res = await fetch('/api/backup/restore', {
+          method: 'POST',
+          body: formData
+        });
+
+        const data = await res.json();
+
+        if (!res.ok || data.error) {
+          msg.textContent = 'Failed: ' + (data.error || 'Unknown error');
+          msg.style.color = '#b91c1c';
+          return;
+        }
+
+        msg.textContent = 'Restore completed successfully ✅';
+        msg.style.color = '#15803d';
+
+      } catch (err) {
+        msg.textContent = 'Failed: ' + err.message;
+        msg.style.color = '#b91c1c';
+      }
+    });
+  </script>
+
+  <script src="/js/sidebar.js"></script>
+</body>
+</html>

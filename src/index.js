@@ -2105,6 +2105,62 @@ cron.schedule('0 23 * * *', async () => {
   }
 });
 
+app.post('/api/backup/preview', upload.single('backup_zip'), async (req, res) => {
+  try {
+    if (!req.file) {
+      return res.status(400).json({ error: 'No file uploaded' });
+    }
+
+    const zip = new AdmZip(req.file.path);
+
+    const tables = [
+      'products',
+      'refurb_items',
+      'refurb_details',
+      'sales',
+      'trade_ins',
+      'customers',
+      'ebay_updates'
+    ];
+
+    const result = {};
+
+    for (const table of tables) {
+      const entry = zip.getEntry(`${table}.csv`);
+
+      if (!entry) {
+        result[table] = { rows: 0 };
+        continue;
+      }
+
+      const csvText = entry.getData().toString('utf8').trim();
+
+      if (!csvText) {
+        result[table] = { rows: 0 };
+        continue;
+      }
+
+      const records = parse(csvText, {
+        columns: true,
+        skip_empty_lines: true,
+      });
+
+      result[table] = {
+        rows: records.length
+      };
+    }
+
+    res.json({
+      ok: true,
+      preview: result
+    });
+
+  } catch (err) {
+    console.error('preview error:', err);
+    res.status(500).json({ error: err.message });
+  }
+});
+
 app.post('/api/backup/restore', upload.single('backup_zip'), async (req, res) => {
   try {
     if (!req.file) {

@@ -29,6 +29,10 @@
 
           <br><br>
 
+          <button id="previewBtn">Preview Backup</button>
+
+<div id="previewBox" style="margin-top:20px;"></div>
+
           <button type="submit">Restore Backup</button>
         </form>
 
@@ -74,6 +78,48 @@
         msg.style.color = '#b91c1c';
       }
     });
+
+    document.getElementById('previewBtn').addEventListener('click', async () => {
+  const fileInput = document.querySelector('input[type="file"]');
+  const previewBox = document.getElementById('previewBox');
+
+  if (!fileInput.files.length) {
+    previewBox.innerHTML = '<p style="color:red;">Please select a backup file first</p>';
+    return;
+  }
+
+  const formData = new FormData();
+  formData.append('backup_zip', fileInput.files[0]);
+
+  previewBox.innerHTML = 'Checking backup…';
+
+  try {
+    const res = await fetch('/api/backup/preview', {
+      method: 'POST',
+      body: formData
+    });
+
+    const data = await res.json();
+
+    if (!res.ok) {
+      previewBox.innerHTML = `<p style="color:red;">${data.error}</p>`;
+      return;
+    }
+
+    let html = '<h3>Backup Contents:</h3><ul>';
+
+    for (const [table, info] of Object.entries(data.preview)) {
+      html += `<li><strong>${table}</strong>: ${info.rows} rows</li>`;
+    }
+
+    html += '</ul>';
+
+    previewBox.innerHTML = html;
+
+  } catch (err) {
+    previewBox.innerHTML = `<p style="color:red;">${err.message}</p>`;
+  }
+});
   </script>
 
   <script src="/js/sidebar.js"></script>

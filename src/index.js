@@ -2131,6 +2131,10 @@ app.post('/api/backup/restore', upload.single('backup_zip'), async (req, res) =>
           skip_empty_lines: true,
         });
 
+        if (records.length === 0) {
+  throw new Error(`Backup file for ${table} is empty`);
+}
+
         for (const row of records) {
           const columns = Object.keys(row);
           const values = columns.map(col => cleanValue(row[col]));

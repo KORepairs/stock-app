@@ -1,0 +1,91 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <title>Backup Dashboard</title>
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <link rel="stylesheet" href="/app.css">
+</head>
+<body>
+  <div class="wrap">
+    <aside id="sidebar"></aside>
+
+    <main class="page">
+      <h1>Backup Dashboard</h1>
+
+      <div class="card">
+        <h2>Latest backup</h2>
+        <p id="backupInfo">Loading…</p>
+
+        <button id="runBackupBtn">Create Backup Now</button>
+        <a href="/api/backup/latest">
+          <button type="button">Download Latest Backup</button>
+        </a>
+        <a href="/api/backup/download">
+          <button type="button">Download Fresh CSV Backup</button>
+        </a>
+        <a href="/restore">
+          <button type="button">Restore Backup</button>
+        </a>
+
+        <p id="msg"></p>
+      </div>
+    </main>
+  </div>
+
+  <script>
+    async function loadStatus() {
+      const info = document.getElementById('backupInfo');
+
+      try {
+        const res = await fetch('/api/backup/status', { cache: 'no-store' });
+        const data = await res.json();
+
+        if (!data.hasBackup) {
+          info.textContent = 'No stored backups found yet.';
+          return;
+        }
+
+        const b = data.latest;
+        info.innerHTML = `
+          <strong>${b.filename}</strong><br>
+          Created: ${new Date(b.created_at).toLocaleString()}<br>
+          Size: ${b.size}
+        `;
+      } catch (err) {
+        info.textContent = 'Failed to load backup status.';
+      }
+    }
+
+    document.getElementById('runBackupBtn').addEventListener('click', async () => {
+      const msg = document.getElementById('msg');
+      msg.textContent = 'Creating backup…';
+
+      try {
+        const res = await fetch('/api/backup/run', {
+          method: 'POST'
+        });
+
+        const data = await res.json();
+
+        if (!res.ok || data.error) {
+          msg.textContent = 'Failed: ' + (data.error || 'Unknown error');
+          msg.style.color = '#b91c1c';
+          return;
+        }
+
+        msg.textContent = 'Backup created successfully ✅';
+        msg.style.color = '#15803d';
+        loadStatus();
+      } catch (err) {
+        msg.textContent = 'Failed: ' + err.message;
+        msg.style.color = '#b91c1c';
+      }
+    });
+
+    loadStatus();
+  </script>
+
+  <script src="/js/sidebar.js"></script>
+</body>
+</html>

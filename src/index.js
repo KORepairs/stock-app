@@ -163,6 +163,9 @@ app.get('/inventory-add', (req, res) => res.sendFile(path.join(PUBLIC_DIR, 'inve
 app.get('/report/ebay-updates', (req, res) => res.sendFile(path.join(PUBLIC_DIR, 'report-ebay-updates.html')));
 app.get('/dashboard', (req, res) => res.sendFile(path.join(PUBLIC_DIR, 'dashboard.html')));
 app.get('/restore', (req, res) => res.sendFile(path.join(PUBLIC_DIR, 'restore.html')));
+app.get('/backup', (req, res) => {
+res.sendFile(path.join(PUBLIC_DIR, 'backup.html'));
+});
 
 
 
@@ -2002,6 +2005,36 @@ async function createCsvBackupBuffer() {
     archive.finalize();
   });
 }
+
+app.get('/api/backup/status', async (req, res) => {
+  try {
+    const { rows } = await pgQuery(`
+      SELECT
+        id,
+        filename,
+        created_at,
+        pg_size_pretty(octet_length(file_data)) AS size
+      FROM backup_files
+      ORDER BY created_at DESC
+      LIMIT 1;
+    `);
+
+    if (!rows[0]) {
+      return res.json({
+        hasBackup: false,
+        latest: null,
+      });
+    }
+
+    res.json({
+      hasBackup: true,
+      latest: rows[0],
+    });
+  } catch (err) {
+    console.error('backup status error:', err);
+    res.status(500).json({ error: err.message });
+  }
+});
 
 app.post('/api/backup/run', async (req, res) => {
   try {

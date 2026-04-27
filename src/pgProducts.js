@@ -15,7 +15,7 @@ export async function listProductsPG({ ebay_status } = {}) {
   const { rows } = await pgQuery(
     `SELECT id, sku, code, name, quantity, notes, on_ebay,
             ebay_status, ebay_notes,
-            retail, cost, fees, postage, postage_group
+            retail, cost, fees, postage, postage_group, battery_health
      FROM products
      ${where}
      ORDER BY sku ASC`,
@@ -30,7 +30,7 @@ export async function listProductsPG({ ebay_status } = {}) {
 export async function getProductByIdPG(id) {
   const { rows } = await pgQuery(
     `SELECT id, sku, code, name, quantity, notes, on_ebay,
-            retail, cost, fees, postage, postage_group
+            retail, cost, fees, postage, postage_group, battery_health
      FROM products
      WHERE id = $1`,
     [id]
@@ -53,19 +53,20 @@ export async function createProductPG(data) {
   fees,
   postage,
   postage_group = null,
-  quantity
+  quantity,
+  battery_health = null
 } = data;
 
 
   const { rows } = await pgQuery(
      `INSERT INTO products
-   (sku, code, name, notes, on_ebay, ebay_status, ebay_notes, cost, retail, fees, postage, postage_group, quantity)
+   (sku, code, name, notes, on_ebay, ebay_status, ebay_notes, cost, retail, fees, postage, postage_group, battery_health, quantity)
  VALUES
-   ($1,  $2,   $3,   $4,   $5,      $6,          $7,         $8,   $9,     $10,  $11,     $12,           $13)
+   ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14)
  RETURNING id, sku, code, name, quantity, notes, on_ebay,
            ebay_status, ebay_notes,
-           retail, cost, fees, postage, postage_group`,
-[sku, code, name, notes, on_ebay, ebay_status, ebay_notes, cost, retail, fees, postage, postage_group, quantity]
+           retail, cost, fees, postage, postage_group, battery_health`,
+[sku, code, name, notes, on_ebay, ebay_status, ebay_notes, cost, retail, fees, postage, postage_group, battery_health, quantity]
 );
 
 

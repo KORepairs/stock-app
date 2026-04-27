@@ -232,7 +232,10 @@ await pgQuery(`
   );
 `);
 
-
+await pgQuery(`
+  ALTER TABLE products
+  ADD COLUMN IF NOT EXISTS battery_health INTEGER;
+`);
 
 
 }

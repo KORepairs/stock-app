@@ -224,6 +224,7 @@
                 <th>Name</th>
                 <th>Qty</th>
                 <th>Notes</th>
+                <th id="batteryHeader" style="display:none;">Battery</th>
                 <th>eBay</th>
                 <th>Retail</th>
                 <th>Cost</th>
@@ -449,6 +450,13 @@ if (currentStockFilter === "refurb" && cat !== "refurb") return false;
           const params = new URLSearchParams(window.location.search);
           const lossOnly = params.get("loss") === "1";
 
+          const showBatteryColumn = currentPrefixFilter === "C";
+
+const batteryHeader = document.getElementById("batteryHeader");
+if (batteryHeader) {
+  batteryHeader.style.display = showBatteryColumn ? "" : "none";
+}
+
           // 1) apply new stock-type + prefix filters
           let rows = applyProductFilter(all);
 
@@ -529,7 +537,24 @@ if (lossOnly && profit >= 0) return false;
         <td>${esc(p.name)}</td>
         <td>${Number(p.quantity) || 0}</td>
         <td>${esc(p.notes || "")}</td>
-        <td>
+
+${showBatteryColumn ? `
+<td>
+  <input
+    class="batteryInp"
+    data-id="${p.id}"
+    type="number"
+    min="0"
+    max="100"
+    step="1"
+    value="${p.battery_health ?? ''}"
+    placeholder="%"
+    style="width:70px;text-align:center;"
+  />
+</td>
+` : ""}
+
+<td>
   <select class="ebaySel" data-id="${p.id}">
     <option value="listed" ${p.ebay_status === "listed" ? "selected" : ""}>Y</option>
     <option value="not_listed" ${p.ebay_status !== "listed" ? "selected" : ""}>N</option>
@@ -586,7 +611,8 @@ if (lossOnly && profit >= 0) return false;
     <td colspan="2"><strong>Totals</strong></td>
     <td><strong>${totalQty}</strong></td>
     <td></td> <!-- Notes -->
-    <td></td> <!-- eBay -->
+${showBatteryColumn ? "<td></td>" : ""}
+<td></td> <!-- eBay -->
     <td><strong>${GBP(totalRetail)}</strong></td>
     <td><strong>${GBP(totalCost)}</strong></td>
     <td><strong>${GBP(totalFees)}</strong></td>

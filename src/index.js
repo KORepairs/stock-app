@@ -364,6 +364,7 @@ app.put('/api/products/:id', async (req, res) => {
   postage = 0,
   postage_group = null,
   notes = null,
+  battery_health = null,
 } = req.body || {};
 
     const skuNorm   = String(sku || '').trim().toUpperCase();
@@ -398,6 +399,9 @@ const data = {
   postage_group: finalPostageGroup,
 postage: finalPostage,
   quantity: Number(quantity) || 0,
+  battery_health: battery_health === null || battery_health === ''
+  ? null
+  : Number(battery_health),
 };
 
     const { rows } = await pgQuery(
@@ -415,7 +419,8 @@ SET
   postage = $9,
   postage_group = $10,
   quantity = $11
-WHERE id = $12
+battery_health = $12
+WHERE id = $13
 RETURNING *;
 
       `,
@@ -533,7 +538,8 @@ app.post('/api/products', async (req, res) => {
   retail = 0,
   fees = 0,
   postage = 0,
-  postage_group = null
+  postage_group = null,
+  battery_health = null,
 } = req.body || {};
 
     if (!sku || !name) {

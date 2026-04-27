@@ -418,7 +418,7 @@ SET
   fees = $8,
   postage = $9,
   postage_group = $10,
-  quantity = $11
+  quantity = $11,
 battery_health = $12
 WHERE id = $13
 RETURNING *;
@@ -436,7 +436,8 @@ RETURNING *;
   data.postage,
   data.postage_group,
   data.quantity,
-  data.id,
+data.battery_health,
+data.id,
 ]
     );
 

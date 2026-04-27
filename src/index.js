@@ -365,6 +365,10 @@ app.put('/api/products/:id', async (req, res) => {
   postage_group = null,
   notes = null,
   battery_health = null,
+  server_cpu_1 = null,
+server_cpu_2 = null,
+server_ram = null,
+server_hdd = null,
 } = req.body || {};
 
     const skuNorm   = String(sku || '').trim().toUpperCase();
@@ -402,6 +406,10 @@ postage: finalPostage,
   battery_health: battery_health === null || battery_health === ''
   ? null
   : Number(battery_health),
+  server_cpu_1: server_cpu_1 || null,
+server_cpu_2: server_cpu_2 || null,
+server_ram: server_ram || null,
+server_hdd: server_hdd || null,
 };
 
     const { rows } = await pgQuery(
@@ -419,8 +427,12 @@ SET
   postage = $9,
   postage_group = $10,
   quantity = $11,
-battery_health = $12
-WHERE id = $13
+battery_health = $12,
+server_cpu_1 = $13,
+server_cpu_2 = $14,
+server_ram = $15,
+server_hdd = $16
+WHERE id = $17
 RETURNING *;
 
       `,
@@ -437,6 +449,10 @@ RETURNING *;
   data.postage_group,
   data.quantity,
 data.battery_health,
+data.server_cpu_1,
+data.server_cpu_2,
+data.server_ram,
+data.server_hdd,
 data.id,
 ]
     );

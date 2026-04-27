@@ -237,6 +237,14 @@ await pgQuery(`
   ADD COLUMN IF NOT EXISTS battery_health INTEGER;
 `);
 
+await pgQuery(`
+  ALTER TABLE products
+  ADD COLUMN IF NOT EXISTS server_cpu_1 TEXT,
+  ADD COLUMN IF NOT EXISTS server_cpu_2 TEXT,
+  ADD COLUMN IF NOT EXISTS server_ram TEXT,
+  ADD COLUMN IF NOT EXISTS server_hdd TEXT;
+`);
+
 
 }
 

@@ -15,7 +15,8 @@ export async function listProductsPG({ ebay_status } = {}) {
   const { rows } = await pgQuery(
     `SELECT id, sku, code, name, quantity, notes, on_ebay,
             ebay_status, ebay_notes,
-            retail, cost, fees, postage, postage_group, battery_health
+            retail, cost, fees, postage, postage_group, battery_health,
+server_cpu_1, server_cpu_2, server_ram, server_hdd
      FROM products
      ${where}
      ORDER BY sku ASC`,
@@ -30,7 +31,8 @@ export async function listProductsPG({ ebay_status } = {}) {
 export async function getProductByIdPG(id) {
   const { rows } = await pgQuery(
     `SELECT id, sku, code, name, quantity, notes, on_ebay,
-            retail, cost, fees, postage, postage_group, battery_health
+            retail, cost, fees, postage, postage_group, battery_health,
+server_cpu_1, server_cpu_2, server_ram, server_hdd
      FROM products
      WHERE id = $1`,
     [id]
@@ -54,19 +56,43 @@ export async function createProductPG(data) {
   postage,
   postage_group = null,
   quantity,
-  battery_health = null
+  battery_health = null,
+server_cpu_1 = null,
+server_cpu_2 = null,
+server_ram = null,
+server_hdd = null
 } = data;
 
 
   const { rows } = await pgQuery(
-     `INSERT INTO products
-   (sku, code, name, notes, on_ebay, ebay_status, ebay_notes, cost, retail, fees, postage, postage_group, battery_health, quantity)
+  `INSERT INTO products
+   (sku, code, name, notes, on_ebay, ebay_status, ebay_notes, cost, retail, fees, postage, postage_group, battery_health, server_cpu_1, server_cpu_2, server_ram, server_hdd, quantity)
  VALUES
-   ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14)
+   ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17,$18)
  RETURNING id, sku, code, name, quantity, notes, on_ebay,
            ebay_status, ebay_notes,
-           retail, cost, fees, postage, postage_group, battery_health`,
-[sku, code, name, notes, on_ebay, ebay_status, ebay_notes, cost, retail, fees, postage, postage_group, battery_health, quantity]
+           retail, cost, fees, postage, postage_group, battery_health,
+           server_cpu_1, server_cpu_2, server_ram, server_hdd`,
+  [
+    sku,
+    code,
+    name,
+    notes,
+    on_ebay,
+    ebay_status,
+    ebay_notes,
+    cost,
+    retail,
+    fees,
+    postage,
+    postage_group,
+    battery_health,
+    server_cpu_1,
+    server_cpu_2,
+    server_ram,
+    server_hdd,
+    quantity
+  ]
 );
 
 
@@ -300,7 +326,8 @@ export async function updateEbayStatusPG(id, { ebay_status, ebay_notes } = {}) {
     WHERE id = $1
     RETURNING id, sku, code, name, quantity, notes, on_ebay,
           ebay_status, ebay_notes,
-          retail, cost, fees, postage, postage_group;
+          retail, cost, fees, postage, postage_group, battery_health,
+server_cpu_1, server_cpu_2, server_ram, server_hdd;
     `,
     [Number(id), ebay_status ?? null, ebay_notes ?? null]
   );

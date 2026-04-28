@@ -612,7 +612,12 @@ app.post('/api/products/add-smart', async (req, res) => {
       retail = 0,
       fees = 0,
       postage = 0,
-      pick_id = null, // when duplicates exist, frontend can send the chosen product id
+battery_health = null,
+server_cpu_1 = null,
+server_cpu_2 = null,
+server_ram = null,
+server_hdd = null,
+pick_id = null,
     } = req.body || {};
 
     const qtyDelta = Number(quantity) || 0;
@@ -716,6 +721,12 @@ app.post('/api/products/add-smart', async (req, res) => {
       fees,
       postage,
       quantity: qtyDelta,
+
+      battery_health,
+  server_cpu_1,
+  server_cpu_2,
+  server_ram,
+  server_hdd,
     });
 
     if (Number(created.on_ebay) === 1) {

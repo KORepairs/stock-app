@@ -1,330 +1,424 @@
 <!doctype html>
 <html lang="en">
-<head>
-  <meta charset="utf-8" />
-  <title>Inventory Add</title>
-  <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <link rel="stylesheet" href="/app.css" />
-  <style>
-    .panel{background:var(--panel);border:1px solid var(--border);border-radius:12px;padding:14px}
-    .log{background:#111;color:#0f0;border-radius:8px;padding:10px;min-height:44px;white-space:pre-wrap}
-    .toolbar{display:flex;gap:10px;align-items:center;flex-wrap:wrap;margin:12px 0}
+  <head>
+    <meta charset="utf-8" />
+    <title>Inventory Add</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <link rel="stylesheet" href="/app.css" />
+    <style>
+      .panel {
+        background: var(--panel);
+        border: 1px solid var(--border);
+        border-radius: 12px;
+        padding: 14px;
+      }
+      .log {
+        background: #111;
+        color: #0f0;
+        border-radius: 8px;
+        padding: 10px;
+        min-height: 44px;
+        white-space: pre-wrap;
+      }
+      .toolbar {
+        display: flex;
+        gap: 10px;
+        align-items: center;
+        flex-wrap: wrap;
+        margin: 12px 0;
+      }
 
-    /* ---------- Picker Modal ---------- */
-    .modalOverlay{
-      position:fixed; inset:0;
-      background:rgba(0,0,0,.55);
-      display:none;
-      align-items:center;
-      justify-content:center;
-      padding:16px;
-      z-index:9999;
-    }
-    .modal{
-      width:min(860px, 100%);
-      background:var(--panel);
-      border:1px solid var(--border);
-      border-radius:14px;
-      padding:14px;
-      box-shadow:0 12px 40px rgba(0,0,0,.35);
-    }
-    .modalHeader{
-      display:flex; align-items:flex-start; justify-content:space-between; gap:12px;
-      margin-bottom:10px;
-    }
-    .modalHeader h3{ margin:0; }
-    .modalHeader .muted{ margin-top:4px; }
+      /* ---------- Picker Modal ---------- */
+      .modalOverlay {
+        position: fixed;
+        inset: 0;
+        background: rgba(0, 0, 0, 0.55);
+        display: none;
+        align-items: center;
+        justify-content: center;
+        padding: 16px;
+        z-index: 9999;
+      }
+      .modal {
+        width: min(860px, 100%);
+        background: var(--panel);
+        border: 1px solid var(--border);
+        border-radius: 14px;
+        padding: 14px;
+        box-shadow: 0 12px 40px rgba(0, 0, 0, 0.35);
+      }
+      .modalHeader {
+        display: flex;
+        align-items: flex-start;
+        justify-content: space-between;
+        gap: 12px;
+        margin-bottom: 10px;
+      }
+      .modalHeader h3 {
+        margin: 0;
+      }
+      .modalHeader .muted {
+        margin-top: 4px;
+      }
 
-    .candidateList{
-      display:grid;
-      gap:10px;
-      margin-top:10px;
-      max-height:55vh;
-      overflow:auto;
-      padding-right:4px;
-    }
-    .candidate{
-      display:flex;
-      gap:12px;
-      border:1px solid var(--border);
-      border-radius:12px;
-      padding:10px 12px;
-      background:rgba(255,255,255,0.02);
-      cursor:pointer;
-    }
-    .candidate:hover{ border-color: rgba(255,255,255,0.18); }
-    .candidate input{ margin-top:3px; }
-    .candMain{ flex:1; }
-    .candTop{
-      display:flex; gap:10px; align-items:baseline; flex-wrap:wrap;
-    }
-    .sku{
-      font-weight:900;
-      font-family: ui-monospace, Menlo, Consolas, monospace;
-      letter-spacing:.02em;
-    }
-    .qtyPill{
-      display:inline-flex;
-      align-items:center;
-      border-radius:999px;
-      padding:3px 10px;
-      font-size:12px;
-      border:1px solid rgba(255,255,255,.12);
-      background:rgba(255,255,255,.04);
-    }
-    .candNotes{
-      margin-top:6px;
-      color: var(--muted, #9aa);
-      font-size: 13px;
-      white-space: pre-wrap;
-      word-break: break-word;
-    }
-    .modalActions{
-      display:flex;
-      justify-content:flex-end;
-      gap:10px;
-      margin-top:12px;
-      flex-wrap:wrap;
-    }
-  </style>
-</head>
+      .candidateList {
+        display: grid;
+        gap: 10px;
+        margin-top: 10px;
+        max-height: 55vh;
+        overflow: auto;
+        padding-right: 4px;
+      }
+      .candidate {
+        display: flex;
+        gap: 12px;
+        border: 1px solid var(--border);
+        border-radius: 12px;
+        padding: 10px 12px;
+        background: rgba(255, 255, 255, 0.02);
+        cursor: pointer;
+      }
+      .candidate:hover {
+        border-color: rgba(255, 255, 255, 0.18);
+      }
+      .candidate input {
+        margin-top: 3px;
+      }
+      .candMain {
+        flex: 1;
+      }
+      .candTop {
+        display: flex;
+        gap: 10px;
+        align-items: baseline;
+        flex-wrap: wrap;
+      }
+      .sku {
+        font-weight: 900;
+        font-family: ui-monospace, Menlo, Consolas, monospace;
+        letter-spacing: 0.02em;
+      }
+      .qtyPill {
+        display: inline-flex;
+        align-items: center;
+        border-radius: 999px;
+        padding: 3px 10px;
+        font-size: 12px;
+        border: 1px solid rgba(255, 255, 255, 0.12);
+        background: rgba(255, 255, 255, 0.04);
+      }
+      .candNotes {
+        margin-top: 6px;
+        color: var(--muted, #9aa);
+        font-size: 13px;
+        white-space: pre-wrap;
+        word-break: break-word;
+      }
+      .modalActions {
+        display: flex;
+        justify-content: flex-end;
+        gap: 10px;
+        margin-top: 12px;
+        flex-wrap: wrap;
+      }
+    </style>
+  </head>
 
-<body>
-  <div class="wrap">
-    <aside id="sidebar"></aside>
+  <body>
+    <div class="wrap">
+      <aside id="sidebar"></aside>
 
-    <main class="page">
-      <h1>Inventory Add</h1>
-      <p style="color:#666; margin-top:0">
-        Enter a part number. If it already exists, quantity will increase and it will tell you the SKU.
-        If it’s new, it will create a new SKU in the selected category.
-      </p>
+      <main class="page">
+        <h1>Inventory Add</h1>
+        <p style="color: #666; margin-top: 0">
+          Enter a part number. If it already exists, quantity will increase and
+          it will tell you the SKU. If it’s new, it will create a new SKU in the
+          selected category.
+        </p>
 
-      <div class="panel">
-        <div class="form-grid">
-          <label for="category">Category</label>
-          <select id="category">
-            <option value="A">A</option>
-            <option value="B">B</option>
-            <option value="D">D</option>
-            <option value="F">F</option>
-            <option value="G">G</option>
-            <option value="P">P</option>
-            <option value="R">R</option>
-            <option value="S">S</option>
-          </select>
+        <div class="panel">
+          <div class="form-grid">
+            <label for="category">Category</label>
+            <select id="category">
+  <option value="A">A</option>
+  <option value="B">B</option>
+  <option value="C">C (Battery)</option>
+  <option value="D">D</option>
+  <option value="E">E (Server)</option>
+  <option value="F">F</option>
+  <option value="G">G</option>
+  <option value="P">P</option>
+  <option value="R">R</option>
+  <option value="S">S</option>
+</select>
+            </select>
 
-          <label for="code">Part Number</label>
-          <input id="code" type="text" placeholder="e.g. AM001EF590" />
+            <label for="code">Part Number</label>
+            <input id="code" type="text" placeholder="e.g. AM001EF590" />
 
-          <label for="quantity">Quantity to add</label>
-          <input id="quantity" type="number" value="1" min="1" />
+            <label for="quantity">Quantity to add</label>
+            <input id="quantity" type="number" value="1" min="1" />
 
-          <label for="notes">Notes</label>
-          <input id="notes" type="text" placeholder="optional" />
+            <label for="notes">Notes</label>
+            <input id="notes" type="text" placeholder="optional" />
 
-          <div class="full">
-            <label></label>
-            <div class="row">
-              <button id="submitBtn" type="button">Add / Update</button>
-              <button id="clearBtn" type="button">Clear</button>
+            <!-- Battery (C category) -->
+            <div id="batteryFields" style="display: none">
+              <label for="battery_health">Battery Health (%)</label>
+              <input id="battery_health" type="number" min="0" max="100" />
+            </div>
+
+            <!-- Server (E category) -->
+            <div id="serverFields" style="display: none">
+              <label>CPU 1</label>
+              <input id="server_cpu_1" type="text" />
+
+              <label>CPU 2</label>
+              <input id="server_cpu_2" type="text" />
+
+              <label>RAM</label>
+              <input id="server_ram" type="text" />
+
+              <label>HDD</label>
+              <input id="server_hdd" type="text" />
+            </div>
+
+            <div class="full">
+              <label></label>
+              <div class="row">
+                <button id="submitBtn" type="button">Add / Update</button>
+                <button id="clearBtn" type="button">Clear</button>
+              </div>
             </div>
           </div>
         </div>
-      </div>
 
-      <div class="panel" style="margin-top:14px">
-        <h3 style="margin:0 0 8px">Result</h3>
-        <pre class="log" id="out">Waiting…</pre>
-      </div>
-    </main>
-  </div>
-
-  <!-- ---------- Ambiguous Match Picker Modal ---------- -->
-  <div class="modalOverlay" id="pickerOverlay" aria-hidden="true">
-    <div class="modal" role="dialog" aria-modal="true" aria-labelledby="pickerTitle">
-      <div class="modalHeader">
-        <div>
-          <h3 id="pickerTitle">Multiple matches found</h3>
-          <div class="muted" id="pickerSubtitle">
-            Choose which SKU you meant, and we’ll update its quantity.
-          </div>
+        <div class="panel" style="margin-top: 14px">
+          <h3 style="margin: 0 0 8px">Result</h3>
+          <pre class="log" id="out">Waiting…</pre>
         </div>
-        <button type="button" id="pickerCloseBtn">✕</button>
-      </div>
+      </main>
+    </div>
 
-      <div class="candidateList" id="candidateList"></div>
+    <!-- ---------- Ambiguous Match Picker Modal ---------- -->
+    <div class="modalOverlay" id="pickerOverlay" aria-hidden="true">
+      <div
+        class="modal"
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby="pickerTitle"
+      >
+        <div class="modalHeader">
+          <div>
+            <h3 id="pickerTitle">Multiple matches found</h3>
+            <div class="muted" id="pickerSubtitle">
+              Choose which SKU you meant, and we’ll update its quantity.
+            </div>
+          </div>
+          <button type="button" id="pickerCloseBtn">✕</button>
+        </div>
 
-      <div class="modalActions">
-        <button type="button" id="pickerCancelBtn">Cancel</button>
-        <button type="button" id="pickerConfirmBtn">Update selected</button>
+        <div class="candidateList" id="candidateList"></div>
+
+        <div class="modalActions">
+          <button type="button" id="pickerCancelBtn">Cancel</button>
+          <button type="button" id="pickerConfirmBtn">Update selected</button>
+        </div>
       </div>
     </div>
-  </div>
 
-  <script>
-    const $ = (sel) => document.querySelector(sel);
+    <script>
+      const $ = (sel) => document.querySelector(sel);
 
-    let pendingPayload = null;
-    let pendingCandidates = [];
-    let selectedPickId = null;
+      let pendingPayload = null;
+      let pendingCandidates = [];
+      let selectedPickId = null;
 
-    function show(obj) {
-      if (obj && typeof obj === 'object' && obj.message) {
-        $('#out').textContent = obj.message;
-        return;
+      function show(obj) {
+        if (obj && typeof obj === "object" && obj.message) {
+          $("#out").textContent = obj.message;
+          return;
+        }
+        $("#out").textContent =
+          typeof obj === "string" ? obj : JSON.stringify(obj, null, 2);
       }
-      $('#out').textContent = typeof obj === 'string'
-        ? obj
-        : JSON.stringify(obj, null, 2);
-    }
 
-    function openPicker(candidates, payload, errorText) {
-      pendingCandidates = Array.isArray(candidates) ? candidates : [];
-      pendingPayload = payload;
-      selectedPickId = pendingCandidates[0]?.id ?? null;
+      function openPicker(candidates, payload, errorText) {
+        pendingCandidates = Array.isArray(candidates) ? candidates : [];
+        pendingPayload = payload;
+        selectedPickId = pendingCandidates[0]?.id ?? null;
 
-      $('#pickerSubtitle').textContent = errorText || 'Choose which SKU you meant, and we’ll update its quantity.';
-      const list = $('#candidateList');
-      list.innerHTML = '';
+        $("#pickerSubtitle").textContent =
+          errorText ||
+          "Choose which SKU you meant, and we’ll update its quantity.";
+        const list = $("#candidateList");
+        list.innerHTML = "";
 
-      for (const c of pendingCandidates) {
-        const notesText = (c.notes == null || String(c.notes).trim() === '')
-          ? '—'
-          : String(c.notes);
+        for (const c of pendingCandidates) {
+          const notesText =
+            c.notes == null || String(c.notes).trim() === ""
+              ? "—"
+              : String(c.notes);
 
-        const row = document.createElement('div');
-        row.className = 'candidate';
-        row.dataset.id = String(c.id);
+          const row = document.createElement("div");
+          row.className = "candidate";
+          row.dataset.id = String(c.id);
 
-        row.innerHTML = `
-          <input type="radio" name="pick" ${c.id === selectedPickId ? 'checked' : ''} />
+          row.innerHTML = `
+          <input type="radio" name="pick" ${c.id === selectedPickId ? "checked" : ""} />
           <div class="candMain">
             <div class="candTop">
-              <span class="sku">${escapeHtml(c.sku || '')}</span>
-              <span>${escapeHtml(c.name || '')}</span>
+              <span class="sku">${escapeHtml(c.sku || "")}</span>
+              <span>${escapeHtml(c.name || "")}</span>
               <span class="qtyPill">Qty: ${Number(c.quantity ?? 0)}</span>
             </div>
             <div class="candNotes"><strong>Notes:</strong> ${escapeHtml(notesText)}</div>
           </div>
         `;
 
-        row.addEventListener('click', () => {
-          selectedPickId = c.id;
-          // update radios
-          list.querySelectorAll('.candidate').forEach(x => {
-            const radio = x.querySelector('input[type="radio"]');
-            radio.checked = (Number(x.dataset.id) === Number(selectedPickId));
+          row.addEventListener("click", () => {
+            selectedPickId = c.id;
+            // update radios
+            list.querySelectorAll(".candidate").forEach((x) => {
+              const radio = x.querySelector('input[type="radio"]');
+              radio.checked = Number(x.dataset.id) === Number(selectedPickId);
+            });
           });
+
+          list.appendChild(row);
+        }
+
+        $("#pickerOverlay").style.display = "flex";
+        $("#pickerOverlay").setAttribute("aria-hidden", "false");
+      }
+
+      function closePicker() {
+        $("#pickerOverlay").style.display = "none";
+        $("#pickerOverlay").setAttribute("aria-hidden", "true");
+        pendingPayload = null;
+        pendingCandidates = [];
+        selectedPickId = null;
+      }
+
+      async function submitAddSmart(payload) {
+        const res = await fetch("/api/products/add-smart", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(payload),
         });
 
-        list.appendChild(row);
+        const json = await res.json();
+
+        // If ambiguous: show picker
+        if (res.status === 409 && json && json.candidates) {
+          openPicker(json.candidates, payload, json.error || null);
+          return { ok: false, handled: true, json };
+        }
+
+        // normal response
+        show(json);
+
+        if (res.ok) {
+          $("#code").value = "";
+          $("#quantity").value = 1;
+          $("#notes").value = "";
+          $("#code").focus();
+          $('#battery_health').value = '';
+$('#server_cpu_1').value = '';
+$('#server_cpu_2').value = '';
+$('#server_ram').value = '';
+$('#server_hdd').value = '';
+        }
+
+        return { ok: res.ok, handled: true, json };
       }
 
-      $('#pickerOverlay').style.display = 'flex';
-      $('#pickerOverlay').setAttribute('aria-hidden', 'false');
-    }
+      async function addSmart() {
+        const payload = {
+  category: $('#category').value,
+  code: $('#code').value.trim(),
+  quantity: Number($('#quantity').value || 0),
+  notes: $('#notes').value.trim() || null,
+  onEbay: false,
 
-    function closePicker() {
-      $('#pickerOverlay').style.display = 'none';
-      $('#pickerOverlay').setAttribute('aria-hidden', 'true');
-      pendingPayload = null;
-      pendingCandidates = [];
-      selectedPickId = null;
-    }
+  battery_health: $('#battery_health').value || null,
+  server_cpu_1: $('#server_cpu_1').value || null,
+  server_cpu_2: $('#server_cpu_2').value || null,
+  server_ram: $('#server_ram').value || null,
+  server_hdd: $('#server_hdd').value || null,
+};
 
-    async function submitAddSmart(payload) {
-      const res = await fetch('/api/products/add-smart', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(payload)
+        if (!payload.code) return show("Please enter a Part Number.");
+        if (!payload.quantity || payload.quantity <= 0)
+          return show("Quantity must be 1 or more.");
+
+        try {
+          await submitAddSmart(payload);
+        } catch (err) {
+          show("ERROR: " + err.message);
+        }
+      }
+
+      // Picker buttons
+      $("#pickerCloseBtn").addEventListener("click", closePicker);
+      $("#pickerCancelBtn").addEventListener("click", closePicker);
+
+      $("#pickerConfirmBtn").addEventListener("click", async () => {
+        if (!pendingPayload) return;
+        if (!selectedPickId) return show("Please select a SKU.");
+
+        try {
+          // re-submit with pick_id
+          await submitAddSmart({ ...pendingPayload, pick_id: selectedPickId });
+          closePicker();
+        } catch (err) {
+          show("ERROR: " + err.message);
+        }
       });
 
-      const json = await res.json();
-
-      // If ambiguous: show picker
-      if (res.status === 409 && json && json.candidates) {
-        openPicker(json.candidates, payload, json.error || null);
-        return { ok: false, handled: true, json };
-      }
-
-      // normal response
-      show(json);
-
-      if (res.ok) {
-        $('#code').value = '';
-        $('#quantity').value = 1;
-        $('#notes').value = '';
-        $('#code').focus();
-      }
-
-      return { ok: res.ok, handled: true, json };
-    }
-
-    async function addSmart() {
-      const payload = {
-        category: $('#category').value,
-        code: $('#code').value.trim(),
-        quantity: Number($('#quantity').value || 0),
-        notes: $('#notes').value.trim() || null,
-        onEbay: false
-      };
-
-      if (!payload.code) return show('Please enter a Part Number.');
-      if (!payload.quantity || payload.quantity <= 0) return show('Quantity must be 1 or more.');
-
-      try {
-        await submitAddSmart(payload);
-      } catch (err) {
-        show('ERROR: ' + err.message);
-      }
-    }
-
-    // Picker buttons
-    $('#pickerCloseBtn').addEventListener('click', closePicker);
-    $('#pickerCancelBtn').addEventListener('click', closePicker);
-
-    $('#pickerConfirmBtn').addEventListener('click', async () => {
-      if (!pendingPayload) return;
-      if (!selectedPickId) return show('Please select a SKU.');
-
-      try {
-        // re-submit with pick_id
-        await submitAddSmart({ ...pendingPayload, pick_id: selectedPickId });
-        closePicker();
-      } catch (err) {
-        show('ERROR: ' + err.message);
-      }
-    });
-
-    // Click overlay to close (optional)
-    $('#pickerOverlay').addEventListener('click', (e) => {
-      if (e.target === $('#pickerOverlay')) closePicker();
-    });
-
-    // Enter key submits
-    ['#code', '#quantity', '#notes'].forEach(sel => {
-      $(sel).addEventListener('keydown', (e) => {
-        if (e.key === 'Enter') addSmart();
+      // Click overlay to close (optional)
+      $("#pickerOverlay").addEventListener("click", (e) => {
+        if (e.target === $("#pickerOverlay")) closePicker();
       });
-    });
 
-    $('#submitBtn').addEventListener('click', addSmart);
-    $('#clearBtn').addEventListener('click', () => {
-      $('#code').value = '';
-      $('#quantity').value = 1;
-      $('#notes').value = '';
-      $('#code').focus();
-      show('Waiting…');
-    });
+      // Enter key submits
+      ["#code", "#quantity", "#notes"].forEach((sel) => {
+        $(sel).addEventListener("keydown", (e) => {
+          if (e.key === "Enter") addSmart();
+        });
+      });
 
-    function escapeHtml(s='') {
-      return String(s).replace(/[&<>"']/g, m => ({
-        '&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'
-      }[m]));
-    }
-  </script>
+      $("#submitBtn").addEventListener("click", addSmart);
+      $("#clearBtn").addEventListener("click", () => {
+        $("#code").value = "";
+        $("#quantity").value = 1;
+        $("#notes").value = "";
+        $("#code").focus();
+        show("Waiting…");
+      });
 
-  <script src="/js/sidebar.js"></script>
-</body>
+      $('#category').addEventListener('change', () => {
+  const cat = $('#category').value;
+
+  $('#batteryFields').style.display = cat === 'C' ? 'block' : 'none';
+  $('#serverFields').style.display = cat === 'E' ? 'block' : 'none';
+});
+
+      function escapeHtml(s = "") {
+        return String(s).replace(
+          /[&<>"']/g,
+          (m) =>
+            ({
+              "&": "&amp;",
+              "<": "&lt;",
+              ">": "&gt;",
+              '"': "&quot;",
+              "'": "&#39;",
+            })[m],
+        );
+      }
+    </script>
+
+    <script src="/js/sidebar.js"></script>
+  </body>
 </html>

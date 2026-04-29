@@ -937,18 +937,26 @@ ${
         $("editForm").addEventListener("submit", async (ev) => {
           ev.preventDefault();
           const id = Number($("e_id").value);
-          const body = {
-            sku: $("e_sku").value.trim(),
-            name: $("e_name").value.trim(),
-            quantity: Number($("e_quantity").value || 0),
-            onEbay: $("e_onEbay").checked,
-            retail: Number($("e_retail").value || 0),
-            cost: Number($("e_cost").value || 0),
-            fees: Number($("e_fees").value || 0),
-            postage_group: $("e_postage_group").value || null,
-            postage: Number($("e_postage").value || 0),
-            notes: $("e_notes").value.trim() || null,
-          };
+          const existing = all.find((x) => x.id === id);
+
+const body = {
+  sku: $("e_sku").value.trim(),
+  name: $("e_name").value.trim(),
+  quantity: Number($("e_quantity").value || 0),
+  onEbay: $("e_onEbay").checked,
+  retail: Number($("e_retail").value || 0),
+  cost: Number($("e_cost").value || 0),
+  fees: Number($("e_fees").value || 0),
+  postage_group: $("e_postage_group").value || null,
+  postage: Number($("e_postage").value || 0),
+  notes: $("e_notes").value.trim() || null,
+
+  battery_health: existing?.battery_health ?? null,
+  server_cpu_1: existing?.server_cpu_1 || null,
+  server_cpu_2: existing?.server_cpu_2 || null,
+  server_ram: existing?.server_ram || null,
+  server_hdd: existing?.server_hdd || null,
+};
           const r = await fetch("/api/products/" + id, {
             method: "PUT",
             headers: { "Content-Type": "application/json" },

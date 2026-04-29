@@ -428,3 +428,8 @@ td select {
   .wrap{ grid-template-columns: 1fr; }
   aside#sidebar{ position: static; height: auto; }
 }
+
+#refurbTable th:nth-child(3),
+#refurbTable td:nth-child(3) {
+  display: none;
+}

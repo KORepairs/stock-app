@@ -234,7 +234,8 @@ await pgQuery(`
 
 await pgQuery(`
   ALTER TABLE products
-ALTER COLUMN battery_health TYPE TEXT;
+  ALTER COLUMN battery_health TYPE TEXT
+  USING battery_health::TEXT;
 `);
 
 await pgQuery(`

@@ -381,10 +381,21 @@ server_hdd = null,
       : String(notes).trim();
 
       const autoGroup = autoPostageGroup(skuNorm, Number(retail) || 0);
-const finalPostageGroup = autoGroup || postage_group;
-const finalPostage = finalPostageGroup
-  ? getPostagePrice(finalPostageGroup)
-  : Number(postage) || 0;
+
+const manualPostageProvided =
+  postage !== null &&
+  postage !== undefined &&
+  String(postage).trim() !== "";
+
+const finalPostageGroup = manualPostageProvided
+  ? postage_group || null
+  : autoGroup || postage_group || null;
+
+const finalPostage = manualPostageProvided
+  ? Number(postage) || 0
+  : finalPostageGroup
+    ? getPostagePrice(finalPostageGroup)
+    : 0;
 
     const cleanPostageGroup = postage_group ? String(postage_group).trim() : null;
 

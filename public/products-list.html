@@ -600,14 +600,15 @@ ${
         <td>${GBP(p.cost)}</td>
         <td>${GBP(p.fees)}</td>
 <td>
-  <select class="postageGroupSel" data-id="${p.id}">
-    <option value="">-- Select --</option>
-    <option value="large_letter" ${p.postage_group === "large_letter" ? "selected" : ""}>LL (£1.84)</option>
-    <option value="large_letter_tracked" ${p.postage_group === "large_letter_tracked" ? "selected" : ""}>LL Tracked (£3.80)</option>
-    <option value="small_parcel" ${p.postage_group === "small_parcel" ? "selected" : ""}>Small Parcel (£4.65)</option>
-    <option value="courier" ${p.postage_group === "courier" ? "selected" : ""}>Courier (£8.00)</option>
-    <option value="server" ${p.postage_group === "server" ? "selected" : ""}>Server (£15.00)</option>
-  </select>
+  <input
+    class="postageInp"
+    data-id="${p.id}"
+    type="number"
+    step="0.01"
+    min="0"
+    value="${Number(p.postage || 0).toFixed(2)}"
+    style="width:90px;text-align:center;"
+  />
 </td>
 <td style="color:${
                 Number(p.retail || 0) -
@@ -829,59 +830,54 @@ ${
         });
 
         $("prodTbody").addEventListener("change", async (e) => {
-          const sel = e.target.closest(".postageGroupSel");
-          if (!sel) return;
+  const inp = e.target.closest(".postageInp");
+  if (!inp) return;
 
-          const id = Number(sel.dataset.id);
-          const postage_group = sel.value;
+  const id = Number(inp.dataset.id);
+  const postage = Number(inp.value || 0);
 
-          const row = all.find((x) => x.id === id);
-          if (!row) return;
+  const row = all.find((x) => x.id === id);
+  if (!row) return;
 
-          const match = POSTAGE_GROUPS[postage_group];
-          const postage = match ? match.price : 0;
+  try {
+    const r = await fetch("/api/products/" + id, {
+      method: "PUT",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        sku: row.sku,
+        name: row.name,
+        quantity: Number(row.quantity || 0),
+        onEbay: !!row.on_ebay,
+        retail: Number(row.retail || 0),
+        cost: Number(row.cost || 0),
+        fees: Number(row.fees || 0),
+        postage_group: row.postage_group || null,
+        postage,
+        notes: row.notes || null,
 
-          try {
-            const r = await fetch("/api/products/" + id, {
-              method: "PUT",
-              headers: { "Content-Type": "application/json" },
-              body: JSON.stringify({
-                sku: row.sku,
-                name: row.name,
-                quantity: Number(row.quantity || 0),
-                onEbay: !!row.on_ebay,
-                retail: Number(row.retail || 0),
-                cost: Number(row.cost || 0),
-                fees: Number(row.fees || 0),
-                postage_group,
-                postage,
-                notes: row.notes || null,
+        battery_health: row.battery_health ?? null,
+        server_cpu_1: row.server_cpu_1 || null,
+        server_cpu_2: row.server_cpu_2 || null,
+        server_ram: row.server_ram || null,
+        server_hdd: row.server_hdd || null,
+      }),
+    });
 
-                battery_health: row.battery_health ?? null,
-                server_cpu_1: row.server_cpu_1 || null,
-                server_cpu_2: row.server_cpu_2 || null,
-                server_ram: row.server_ram || null,
-                server_hdd: row.server_hdd || null,
-              }),
-            });
+    const j = await r.json();
+    if (j.error) {
+      alert(j.error);
+      return;
+    }
 
-            const j = await r.json();
-            if (j.error) {
-              alert(j.error);
-              return;
-            }
+    const i = all.findIndex((x) => x.id === id);
+    if (i > -1) all[i] = { ...all[i], ...j };
 
-            const i = all.findIndex((x) => x.id === id);
-            if (i > -1) {
-              all[i] = { ...all[i], ...j };
-            }
-
-            render();
-          } catch (err) {
-            console.error(err);
-            alert("Failed to update postage");
-          }
-        });
+    render();
+  } catch (err) {
+    console.error(err);
+    alert("Failed to update postage");
+  }
+});
 
         $("prodTbody").addEventListener("change", async (e) => {
           const inp = e.target.closest(".retailInp");

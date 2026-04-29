@@ -403,9 +403,10 @@ const data = {
   postage_group: finalPostageGroup,
 postage: finalPostage,
   quantity: Number(quantity) || 0,
-  battery_health: battery_health === null || battery_health === ''
-  ? null
-  : Number(battery_health),
+  battery_health:
+  battery_health == null || String(battery_health).trim() === ''
+    ? null
+    : String(battery_health).trim(),
   server_cpu_1: server_cpu_1 || null,
 server_cpu_2: server_cpu_2 || null,
 server_ram: server_ram || null,
@@ -627,8 +628,16 @@ pick_id = null,
 
     const codeNorm = String(code).trim().toUpperCase();
 
-    // 1) Duplicate check by PART NUMBER (code)
-    const matches = await findProductsByCodePG(codeNorm);
+const prefix = String(category || '').trim().toUpperCase();
+const isUniqueItem = prefix === 'C' || prefix === 'E';
+
+// 1) Duplicate check by PART NUMBER (code)
+// C batteries and E servers should NOT merge duplicates
+let matches = [];
+
+if (!isUniqueItem) {
+  matches = await findProductsByCodePG(codeNorm);
+}
 
     // MULTIPLE MATCHES -> require pick_id
     if (matches.length > 1) {
@@ -705,7 +714,6 @@ pick_id = null,
     }
 
     // NO MATCH -> create new item (category required)
-    const prefix = String(category || '').trim().toUpperCase();
     if (!prefix) return res.status(400).json({ error: 'category is required for new items' });
 
     const newSku = await getNextSkuForCategoryPG(prefix);

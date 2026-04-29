@@ -234,7 +234,7 @@ await pgQuery(`
 
 await pgQuery(`
   ALTER TABLE products
-  ADD COLUMN IF NOT EXISTS battery_health INTEGER;
+ALTER COLUMN battery_health TYPE TEXT;
 `);
 
 await pgQuery(`

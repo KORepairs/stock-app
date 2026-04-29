@@ -53,21 +53,33 @@ function categoryFromSkuPrefix(sku) {
 }
 
 const POSTAGE_GROUPS = {
-  large_letter: 1.84,
-  large_letter_tracked: 3.80,
-  small_parcel: 4.65,
-  courier: 8.00,
-  server: 15.00,
+  large_letter: { label: "Large Letter", price: 1.84 },
+  large_letter_tracked: { label: "Large Letter Tracked", price: 3.8 },
+  small_parcel: { label: "Small Parcel", price: 4.65 },
+  courier: { label: "Courier", price: 8.0 },
+  server: { label: "Server", price: 15.0 },
+  battery: { label: "Battery", price: 3.0 }, // 👈 ADD THIS
 };
 
 function getPostagePrice(postageGroup) {
   return POSTAGE_GROUPS[String(postageGroup || '').trim()] ?? 0;
 }
 
-function autoPostageGroup(sku, retail) {
-  const prefix = String(sku || "").trim().toUpperCase()[0];
-  const price = Number(retail || 0);
+function autoPostageGroup(sku, price = 0) {
+  if (!sku) return null;
 
+  const prefix = String(sku).trim().toUpperCase()[0];
+
+  // NEW: Battery (C)
+  if (prefix === "C") return "battery";
+
+  // NEW: Server (E)
+  if (prefix === "E") return "server";
+
+  // NEW: A, B, D → Small Parcel
+  if (["A", "B", "D"].includes(prefix)) return "small_parcel";
+
+  // Existing rules
   if (prefix === "F") {
     return price >= 20 ? "large_letter_tracked" : "large_letter";
   }

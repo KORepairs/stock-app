@@ -844,9 +844,9 @@ app.get("/api/barcode-queue", async (req, res) => {
     );
     res.json(r.rows);
   } catch (err) {
-    console.error(err);
-    res.json({ error: "Failed to load queue" });
-  }
+  console.error("BARCODE QUEUE ERROR:", err);
+  res.json({ error: err.message });
+}git 
 });
 
 app.delete("/api/barcode-queue", async (req, res) => {

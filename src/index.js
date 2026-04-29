@@ -730,11 +730,15 @@ if (!isUniqueItem) {
       postage,
       quantity: qtyDelta,
 
-      battery_health,
-  server_cpu_1,
-  server_cpu_2,
-  server_ram,
-  server_hdd,
+      battery_health:
+  battery_health == null || String(battery_health).trim() === ''
+    ? null
+    : String(battery_health).trim(),
+
+server_cpu_1: server_cpu_1 || null,
+server_cpu_2: server_cpu_2 || null,
+server_ram: server_ram || null,
+server_hdd: server_hdd || null,
     });
 
     if (Number(created.on_ebay) === 1) {

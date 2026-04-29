@@ -815,6 +815,49 @@ app.put('/api/ebay-updates/:id', async (req, res) => {
   }
 });
 
+app.post("/api/barcode-queue", async (req, res) => {
+  try {
+    const { sku, quantity } = req.body;
+
+    if (!sku || !quantity) {
+      return res.json({ error: "Missing sku or quantity" });
+    }
+
+    for (let i = 0; i < Number(quantity); i++) {
+      await pool.query(
+        "INSERT INTO barcode_queue (sku) VALUES ($1)",
+        [sku]
+      );
+    }
+
+    res.json({ success: true });
+  } catch (err) {
+    console.error(err);
+    res.json({ error: "Failed to add to barcode queue" });
+  }
+});
+
+app.get("/api/barcode-queue", async (req, res) => {
+  try {
+    const r = await pool.query(
+      "SELECT * FROM barcode_queue ORDER BY id ASC"
+    );
+    res.json(r.rows);
+  } catch (err) {
+    console.error(err);
+    res.json({ error: "Failed to load queue" });
+  }
+});
+
+app.delete("/api/barcode-queue", async (req, res) => {
+  try {
+    await pool.query("DELETE FROM barcode_queue");
+    res.json({ success: true });
+  } catch (err) {
+    console.error(err);
+    res.json({ error: "Failed to clear queue" });
+  }
+});
 
 /* ---------- API: Refurb items ---------- */
 

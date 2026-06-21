@@ -319,7 +319,7 @@ export async function getNextRefurbSkuPG(prefix) {
 export async function updateEbayStatusPG(id, { ebay_status, ebay_notes } = {}) {
 
   const statusText = ebay_status != null ? String(ebay_status) : null;
-  const onEbay = statusText != null ? (statusText === 'listed' ? Y : N) : null;
+  const onEbay = statusText != null ? (statusText === 'listed' ? 'Y' : 'N') : null;
 
   const needsPics = statusText === 'listed' ? 'N' : null;
 

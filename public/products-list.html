@@ -582,7 +582,6 @@ ${
 }
 
 <td>
-  <td>
   <select class="ebaySel" data-id="${p.id}">
     <option value="listed" ${p.ebay_status === "listed" ? "selected" : ""}>Y</option>
     <option value="not_listed" ${p.ebay_status !== "listed" ? "selected" : ""}>N</option>
@@ -657,6 +656,7 @@ ${
     ${showServerColumns ? "<td></td><td></td><td></td><td></td>" : ""}
 
     <td></td> <!-- eBay -->
+    <td></td> <!-- Pics -->
     <td><strong>${GBP(totalRetail)}</strong></td>
     <td><strong>${GBP(totalCost)}</strong></td>
     <td><strong>${GBP(totalFees)}</strong></td>

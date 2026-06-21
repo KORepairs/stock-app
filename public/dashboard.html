@@ -170,7 +170,7 @@
 
       /* ebay row = 4 cards */
       #kpis_ebay {
-        grid-template-columns: repeat(4, 1fr);
+        grid-template-columns: repeat(5, 1fr);
         margin-top: 8px;
       }
 
@@ -246,6 +246,12 @@
               <div class="num" id="kpi_relist">–</div>
               <div class="label">Relist needed</div>
               <div class="muted sub">Stock returned from 0</div>
+            </div>
+
+            <div class="card kpi" id="kpiNeedsPics">
+              <div class="num" id="kpi_needs_pics">–</div>
+              <div class="label">Needs pictures</div>
+              <div class="muted sub">Products awaiting photos</div>
             </div>
           </div>
         </div>
@@ -773,6 +779,7 @@ function renderLossMaking(items, totalLoss) {
         let ebayListed = 0;
         let ebayNotListed = 0;
         let relistCount = 0;
+        let needsPicsCount = 0;
 
         try {
           const statsRes = await fetch("/api/stats/ebay", {
@@ -792,6 +799,17 @@ function renderLossMaking(items, totalLoss) {
         setNum("kpi_ebay_listed", ebayListed);
         setNum("kpi_ebay_not_listed", ebayNotListed);
         setNum("kpi_relist", relistCount);
+
+        try {
+          const r = await fetch("/api/products");
+          const products = await r.json();
+
+          needsPicsCount = products.filter(
+            (p) => String(p.needs_pics || "") === "Y"
+          ).length;
+          } catch {}
+
+setNum("kpi_needs_pics", needsPicsCount);
 
                 // 3) Loss-making stock
         let lossItems = [];
@@ -891,6 +909,11 @@ renderPartsOrderList(partsNeededItems);
         "click",
         () =>
           (window.location.href = "/products/list?ebay_status=ready_to_list"),
+      );
+
+      $("kpiNeedsPics")?.addEventListener(
+        "click",
+        () => (window.location.href = "/products/list")
       );
     </script>
 

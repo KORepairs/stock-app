@@ -155,8 +155,11 @@
           : `<span class="pill warn">Pending</span>`;
 
         const actionBtn = r.done
-          ? `<button data-id="${r.id}" data-done="false" type="button">Mark pending</button>`
-          : `<button data-id="${r.id}" data-done="true" type="button">Mark done</button>`;
+  ? `<button data-id="${r.id}" data-done="false" type="button">Mark pending</button>`
+  : `
+      <button data-id="${r.id}" data-done="true" type="button">Mark done</button>
+      <button data-id="${r.id}" data-relist="true" type="button">Needs relisting</button>
+    `;
 
         const delta = Number(r.delta || 0);
         const oldQty = (r.old_qty ?? r.oldQty ?? r.oldqty ?? r.old) ?? '';
@@ -181,6 +184,20 @@
           $('#msg').textContent = '';
           const id = btn.getAttribute('data-id');
           const done = btn.getAttribute('data-done') === 'true';
+
+          if (btn.getAttribute('data-relist') === 'true') {
+  try {
+    await fetchJson(`/api/ebay-updates/${id}/relist`, {
+      method: 'PUT',
+    });
+
+    await refresh();
+    $('#msg').textContent = 'Moved to relist needed ✅';
+  } catch (e) {
+    $('#msg').textContent = 'Error: ' + e.message;
+  }
+  return;
+}
 
           try {
             await setDone(id, done);

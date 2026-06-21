@@ -846,6 +846,48 @@ app.put('/api/ebay-updates/:id', async (req, res) => {
   }
 });
 
+app.put('/api/ebay-updates/:id/relist', async (req, res) => {
+  try {
+    const id = Number(req.params.id);
+    if (!id) return res.status(400).json({ error: 'invalid id' });
+
+    const { rows: updateRows } = await pgQuery(
+      `SELECT * FROM ebay_updates WHERE id = $1`,
+      [id]
+    );
+
+    const update = updateRows[0];
+    if (!update) return res.status(404).json({ error: 'update not found' });
+
+    const { rows: productRows } = await pgQuery(
+      `
+      UPDATE products
+      SET ebay_status = 'ready_to_list',
+          on_ebay = 'N'
+      WHERE sku = $1
+      RETURNING *;
+      `,
+      [update.sku]
+    );
+
+    await pgQuery(
+      `UPDATE ebay_updates SET done = true WHERE id = $1`,
+      [id]
+    );
+
+    res.json({
+      ok: true,
+      update,
+      product: productRows[0] || null,
+    });
+  } catch (err) {
+    console.error('mark ebay update as relist error:', err);
+    res.status(500).json({ error: err.message });
+  }
+});
+
+
+
 app.post("/api/barcode-queue", async (req, res) => {
   try {
     const { sku, quantity } = req.body;

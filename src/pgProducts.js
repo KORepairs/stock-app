@@ -14,7 +14,7 @@ export async function listProductsPG({ ebay_status } = {}) {
 
   const { rows } = await pgQuery(
     `SELECT id, sku, code, name, quantity, notes, on_ebay,
-            ebay_status, ebay_notes,
+            ebay_status, ebay_notes, needs_pics,
             retail, cost, fees, postage, postage_group, battery_health,
 server_cpu_1, server_cpu_2, server_ram, server_hdd
      FROM products
@@ -43,59 +43,58 @@ server_cpu_1, server_cpu_2, server_ram, server_hdd
 // Create a new product
 export async function createProductPG(data) {
   const {
-  sku,
-  code = null,
-  name,
-  notes,
-  on_ebay,
-  ebay_status = 'not_listed',
-  ebay_notes = null,
-  cost,
-  retail,
-  fees,
-  postage,
-  postage_group = null,
-  quantity,
-  battery_health = null,
-server_cpu_1 = null,
-server_cpu_2 = null,
-server_ram = null,
-server_hdd = null
-} = data;
-
-
-  const { rows } = await pgQuery(
-  `INSERT INTO products
-   (sku, code, name, notes, on_ebay, ebay_status, ebay_notes, cost, retail, fees, postage, postage_group, battery_health, server_cpu_1, server_cpu_2, server_ram, server_hdd, quantity)
- VALUES
-   ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17,$18)
- RETURNING id, sku, code, name, quantity, notes, on_ebay,
-           ebay_status, ebay_notes,
-           retail, cost, fees, postage, postage_group, battery_health,
-           server_cpu_1, server_cpu_2, server_ram, server_hdd`,
-  [
     sku,
-    code,
+    code = null,
     name,
     notes,
     on_ebay,
-    ebay_status,
-    ebay_notes,
+    ebay_status = 'not_listed',
+    ebay_notes = null,
+    needs_pics = 'Y',
     cost,
     retail,
     fees,
     postage,
-    postage_group,
-    battery_health,
-    server_cpu_1,
-    server_cpu_2,
-    server_ram,
-    server_hdd,
-    quantity
-  ]
-);
+    postage_group = null,
+    quantity,
+    battery_health = null,
+    server_cpu_1 = null,
+    server_cpu_2 = null,
+    server_ram = null,
+    server_hdd = null
+  } = data;
 
-
+  const { rows } = await pgQuery(
+    `INSERT INTO products
+     (sku, code, name, notes, on_ebay, ebay_status, ebay_notes, cost, retail, fees, postage, postage_group, needs_pics, battery_health, server_cpu_1, server_cpu_2, server_ram, server_hdd, quantity)
+     VALUES
+     ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17,$18,$19)
+     RETURNING id, sku, code, name, quantity, notes, on_ebay,
+       ebay_status, ebay_notes, needs_pics,
+       retail, cost, fees, postage, postage_group, battery_health,
+       server_cpu_1, server_cpu_2, server_ram, server_hdd`,
+    [
+      sku,
+      code,
+      name,
+      notes,
+      on_ebay,
+      ebay_status,
+      ebay_notes,
+      cost,
+      retail,
+      fees,
+      postage,
+      postage_group,
+      needs_pics,
+      battery_health,
+      server_cpu_1,
+      server_cpu_2,
+      server_ram,
+      server_hdd,
+      quantity
+    ]
+  );
 
   return rows[0];
 }
@@ -322,16 +321,19 @@ export async function updateEbayStatusPG(id, { ebay_status, ebay_notes } = {}) {
   const statusText = ebay_status != null ? String(ebay_status) : null;
   const onEbay = statusText != null ? (statusText === 'listed' ? Y : N) : null;
 
+  const needsPics = statusText === 'listed' ? 'N' : null;
+
   const { rows } = await pgQuery(
     `
     UPDATE products
     SET ebay_status = COALESCE($2, ebay_status),
         ebay_notes  = COALESCE($3, ebay_notes),
-        on_ebay     = COALESCE($4, on_ebay)
+        on_ebay     = COALESCE($4, on_ebay),
+        needs_pics  = COALESCE($5, needs_pics)
     WHERE id = $1
     RETURNING *
     `,
-    [Number(id), statusText, ebay_notes ?? null, onEbay]
+    [Number(id), statusText, ebay_notes ?? null, onEbay, needsPics]
   );
 
   return rows[0] || null;

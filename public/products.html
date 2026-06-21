@@ -108,12 +108,12 @@
         const btn = $('addBtn'); btn.disabled = true; btn.textContent = 'Adding…';
 
         const body = {
-          sku:      $('sku')?.value.trim(),
-          name:     $('name')?.value.trim(),
-          quantity: Number($('quantity')?.value || 0),
-          
-          notes:    $('notes')?.value.trim() || null
-        };
+  sku:      $('sku')?.value.trim(),
+  name:     $('name')?.value.trim(),
+  quantity: Number($('quantity')?.value || 0),
+  needs_pics: 'Y',
+  notes:    $('notes')?.value.trim() || null
+};
 
         // Include advanced if provided (keeps your API compatible)
         const adv = {

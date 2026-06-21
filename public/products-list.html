@@ -230,6 +230,7 @@
                 <th class="serverHeader" style="display: none">RAM</th>
                 <th class="serverHeader" style="display: none">HDD</th>
                 <th>eBay</th>
+                <th>Pics</th>
                 <th>Retail</th>
                 <th>Cost</th>
                 <th>Fees</th>
@@ -581,12 +582,21 @@ ${
 }
 
 <td>
+  <td>
   <select class="ebaySel" data-id="${p.id}">
     <option value="listed" ${p.ebay_status === "listed" ? "selected" : ""}>Y</option>
     <option value="not_listed" ${p.ebay_status !== "listed" ? "selected" : ""}>N</option>
   </select>
 </td>
-        <td>
+
+<td>
+  <select class="picsSel" data-id="${p.id}">
+    <option value="Y" ${p.needs_pics === "Y" ? "selected" : ""}>Y</option>
+    <option value="N" ${p.needs_pics === "N" ? "selected" : ""}>N</option>
+  </select>
+</td>
+
+<td>
   <input
     class="retailInp"
     data-id="${p.id}"

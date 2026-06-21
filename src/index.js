@@ -221,13 +221,18 @@ app.get('/api/health/db', async (req, res) => {
 });
 
 async function setEbayStatus(productId, status) {
+  const statusText = String(status);
+  const onEbay = statusText === 'listed' ? Y : N;
+
   const { rows } = await pgQuery(
     `UPDATE products
-     SET ebay_status = $2
+     SET ebay_status = $2,
+         on_ebay = $3
      WHERE id = $1
      RETURNING *;`,
-    [Number(productId), String(status)]
+    [Number(productId), statusText, onEbay]
   );
+
   return rows[0] || null;
 }
 

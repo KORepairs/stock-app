@@ -318,22 +318,25 @@ export async function getNextRefurbSkuPG(prefix) {
 }
 
 export async function updateEbayStatusPG(id, { ebay_status, ebay_notes } = {}) {
+
+  const statusText = ebay_status != null ? String(ebay_status) : null;
+  const onEbay = statusText != null ? (statusText === 'listed' ? Y : N) : null;
+
   const { rows } = await pgQuery(
     `
     UPDATE products
     SET ebay_status = COALESCE($2, ebay_status),
-        ebay_notes  = COALESCE($3, ebay_notes)
+        ebay_notes  = COALESCE($3, ebay_notes),
+        on_ebay     = COALESCE($4, on_ebay)
     WHERE id = $1
-    RETURNING id, sku, code, name, quantity, notes, on_ebay,
-          ebay_status, ebay_notes,
-          retail, cost, fees, postage, postage_group, battery_health,
-server_cpu_1, server_cpu_2, server_ram, server_hdd;
+    RETURNING *
     `,
-    [Number(id), ebay_status ?? null, ebay_notes ?? null]
+    [Number(id), statusText, ebay_notes ?? null, onEbay]
   );
 
   return rows[0] || null;
 }
+
 export async function ebayStatusCountsPG() {
   const { rows } = await pgQuery(`
     SELECT ebay_status, COUNT(*)::int AS count

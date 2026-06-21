@@ -633,7 +633,10 @@ ${
 <td class="actions">
   ${
     isRelistPage
-      ? `<button data-act="relisted" data-id="${p.id}">Mark relisted</button>`
+      ? `
+        <button data-act="relisted" data-id="${p.id}">Mark relisted</button>
+        <button data-act="needsPics" data-id="${p.id}">Need pics</button>
+      `
       : `
         <button data-act="edit" data-id="${p.id}">Edit</button>
         <button data-act="del" data-id="${p.id}">Delete</button>
@@ -717,6 +720,32 @@ ${
             render();
             return;
           }
+
+          if (btn.dataset.act === "needsPics") {
+  btn.disabled = true;
+  btn.textContent = "Saving...";
+
+  const r = await fetch("/api/products/" + id + "/needs-pics", {
+    method: "PATCH",
+  });
+
+  const j = await r.json();
+
+  if (j.error) {
+    alert(j.error);
+    btn.disabled = false;
+    btn.textContent = "Need pics";
+    return;
+  }
+
+  const i = all.findIndex((x) => x.id === id);
+  if (i > -1) {
+    all[i] = { ...all[i], ...j };
+  }
+
+  render();
+  return;
+}
 
           if (btn.dataset.act === "edit") {
             $("e_id").value = row.id;

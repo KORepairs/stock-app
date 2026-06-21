@@ -222,7 +222,7 @@ app.get('/api/health/db', async (req, res) => {
 
 async function setEbayStatus(productId, status) {
   const statusText = String(status);
-  const onEbay = statusText === 'listed' ? Y : N;
+  const onEbay = statusText === 'listed' ? 'Y' : 'N';
 
   const { rows } = await pgQuery(
     `UPDATE products
@@ -519,6 +519,32 @@ app.patch('/api/products/:id/ebay', async (req, res) => {
     res.json(row);
   } catch (err) {
     console.error('PG update ebay status error:', err);
+    res.status(500).json({ error: err.message });
+  }
+});
+
+app.patch('/api/products/:id/needs-pics', async (req, res) => {
+  try {
+    const id = Number(req.params.id);
+    if (!id) return res.status(400).json({ error: 'invalid id' });
+
+    const { rows } = await pgQuery(
+      `
+      UPDATE products
+      SET ebay_status = 'not_listed',
+          on_ebay = 'N',
+          needs_pics = 'Y'
+      WHERE id = $1
+      RETURNING *;
+      `,
+      [id]
+    );
+
+    if (!rows[0]) return res.status(404).json({ error: 'not found' });
+
+    res.json(rows[0]);
+  } catch (err) {
+    console.error('needs pics error:', err);
     res.status(500).json({ error: err.message });
   }
 });

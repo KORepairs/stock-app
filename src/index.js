@@ -919,7 +919,7 @@ app.get("/api/barcode-queue", async (req, res) => {
   } catch (err) {
   console.error("BARCODE QUEUE ERROR:", err);
   res.json({ error: err.message });
-}git 
+}
 });
 
 app.delete("/api/barcode-queue", async (req, res) => {

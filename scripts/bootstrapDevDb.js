@@ -3,7 +3,7 @@
 import 'dotenv/config';
 import pg from 'pg';
 import { CREATE_STATEMENTS, EXPECTED_TABLES } from '../src/schema.js';
-import { resolvePgSsl } from '../src/pgSsl.js';
+import { resolvePgConfig } from '../src/pgConfig.js';
 
 const { Client } = pg;
 
@@ -27,17 +27,15 @@ async function main() {
     return;
   }
 
-  const connectionString = process.env.DATABASE_URL;
-  if (!connectionString) {
-    fail('Refusing to bootstrap: DATABASE_URL is not set.');
+  const resolved = resolvePgConfig(process.env);
+  if (!resolved.ok) {
+    fail(
+      'Refusing to bootstrap: a valid DATABASE_URL or the complete PGHOST, PGPORT, PGDATABASE, PGUSER, PGPASSWORD set is required.'
+    );
     return;
   }
 
-  const clientConfig = { connectionString };
-  const ssl = resolvePgSsl(connectionString, process.env.PGSSLMODE);
-  if (ssl !== undefined) clientConfig.ssl = ssl;
-
-  const client = new Client(clientConfig);
+  const client = new Client(resolved.config);
   let began = false;
 
   try {

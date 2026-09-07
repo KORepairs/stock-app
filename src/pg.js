@@ -1,23 +1,17 @@
 // src/pg.js
 import pg from 'pg';
-import { resolvePgSsl } from './pgSsl.js';
+import { resolvePgConfig } from './pgConfig.js';
 
 const { Pool } = pg;
 
-const connectionString = process.env.DATABASE_URL;
-
 let pool = null;
 
-if (connectionString) {
-  const poolConfig = { connectionString };
-  const ssl = resolvePgSsl(connectionString, process.env.PGSSLMODE);
-  if (ssl !== undefined) poolConfig.ssl = ssl;
-
-  pool = new Pool(poolConfig);
+const resolved = resolvePgConfig(process.env);
+if (resolved.ok) {
+  pool = new Pool(resolved.config);
   console.log('[PG] Pool created');
 } else {
-  // Local dev: no Postgres, we’ll just use SQLite
-  console.warn('[PG] No DATABASE_URL found. Postgres disabled.');
+  console.warn('[PG] Postgres disabled.');
 }
 
 export { pool };
@@ -28,7 +22,7 @@ export { pool };
  */
 export async function pgQuery(text, params = []) {
   if (!pool) {
-    console.warn('[PG] pgQuery called but DATABASE_URL is missing – returning empty result.');
+    console.warn('[PG] pgQuery called but Postgres is not configured – returning empty result.');
     return { rows: [], rowCount: 0 };
   }
 

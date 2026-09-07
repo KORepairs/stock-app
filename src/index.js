@@ -10,7 +10,7 @@ import cors from 'cors';
 import auth from 'basic-auth';
 import { fileURLToPath } from 'url';
 import { pgQuery } from './pg.js';
-import { initDb } from './db.js'
+import { assertSchema } from './db.js'
 import {
   listProductsPG,
   createProductPG,
@@ -222,7 +222,7 @@ app.get('/api/health/db', async (req, res) => {
 
 async function setEbayStatus(productId, status) {
   const statusText = String(status);
-  const onEbay = statusText === 'listed' ? 'Y' : 'N';
+  const onEbay = statusText === 'listed' ? 1 : 0;
 
   const { rows } = await pgQuery(
     `UPDATE products
@@ -532,7 +532,7 @@ app.patch('/api/products/:id/needs-pics', async (req, res) => {
       `
       UPDATE products
       SET ebay_status = 'not_listed',
-          on_ebay = 'N',
+          on_ebay = 0,
           needs_pics = 'Y'
       WHERE id = $1
       RETURNING *;
@@ -863,7 +863,7 @@ app.put('/api/ebay-updates/:id/relist', async (req, res) => {
       `
       UPDATE products
       SET ebay_status = 'ready_to_list',
-          on_ebay = 'N'
+          on_ebay = 0
       WHERE sku = $1
       RETURNING *;
       `,
@@ -2448,8 +2448,8 @@ app.post('/api/backup/restore', upload.single('backup_zip'), async (req, res) =>
 // ---- START SERVER ----
 const PORT = process.env.PORT || 4100;
 
-// 1) Initialise Postgres tables
-await initDb();   // ✅ this runs the CREATE TABLE IF NOT EXISTS in db.js
+// 1) Verify Postgres schema without mutating it
+await assertSchema();
 
 // 2) Start the server
 app.listen(PORT, () => {

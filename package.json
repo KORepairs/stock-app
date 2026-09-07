@@ -8,7 +8,8 @@
     "dev": "nodemon src/index.js",
     "start": "node src/index.js",
     "backup": "mkdir -p backups && sqlite3 data.db \".backup 'backups/db-$(date +%F-%H%M%S).sqlite3'\"",
-    "dev:auth": "BASIC_USER=me BASIC_PASS=secret nodemon src/index.js"
+    "dev:auth": "BASIC_USER=me BASIC_PASS=secret nodemon src/index.js",
+    "db:bootstrap:dev": "node scripts/bootstrapDevDb.js"
   },
   "dependencies": {
     "adm-zip": "^0.5.17",

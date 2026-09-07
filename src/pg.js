@@ -1,5 +1,7 @@
 // src/pg.js
 import pg from 'pg';
+import { resolvePgSsl } from './pgSsl.js';
+
 const { Pool } = pg;
 
 const connectionString = process.env.DATABASE_URL;
@@ -7,13 +9,11 @@ const connectionString = process.env.DATABASE_URL;
 let pool = null;
 
 if (connectionString) {
-  // Used on Railway (or anywhere you have DATABASE_URL set)
-  pool = new Pool({
-    connectionString,
-    ssl: process.env.NODE_ENV === 'production'
-      ? { rejectUnauthorized: false }
-      : false,
-  });
+  const poolConfig = { connectionString };
+  const ssl = resolvePgSsl(connectionString, process.env.PGSSLMODE);
+  if (ssl !== undefined) poolConfig.ssl = ssl;
+
+  pool = new Pool(poolConfig);
   console.log('[PG] Pool created');
 } else {
   // Local dev: no Postgres, we’ll just use SQLite

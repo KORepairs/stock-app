@@ -149,7 +149,7 @@ app.use("/api/exports", exportsRouter);
 
 /* ---------- Static / Pages ---------- */
 const PUBLIC_DIR = path.join(__dirname, '..', 'public');
-app.use(express.static(PUBLIC_DIR));
+app.use(express.static(PUBLIC_DIR, { index: false }));
 
 app.get('/', (req, res) => res.sendFile(path.join(PUBLIC_DIR, 'dashboard.html')));
 app.get('/products',       (req, res) => res.sendFile(path.join(PUBLIC_DIR, 'products.html')));

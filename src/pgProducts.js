@@ -292,11 +292,13 @@ export async function setEbayUpdateDonePG(id, done) {
 }
 
 // Next SKU for refurb_items table (V/M/L/H)
-export async function getNextRefurbSkuPG(prefix) {
+// Optional queryFn lets a transaction pass client.query without this helper starting a tx.
+export async function getNextRefurbSkuPG(prefix, queryFn = pgQuery) {
   const p = String(prefix || '').trim().toUpperCase();
   if (!p) throw new Error('Refurb prefix required');
 
-  const { rows } = await pgQuery(
+  const query = queryFn;
+  const { rows } = await query(
     `
     SELECT sku
     FROM refurb_items

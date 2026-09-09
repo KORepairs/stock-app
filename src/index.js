@@ -9,7 +9,7 @@ import express from 'express';
 import cors from 'cors';
 import auth from 'basic-auth';
 import { fileURLToPath } from 'url';
-import { pgQuery } from './pg.js';
+import { pgQuery, withTransaction } from './pg.js';
 import { assertSchema } from './db.js'
 import {
   listProductsPG,
@@ -1546,117 +1546,132 @@ app.post('/api/tradein', upload.single('id_image'), async (req, res) => {
       }
     }
 
-        // ----------------------------
-    // Resolve customer (existing or new)
-    // ----------------------------
-    let custId = customer_id ? Number(customer_id) : null;
-
-    // if customer_id provided, load customer record
-    if (custId) {
-      const { rows } = await pgQuery('SELECT * FROM customers WHERE id = $1', [custId]);
-      const c = rows[0];
-      if (!c) return res.status(400).json({ error: 'customer not found' });
-
-      // overwrite form values with stored ones (keeps things consistent)
-      // (optional, but nice)
-      // customer_name = c.name;   // can't reassign const, so just use c.name later if needed
-    } else {
-      // No customer_id → create a new customer record
-      if (!customer_name) {
-        return res.status(400).json({ error: 'Customer name is required' });
-      }
-
-      const { rows } = await pgQuery(
-        `
-        INSERT INTO customers (name, phone, email, address)
-        VALUES ($1,$2,$3, $4)
-        RETURNING id;
-        `,
-        [
-          String(customer_name).trim(),
-          customer_phone || null,
-          customer_email || null,
-          customer_address || null,
-        ]
-      );
-      custId = rows[0].id;
+    if (!customer_id && !customer_name) {
+      return res.status(400).json({ error: 'Customer name is required' });
     }
-
-
-    if ((!customer_id && !customer_name) || !device_desc) {
-      return res.status(400).json({ error: 'Customer (name or selected customer) and device description are required' });
+    if (!device_desc) {
+      return res.status(400).json({
+        error: 'Customer (name or selected customer) and device description are required',
+      });
     }
-
 
     const valuationNum = valuation ? Number(valuation) : null;
     const agreedNum    = agreed_value ? Number(agreed_value) : null;
-
     const idImagePath = req.file ? `/uploads/${req.file.filename}` : null;
+    const existingCustId = customer_id ? Number(customer_id) : null;
 
-    // If we uploaded an ID image AND we have a customer, store it on the customer record too
-    if (idImagePath && custId) {
-      await pgQuery(`UPDATE customers SET id_image_path = $1, updated_at = NOW() WHERE id = $2`, [idImagePath, custId]);
-    }
+    const tradeRow = await withTransaction(async (client) => {
+      const exec = (text, params) => client.query(text, params);
 
+      let custId = existingCustId;
 
-    let refurbId = null;
+      if (custId) {
+        const { rows } = await exec('SELECT * FROM customers WHERE id = $1', [custId]);
+        if (!rows[0]) {
+          const err = new Error('customer not found');
+          err.statusCode = 400;
+          throw err;
+        }
+      } else {
+        if (!customer_name) {
+          const err = new Error('Customer name is required');
+          err.statusCode = 400;
+          throw err;
+        }
 
-    // Auto-create refurb row if requested (or just always – tweak if you like)
-    if (wantsRefurb) {
-      const skuNorm = await getNextRefurbSkuPG(refurbPrefix);
-      const storedCategory = categoryFromSkuPrefix(skuNorm) || categoryFromSkuPrefix(refurbPrefix);
-      if (!storedCategory) {
-        return res.status(400).json({
-          error: 'Refurb category is required and must be one of V, L, M, T, H, K',
-        });
+        const { rows } = await exec(
+          `
+          INSERT INTO customers (name, phone, email, address)
+          VALUES ($1,$2,$3, $4)
+          RETURNING id;
+          `,
+          [
+            String(customer_name).trim(),
+            customer_phone || null,
+            customer_email || null,
+            customer_address || null,
+          ]
+        );
+        custId = rows[0].id;
       }
 
-      const refurbNotes = `Trade-in from ${customer_name}${agreedNum != null ? `, agreed £${agreedNum}` : ''}`;
-      const refurbCost  = agreedNum != null ? agreedNum : (valuationNum || 0);
+      if (idImagePath && custId) {
+        await exec(
+          `UPDATE customers SET id_image_path = $1, updated_at = NOW() WHERE id = $2`,
+          [idImagePath, custId]
+        );
+      }
 
-      const refurbRes = await pgQuery(
+      let refurbId = null;
+
+      if (wantsRefurb) {
+        await exec(
+          `SELECT pg_advisory_xact_lock(hashtext('stock-app:refurb-sku'), hashtext($1))`,
+          [refurbPrefix]
+        );
+
+        const skuNorm = await getNextRefurbSkuPG(refurbPrefix, exec);
+        const storedCategory = categoryFromSkuPrefix(skuNorm) || categoryFromSkuPrefix(refurbPrefix);
+        if (!storedCategory) {
+          const err = new Error(
+            'Refurb category is required and must be one of V, L, M, T, H, K'
+          );
+          err.statusCode = 400;
+          throw err;
+        }
+
+        const refurbNotes = `Trade-in from ${customer_name}${agreedNum != null ? `, agreed £${agreedNum}` : ''}`;
+        const refurbCost  = agreedNum != null ? agreedNum : (valuationNum || 0);
+
+        const refurbRes = await exec(
+          `
+          INSERT INTO refurb_items (
+            sku, serial, description, status, parts_status,
+            supplier, category, cost, retail, notes
+          )
+          VALUES ($1, $2, $3, 'refurb', 'none', 'Trade-in', $4, $5, NULL, $6)
+          RETURNING id;
+          `,
+          [skuNorm, serial || null, device_desc, storedCategory, refurbCost, refurbNotes]
+        );
+
+        refurbId = refurbRes.rows[0]?.id || null;
+      }
+
+      const tradeRes = await exec(
         `
-        INSERT INTO refurb_items (
-          sku, serial, description, status, parts_status,
-          supplier, category, cost, retail, notes
+        INSERT INTO trade_ins (
+          customer_id,
+          customer_name, customer_phone, customer_email, customer_address,
+          serial, device_desc, valuation, agreed_value,
+          id_image_path, refurb_id
         )
-        VALUES ($1, $2, $3, 'refurb', 'none', 'Trade-in', $4, $5, NULL, $6)
-        RETURNING id;
+        VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11)
+        RETURNING *;
         `,
-        [skuNorm, serial || null, device_desc, storedCategory, refurbCost, refurbNotes]
+        [
+          custId,
+          customer_name,
+          customer_phone || null,
+          customer_email || null,
+          customer_address || null,
+          serial || null,
+          device_desc,
+          valuationNum,
+          agreedNum,
+          idImagePath,
+          refurbId,
+        ]
       );
 
-      refurbId = refurbRes.rows[0]?.id || null;
-    }
+      return tradeRes.rows[0];
+    });
 
-    const tradeRes = await pgQuery(
-  `
-  INSERT INTO trade_ins (
-    customer_id,
-    customer_name, customer_phone, customer_email, customer_address,
-    serial, device_desc, valuation, agreed_value,
-    id_image_path, refurb_id
-  )
-  VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11)
-  RETURNING *;
-  `,
-  [
-    custId,
-    customer_name,
-    customer_phone || null,
-    customer_email || null,
-    customer_address || null,
-    serial || null,
-    device_desc,
-    valuationNum,
-    agreedNum,
-    idImagePath,
-    refurbId,
-  ]
-);
-
-    res.status(201).json(tradeRes.rows[0]);
+    res.status(201).json(tradeRow);
   } catch (err) {
+    if (err && err.statusCode === 400) {
+      return res.status(400).json({ error: err.message });
+    }
     console.error('Error creating trade-in:', err);
     res.status(500).json({ error: 'Failed to create trade-in' });
   }

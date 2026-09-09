@@ -112,10 +112,20 @@
 
           <div class="full" style="margin-top: 8px">
             <label style="display: flex; gap: 8px; align-items: center">
-              <input type="checkbox" name="create_refurb" checked />
+              <input type="checkbox" id="create_refurb" name="create_refurb" checked />
               <span>Create refurb record for this device</span>
             </label>
           </div>
+
+          <label for="refurb_category">Refurb category</label>
+          <select id="refurb_category" name="category" required>
+            <option value="V">V — Phone</option>
+            <option value="L">L — Laptop</option>
+            <option value="M">M — Mac</option>
+            <option value="T">T — Tablet</option>
+            <option value="H">H — Handheld</option>
+            <option value="K">K — Other</option>
+          </select>
 
           <div class="full">
             <button id="tradeSubmit" type="submit">Save Trade-In</button>
@@ -274,6 +284,17 @@
       // -------- Submit trade-in --------
       const form = document.getElementById("tradeForm");
       const btn = document.getElementById("tradeSubmit");
+      const createRefurbEl = document.getElementById("create_refurb");
+      const refurbCategoryEl = document.getElementById("refurb_category");
+
+      function syncRefurbCategoryState() {
+        const on = createRefurbEl.checked;
+        refurbCategoryEl.disabled = !on;
+        refurbCategoryEl.required = on;
+      }
+
+      createRefurbEl.addEventListener("change", syncRefurbCategoryState);
+      syncRefurbCategoryState();
 
       // store last selected customer details so reset doesn’t wipe them
       let lastCustomer = { id: "", name: "", phone: "", address: "" };
@@ -308,6 +329,7 @@
 
           toast("Trade-in saved ✔️", "ok");
           form.reset();
+          syncRefurbCategoryState();
 
           // restore selected customer after reset (if there was one)
           if (lastCustomer.id) {

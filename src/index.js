@@ -1199,13 +1199,13 @@ app.get('/api/refurb/parts-needed-list', async (req, res) => {
 // Update refurb item + if marked complete, sync with products by SKU
 app.put('/api/refurb/:id', async (req, res) => {
   const { id } = req.params;
+  const bodyIn = req.body || {};
   const {
     status,
     parts_status,
     cpu,
     supplier,
     cost,
-    retail,
     notes,
     sku, // allow editing SKU from the table
     description,
@@ -1216,7 +1216,26 @@ app.put('/api/refurb/:id', async (req, res) => {
     colour,
     storage,
     controller,
-  } = req.body || {};
+  } = bodyIn;
+
+  const retailProvided = Object.prototype.hasOwnProperty.call(bodyIn, 'retail');
+  let retailValue = null;
+  if (retailProvided) {
+    const raw = bodyIn.retail;
+    if (raw === null || raw === '') {
+      retailValue = null;
+    } else if (typeof raw === 'string' && raw.trim() === '') {
+      retailValue = null;
+    } else if (typeof raw === 'number' || typeof raw === 'string') {
+      const n = Number(raw);
+      if (!Number.isFinite(n)) {
+        return res.status(400).json({ error: 'Retail must be a number or left blank' });
+      }
+      retailValue = n;
+    } else {
+      return res.status(400).json({ error: 'Retail must be a number or left blank' });
+    }
+  }
 
   // normalise SKU to uppercase like products
   const skuNorm = sku ? String(sku).trim().toUpperCase() : null;
@@ -1250,7 +1269,7 @@ const categoryToUse = (category ?? null) || autoCat;
         cpu          = COALESCE($3, cpu),
         supplier     = COALESCE($4, supplier),
         cost         = COALESCE($5, cost),
-        retail       = COALESCE($6, retail),
+        retail       = CASE WHEN $16::boolean THEN $6::numeric ELSE retail END,
         notes        = COALESCE($7, notes),
         sku          = COALESCE($8, sku),
         description  = COALESCE($9, description),
@@ -1272,7 +1291,7 @@ RETURNING *;
       cpu ?? null,
       supplier ?? null,
       cost ?? null,
-      retail ?? null,
+      retailValue,
       notes ?? null,
       skuNorm ?? null,
       description ?? null,
@@ -1283,6 +1302,7 @@ RETURNING *;
       controller ?? null,
       quantity ?? null,
       id,
+      retailProvided,
     ];
 
 
@@ -1511,7 +1531,20 @@ app.post('/api/tradein', upload.single('id_image'), async (req, res) => {
       valuation,
       agreed_value,
       create_refurb,  // "on" when checkbox ticked
+      category,       // V/L/M/T/H/K prefix when creating a refurb
     } = req.body || {};
+
+    const wantsRefurb = create_refurb === 'on' || create_refurb === 'true' || create_refurb === '1';
+    const allowedPrefixes = new Set(['V', 'L', 'M', 'T', 'H', 'K']);
+    let refurbPrefix = null;
+    if (wantsRefurb) {
+      refurbPrefix = String(category || '').trim().toUpperCase();
+      if (!allowedPrefixes.has(refurbPrefix)) {
+        return res.status(400).json({
+          error: 'Refurb category is required and must be one of V, L, M, T, H, K',
+        });
+      }
+    }
 
         // ----------------------------
     // Resolve customer (existing or new)
@@ -1569,7 +1602,15 @@ app.post('/api/tradein', upload.single('id_image'), async (req, res) => {
     let refurbId = null;
 
     // Auto-create refurb row if requested (or just always – tweak if you like)
-    if (create_refurb === 'on' || create_refurb === 'true' || create_refurb === '1') {
+    if (wantsRefurb) {
+      const skuNorm = await getNextRefurbSkuPG(refurbPrefix);
+      const storedCategory = categoryFromSkuPrefix(skuNorm) || categoryFromSkuPrefix(refurbPrefix);
+      if (!storedCategory) {
+        return res.status(400).json({
+          error: 'Refurb category is required and must be one of V, L, M, T, H, K',
+        });
+      }
+
       const refurbNotes = `Trade-in from ${customer_name}${agreedNum != null ? `, agreed £${agreedNum}` : ''}`;
       const refurbCost  = agreedNum != null ? agreedNum : (valuationNum || 0);
 
@@ -1577,12 +1618,12 @@ app.post('/api/tradein', upload.single('id_image'), async (req, res) => {
         `
         INSERT INTO refurb_items (
           sku, serial, description, status, parts_status,
-          supplier, cost, retail, notes
+          supplier, category, cost, retail, notes
         )
-        VALUES (NULL, $1, $2, 'refurb', 'none', 'Trade-in', $3, NULL, $4)
+        VALUES ($1, $2, $3, 'refurb', 'none', 'Trade-in', $4, $5, NULL, $6)
         RETURNING id;
         `,
-        [serial || null, device_desc, refurbCost, refurbNotes]
+        [skuNorm, serial || null, device_desc, storedCategory, refurbCost, refurbNotes]
       );
 
       refurbId = refurbRes.rows[0]?.id || null;

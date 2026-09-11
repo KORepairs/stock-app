@@ -1123,15 +1123,26 @@ app.post('/api/refurb', async (req, res) => {
 
   // If no SKU was supplied, auto-generate from category
   let skuNorm = sku ? String(sku).trim().toUpperCase() : null;
+  const prefix = String(category || '').trim().toUpperCase(); // V/M/L/H
 
-  if (!skuNorm) {
-    const prefix = String(category || '').trim().toUpperCase();
-    if (!prefix) return res.status(400).json({ error: 'category is required' });
-    skuNorm = await getNextRefurbSkuPG(prefix);
+  if (!skuNorm && !prefix) {
+    return res.status(400).json({ error: 'category is required' });
   }
 
   try {
-    const query = `
+    const created = await withTransaction(async (client) => {
+      const exec = (text, params) => client.query(text, params);
+
+      let allocatedSku = skuNorm;
+      if (!allocatedSku) {
+        await exec(
+          `SELECT pg_advisory_xact_lock(hashtext('stock-app:refurb-sku'), hashtext($1))`,
+          [prefix]
+        );
+        allocatedSku = await getNextRefurbSkuPG(prefix, exec);
+      }
+
+      const query = `
       INSERT INTO refurb_items (
   sku, serial, description, status, parts_status, cpu,
   supplier, category, cost, retail, notes, quantity
@@ -1141,26 +1152,26 @@ VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12)
       RETURNING *;
     `;
 
-    const prefix = String(category || '').trim().toUpperCase(); // V/M/L/H
+      const values = [
+        allocatedSku,
+        serial || null,
+        description,
+        status || 'refurb',
+        parts_status || 'none',
+        cpu || null,
+        supplier || null,
+        categoryFromSkuPrefix(allocatedSku) || categoryFromSkuPrefix(prefix) || 'laptop',
+        cost ?? 0,
+        retail ?? 0,
+        notes || null,
+        Number(quantity) || 1,
+      ];
 
-const values = [
-  skuNorm,
-  serial || null,
-  description,
-  status || 'refurb',
-  parts_status || 'none',
-  cpu || null,
-  supplier || null,
-  categoryFromSkuPrefix(skuNorm) || categoryFromSkuPrefix(prefix) || 'laptop',
-  cost ?? 0,
-  retail ?? 0,
-  notes || null,
-  Number(quantity) || 1,
-];
+      const result = await exec(query, values);
+      return result.rows[0];
+    });
 
-
-    const result = await pgQuery(query, values);
-    res.json(result.rows[0]);
+    res.json(created);
   } catch (err) {
     console.error('Error creating refurb item:', err);
     res.status(500).json({ error: 'Failed to create refurb item' });

@@ -1,6 +1,72 @@
 // src/db.js
-import { pgQuery } from './pg.js';
+import { pool, pgQuery } from './pg.js';
+import { EXPECTED_COLUMNS, EXPECTED_TABLES } from './schema.js';
 
+/**
+ * Read-only schema check for normal application startup.
+ * Queries information_schema only. Never CREATE/ALTER/UPDATE/DELETE/INSERT/DROP/TRUNCATE.
+ */
+export async function assertSchema() {
+  if (!pool) {
+    throw new Error('Database is not configured. Schema cannot be verified.');
+  }
+
+  const { rows: tableRows } = await pgQuery(
+    `
+    SELECT table_name
+    FROM information_schema.tables
+    WHERE table_schema = 'public'
+      AND table_type = 'BASE TABLE'
+      AND table_name = ANY($1)
+    `,
+    [EXPECTED_TABLES]
+  );
+
+  const presentTables = new Set(tableRows.map((row) => String(row.table_name)));
+  const missingTables = EXPECTED_TABLES.filter((name) => !presentTables.has(name));
+  if (missingTables.length) {
+    throw new Error(`Database schema is incomplete. Missing tables: ${missingTables.join(', ')}`);
+  }
+
+  const { rows: columnRows } = await pgQuery(
+    `
+    SELECT table_name, column_name
+    FROM information_schema.columns
+    WHERE table_schema = 'public'
+      AND table_name = ANY($1)
+    `,
+    [EXPECTED_TABLES]
+  );
+
+  const presentColumns = new Map();
+  for (const row of columnRows) {
+    const tableName = String(row.table_name);
+    if (!presentColumns.has(tableName)) presentColumns.set(tableName, new Set());
+    presentColumns.get(tableName).add(String(row.column_name));
+  }
+
+  const missingColumns = [];
+  for (const tableName of EXPECTED_TABLES) {
+    const expected = EXPECTED_COLUMNS[tableName] || [];
+    const actual = presentColumns.get(tableName) || new Set();
+    for (const columnName of expected) {
+      if (!actual.has(columnName)) {
+        missingColumns.push(`${tableName}.${columnName}`);
+      }
+    }
+  }
+
+  if (missingColumns.length) {
+    throw new Error(
+      `Database schema is incomplete. Missing columns: ${missingColumns.join(', ')}`
+    );
+  }
+}
+
+/**
+ * LEGACY mutating migrations. Retained for review of historical production schema.
+ * Must not be called on application startup. Use assertSchema() instead.
+ */
 export async function initDb() {
   // Products table
   await pgQuery(`

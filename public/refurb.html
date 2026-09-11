@@ -195,7 +195,29 @@
   }
 
   function esc(s){ return String(s || '').replace(/[&<>"']/g, m => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[m]||m)); }
-  function fmtMoney(v){ return '£' + Number(v || 0).toFixed(2); }
+  function fmtMoney(v){
+    if (v === null || v === undefined || v === '') return '–';
+    const n = Number(v);
+    if (!Number.isFinite(n)) return '–';
+    return '£' + n.toFixed(2);
+  }
+
+  function retailInputValue(v){
+    if (v === null || v === undefined || v === '') return '';
+    const n = Number(v);
+    if (!Number.isFinite(n)) return '';
+    return n.toFixed(2);
+  }
+
+  function parseRetailInput(raw){
+    const s = String(raw ?? '').trim();
+    if (s === '') return { ok: true, value: null };
+    const n = Number(s);
+    if (!Number.isFinite(n)) {
+      return { ok: false, error: 'Retail must be a number or left blank' };
+    }
+    return { ok: true, value: n };
+  }
 
   let __toastTimer;
   function toast(msg, kind='err') {
@@ -350,7 +372,7 @@ const isSoldPage = path === '/refurb/sold';
     const sku = String(item.sku || '').toUpperCase();
     const status = String(item.status || '');
     const parts = String(item.parts_status || '').trim();
-    const category = (String(item.category || '').trim().toLowerCase() || 'laptop');
+    const category = String(item.category || '').trim().toLowerCase();
 
     // Only filter by category if a view is selected
     if (view && !cfg.categories.includes(category)) return false;
@@ -449,6 +471,7 @@ function syncViewUI() {
       label: 'Category',
       render: (item) => `
         <select data-id="${item.id}" class="catSel">
+          <option value="" ${!item.category ? 'selected' : ''}>Select category</option>
           <option value="laptop" ${item.category==='laptop'?'selected':''}>Laptop</option>
           <option value="pc" ${item.category==='pc'?'selected':''}>PC</option>
           <option value="phone" ${item.category==='phone'?'selected':''}>Phone</option>
@@ -518,7 +541,7 @@ function syncViewUI() {
   render: (item) => `
     <input data-id="${item.id}" class="retailInp" type="number"
       step="0.01" min="0"
-      value="${Number(item.retail || 0).toFixed(2)}">
+      value="${retailInputValue(item.retail)}">
   `
 },
   ];
@@ -813,7 +836,14 @@ function wireRefurbAutoSaveInputs() {
   quantity: qtyEl ? Number(qtyEl.value || 1) : 1,
 };
 
-      body.retail = retailEl ? Number(retailEl.value || 0) : 0;
+      if (retailEl) {
+        const parsedRetail = parseRetailInput(retailEl.value);
+        if (!parsedRetail.ok) {
+          toast(parsedRetail.error);
+          return;
+        }
+        body.retail = parsedRetail.value;
+      }
 
       // View-specific fields
       if (view === '' || view === 'laptop' || view === 'pc') {

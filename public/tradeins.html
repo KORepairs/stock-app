@@ -248,11 +248,8 @@
           item.customer_address || ''
         ].filter(Boolean).join(' · ');
 
-        const refurbCell = item.refurb_id
-  ? `<a href="/refurb/${item.refurb_id}" target="_blank" rel="noopener" class="mono" style="text-decoration:underline;">
-       #${item.refurb_id}
-     </a>`
-  : '–';
+        const rid = Number(item.refurb_id);
+        const validRid = Number.isFinite(rid) && Number.isInteger(rid) && rid > 0 ? rid : null;
 
         const idImg = item.id_image_path
           ? `<a href="${esc(item.id_image_path)}" target="_blank" rel="noopener">
@@ -271,7 +268,7 @@
           <td>${esc(item.serial)}</td>
           <td>${fmtMoney(item.valuation)}</td>
           <td>${fmtMoney(item.agreed_value)}</td>
-          <td>${esc(refurbCell)}</td>
+          <td class="refurbCell"${validRid != null ? ` data-refurb-id="${validRid}"` : ''}></td>
           <td>${idImg}</td>
           <td class="right">
             <button type="button" class="editBtn" data-id="${item.id}">Edit</button>
@@ -279,6 +276,22 @@
           </td>
         </tr>`;
       }).join('');
+
+      tbody.querySelectorAll('.refurbCell').forEach((td) => {
+        const rid = Number(td.dataset.refurbId);
+        if (!Number.isFinite(rid) || !Number.isInteger(rid) || rid <= 0) {
+          td.textContent = '–';
+          return;
+        }
+        const a = document.createElement('a');
+        a.href = '/refurb/' + rid;
+        a.target = '_blank';
+        a.rel = 'noopener';
+        a.className = 'mono';
+        a.style.textDecoration = 'underline';
+        a.textContent = '#' + rid;
+        td.appendChild(a);
+      });
 
       // wire buttons
       tbody.querySelectorAll('.editBtn').forEach(btn => {

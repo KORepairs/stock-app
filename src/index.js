@@ -9,8 +9,8 @@ import express from 'express';
 import cors from 'cors';
 import auth from 'basic-auth';
 import { fileURLToPath } from 'url';
-import { pgQuery } from './pg.js';
-import { initDb } from './db.js'
+import { pgQuery, withTransaction } from './pg.js';
+import { assertSchema } from './db.js'
 import {
   listProductsPG,
   createProductPG,
@@ -149,7 +149,7 @@ app.use("/api/exports", exportsRouter);
 
 /* ---------- Static / Pages ---------- */
 const PUBLIC_DIR = path.join(__dirname, '..', 'public');
-app.use(express.static(PUBLIC_DIR));
+app.use(express.static(PUBLIC_DIR, { index: false }));
 
 app.get('/', (req, res) => res.sendFile(path.join(PUBLIC_DIR, 'dashboard.html')));
 app.get('/products',       (req, res) => res.sendFile(path.join(PUBLIC_DIR, 'products.html')));
@@ -222,7 +222,7 @@ app.get('/api/health/db', async (req, res) => {
 
 async function setEbayStatus(productId, status) {
   const statusText = String(status);
-  const onEbay = statusText === 'listed' ? 'Y' : 'N';
+  const onEbay = statusText === 'listed' ? 1 : 0;
 
   const { rows } = await pgQuery(
     `UPDATE products
@@ -532,7 +532,7 @@ app.patch('/api/products/:id/needs-pics', async (req, res) => {
       `
       UPDATE products
       SET ebay_status = 'not_listed',
-          on_ebay = 'N',
+          on_ebay = 0,
           needs_pics = 'Y'
       WHERE id = $1
       RETURNING *;
@@ -863,7 +863,7 @@ app.put('/api/ebay-updates/:id/relist', async (req, res) => {
       `
       UPDATE products
       SET ebay_status = 'ready_to_list',
-          on_ebay = 'N'
+          on_ebay = 0
       WHERE sku = $1
       RETURNING *;
       `,
@@ -919,7 +919,7 @@ app.get("/api/barcode-queue", async (req, res) => {
   } catch (err) {
   console.error("BARCODE QUEUE ERROR:", err);
   res.json({ error: err.message });
-}git 
+}
 });
 
 app.delete("/api/barcode-queue", async (req, res) => {
@@ -1123,15 +1123,26 @@ app.post('/api/refurb', async (req, res) => {
 
   // If no SKU was supplied, auto-generate from category
   let skuNorm = sku ? String(sku).trim().toUpperCase() : null;
+  const prefix = String(category || '').trim().toUpperCase(); // V/M/L/H
 
-  if (!skuNorm) {
-    const prefix = String(category || '').trim().toUpperCase();
-    if (!prefix) return res.status(400).json({ error: 'category is required' });
-    skuNorm = await getNextRefurbSkuPG(prefix);
+  if (!skuNorm && !prefix) {
+    return res.status(400).json({ error: 'category is required' });
   }
 
   try {
-    const query = `
+    const created = await withTransaction(async (client) => {
+      const exec = (text, params) => client.query(text, params);
+
+      let allocatedSku = skuNorm;
+      if (!allocatedSku) {
+        await exec(
+          `SELECT pg_advisory_xact_lock(hashtext('stock-app:refurb-sku'), hashtext($1))`,
+          [prefix]
+        );
+        allocatedSku = await getNextRefurbSkuPG(prefix, exec);
+      }
+
+      const query = `
       INSERT INTO refurb_items (
   sku, serial, description, status, parts_status, cpu,
   supplier, category, cost, retail, notes, quantity
@@ -1141,26 +1152,26 @@ VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12)
       RETURNING *;
     `;
 
-    const prefix = String(category || '').trim().toUpperCase(); // V/M/L/H
+      const values = [
+        allocatedSku,
+        serial || null,
+        description,
+        status || 'refurb',
+        parts_status || 'none',
+        cpu || null,
+        supplier || null,
+        categoryFromSkuPrefix(allocatedSku) || categoryFromSkuPrefix(prefix) || 'laptop',
+        cost ?? 0,
+        retail ?? 0,
+        notes || null,
+        Number(quantity) || 1,
+      ];
 
-const values = [
-  skuNorm,
-  serial || null,
-  description,
-  status || 'refurb',
-  parts_status || 'none',
-  cpu || null,
-  supplier || null,
-  categoryFromSkuPrefix(skuNorm) || categoryFromSkuPrefix(prefix) || 'laptop',
-  cost ?? 0,
-  retail ?? 0,
-  notes || null,
-  Number(quantity) || 1,
-];
+      const result = await exec(query, values);
+      return result.rows[0];
+    });
 
-
-    const result = await pgQuery(query, values);
-    res.json(result.rows[0]);
+    res.json(created);
   } catch (err) {
     console.error('Error creating refurb item:', err);
     res.status(500).json({ error: 'Failed to create refurb item' });
@@ -1199,13 +1210,13 @@ app.get('/api/refurb/parts-needed-list', async (req, res) => {
 // Update refurb item + if marked complete, sync with products by SKU
 app.put('/api/refurb/:id', async (req, res) => {
   const { id } = req.params;
+  const bodyIn = req.body || {};
   const {
     status,
     parts_status,
     cpu,
     supplier,
     cost,
-    retail,
     notes,
     sku, // allow editing SKU from the table
     description,
@@ -1216,7 +1227,26 @@ app.put('/api/refurb/:id', async (req, res) => {
     colour,
     storage,
     controller,
-  } = req.body || {};
+  } = bodyIn;
+
+  const retailProvided = Object.prototype.hasOwnProperty.call(bodyIn, 'retail');
+  let retailValue = null;
+  if (retailProvided) {
+    const raw = bodyIn.retail;
+    if (raw === null || raw === '') {
+      retailValue = null;
+    } else if (typeof raw === 'string' && raw.trim() === '') {
+      retailValue = null;
+    } else if (typeof raw === 'number' || typeof raw === 'string') {
+      const n = Number(raw);
+      if (!Number.isFinite(n)) {
+        return res.status(400).json({ error: 'Retail must be a number or left blank' });
+      }
+      retailValue = n;
+    } else {
+      return res.status(400).json({ error: 'Retail must be a number or left blank' });
+    }
+  }
 
   // normalise SKU to uppercase like products
   const skuNorm = sku ? String(sku).trim().toUpperCase() : null;
@@ -1250,7 +1280,7 @@ const categoryToUse = (category ?? null) || autoCat;
         cpu          = COALESCE($3, cpu),
         supplier     = COALESCE($4, supplier),
         cost         = COALESCE($5, cost),
-        retail       = COALESCE($6, retail),
+        retail       = CASE WHEN $16::boolean THEN $6::numeric ELSE retail END,
         notes        = COALESCE($7, notes),
         sku          = COALESCE($8, sku),
         description  = COALESCE($9, description),
@@ -1272,7 +1302,7 @@ RETURNING *;
       cpu ?? null,
       supplier ?? null,
       cost ?? null,
-      retail ?? null,
+      retailValue,
       notes ?? null,
       skuNorm ?? null,
       description ?? null,
@@ -1283,6 +1313,7 @@ RETURNING *;
       controller ?? null,
       quantity ?? null,
       id,
+      retailProvided,
     ];
 
 
@@ -1511,111 +1542,147 @@ app.post('/api/tradein', upload.single('id_image'), async (req, res) => {
       valuation,
       agreed_value,
       create_refurb,  // "on" when checkbox ticked
+      category,       // V/L/M/T/H/K prefix when creating a refurb
     } = req.body || {};
 
-        // ----------------------------
-    // Resolve customer (existing or new)
-    // ----------------------------
-    let custId = customer_id ? Number(customer_id) : null;
-
-    // if customer_id provided, load customer record
-    if (custId) {
-      const { rows } = await pgQuery('SELECT * FROM customers WHERE id = $1', [custId]);
-      const c = rows[0];
-      if (!c) return res.status(400).json({ error: 'customer not found' });
-
-      // overwrite form values with stored ones (keeps things consistent)
-      // (optional, but nice)
-      // customer_name = c.name;   // can't reassign const, so just use c.name later if needed
-    } else {
-      // No customer_id → create a new customer record
-      if (!customer_name) {
-        return res.status(400).json({ error: 'Customer name is required' });
+    const wantsRefurb = create_refurb === 'on' || create_refurb === 'true' || create_refurb === '1';
+    const allowedPrefixes = new Set(['V', 'L', 'M', 'T', 'H', 'K']);
+    let refurbPrefix = null;
+    if (wantsRefurb) {
+      refurbPrefix = String(category || '').trim().toUpperCase();
+      if (!allowedPrefixes.has(refurbPrefix)) {
+        return res.status(400).json({
+          error: 'Refurb category is required and must be one of V, L, M, T, H, K',
+        });
       }
-
-      const { rows } = await pgQuery(
-        `
-        INSERT INTO customers (name, phone, email, address)
-        VALUES ($1,$2,$3, $4)
-        RETURNING id;
-        `,
-        [
-          String(customer_name).trim(),
-          customer_phone || null,
-          customer_email || null,
-          customer_address || null,
-        ]
-      );
-      custId = rows[0].id;
     }
 
-
-    if ((!customer_id && !customer_name) || !device_desc) {
-      return res.status(400).json({ error: 'Customer (name or selected customer) and device description are required' });
+    if (!customer_id && !customer_name) {
+      return res.status(400).json({ error: 'Customer name is required' });
     }
-
+    if (!device_desc) {
+      return res.status(400).json({
+        error: 'Customer (name or selected customer) and device description are required',
+      });
+    }
 
     const valuationNum = valuation ? Number(valuation) : null;
     const agreedNum    = agreed_value ? Number(agreed_value) : null;
-
     const idImagePath = req.file ? `/uploads/${req.file.filename}` : null;
+    const existingCustId = customer_id ? Number(customer_id) : null;
 
-    // If we uploaded an ID image AND we have a customer, store it on the customer record too
-    if (idImagePath && custId) {
-      await pgQuery(`UPDATE customers SET id_image_path = $1, updated_at = NOW() WHERE id = $2`, [idImagePath, custId]);
-    }
+    const tradeRow = await withTransaction(async (client) => {
+      const exec = (text, params) => client.query(text, params);
 
+      let custId = existingCustId;
 
-    let refurbId = null;
+      if (custId) {
+        const { rows } = await exec('SELECT * FROM customers WHERE id = $1', [custId]);
+        if (!rows[0]) {
+          const err = new Error('customer not found');
+          err.statusCode = 400;
+          throw err;
+        }
+      } else {
+        if (!customer_name) {
+          const err = new Error('Customer name is required');
+          err.statusCode = 400;
+          throw err;
+        }
 
-    // Auto-create refurb row if requested (or just always – tweak if you like)
-    if (create_refurb === 'on' || create_refurb === 'true' || create_refurb === '1') {
-      const refurbNotes = `Trade-in from ${customer_name}${agreedNum != null ? `, agreed £${agreedNum}` : ''}`;
-      const refurbCost  = agreedNum != null ? agreedNum : (valuationNum || 0);
+        const { rows } = await exec(
+          `
+          INSERT INTO customers (name, phone, email, address)
+          VALUES ($1,$2,$3, $4)
+          RETURNING id;
+          `,
+          [
+            String(customer_name).trim(),
+            customer_phone || null,
+            customer_email || null,
+            customer_address || null,
+          ]
+        );
+        custId = rows[0].id;
+      }
 
-      const refurbRes = await pgQuery(
+      if (idImagePath && custId) {
+        await exec(
+          `UPDATE customers SET id_image_path = $1, updated_at = NOW() WHERE id = $2`,
+          [idImagePath, custId]
+        );
+      }
+
+      let refurbId = null;
+
+      if (wantsRefurb) {
+        await exec(
+          `SELECT pg_advisory_xact_lock(hashtext('stock-app:refurb-sku'), hashtext($1))`,
+          [refurbPrefix]
+        );
+
+        const skuNorm = await getNextRefurbSkuPG(refurbPrefix, exec);
+        const storedCategory = categoryFromSkuPrefix(skuNorm) || categoryFromSkuPrefix(refurbPrefix);
+        if (!storedCategory) {
+          const err = new Error(
+            'Refurb category is required and must be one of V, L, M, T, H, K'
+          );
+          err.statusCode = 400;
+          throw err;
+        }
+
+        const refurbNotes = `Trade-in from ${customer_name}${agreedNum != null ? `, agreed £${agreedNum}` : ''}`;
+        const refurbCost  = agreedNum != null ? agreedNum : (valuationNum || 0);
+
+        const refurbRes = await exec(
+          `
+          INSERT INTO refurb_items (
+            sku, serial, description, status, parts_status,
+            supplier, category, cost, retail, notes
+          )
+          VALUES ($1, $2, $3, 'refurb', 'none', 'Trade-in', $4, $5, NULL, $6)
+          RETURNING id;
+          `,
+          [skuNorm, serial || null, device_desc, storedCategory, refurbCost, refurbNotes]
+        );
+
+        refurbId = refurbRes.rows[0]?.id || null;
+      }
+
+      const tradeRes = await exec(
         `
-        INSERT INTO refurb_items (
-          sku, serial, description, status, parts_status,
-          supplier, cost, retail, notes
+        INSERT INTO trade_ins (
+          customer_id,
+          customer_name, customer_phone, customer_email, customer_address,
+          serial, device_desc, valuation, agreed_value,
+          id_image_path, refurb_id
         )
-        VALUES (NULL, $1, $2, 'refurb', 'none', 'Trade-in', $3, NULL, $4)
-        RETURNING id;
+        VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11)
+        RETURNING *;
         `,
-        [serial || null, device_desc, refurbCost, refurbNotes]
+        [
+          custId,
+          customer_name,
+          customer_phone || null,
+          customer_email || null,
+          customer_address || null,
+          serial || null,
+          device_desc,
+          valuationNum,
+          agreedNum,
+          idImagePath,
+          refurbId,
+        ]
       );
 
-      refurbId = refurbRes.rows[0]?.id || null;
-    }
+      return tradeRes.rows[0];
+    });
 
-    const tradeRes = await pgQuery(
-  `
-  INSERT INTO trade_ins (
-    customer_id,
-    customer_name, customer_phone, customer_email, customer_address,
-    serial, device_desc, valuation, agreed_value,
-    id_image_path, refurb_id
-  )
-  VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11)
-  RETURNING *;
-  `,
-  [
-    custId,
-    customer_name,
-    customer_phone || null,
-    customer_email || null,
-    customer_address || null,
-    serial || null,
-    device_desc,
-    valuationNum,
-    agreedNum,
-    idImagePath,
-    refurbId,
-  ]
-);
-
-    res.status(201).json(tradeRes.rows[0]);
+    res.status(201).json(tradeRow);
   } catch (err) {
+    if (err && err.statusCode === 400) {
+      return res.status(400).json({ error: err.message });
+    }
     console.error('Error creating trade-in:', err);
     res.status(500).json({ error: 'Failed to create trade-in' });
   }
@@ -2448,8 +2515,8 @@ app.post('/api/backup/restore', upload.single('backup_zip'), async (req, res) =>
 // ---- START SERVER ----
 const PORT = process.env.PORT || 4100;
 
-// 1) Initialise Postgres tables
-await initDb();   // ✅ this runs the CREATE TABLE IF NOT EXISTS in db.js
+// 1) Verify Postgres schema without mutating it
+await assertSchema();
 
 // 2) Start the server
 app.listen(PORT, () => {

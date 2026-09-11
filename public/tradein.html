@@ -70,6 +70,13 @@
 
           <label for="customer_name">Customer name</label>
           <input id="customer_name" name="customer_name" type="text" required />
+          <div
+            id="custSelectedNote"
+            class="full"
+            style="display: none; color: var(--muted, #9aa); font-size: 13px"
+          >
+            Existing customer selected
+          </div>
 
           <label for="customer_phone">Phone</label>
           <input id="customer_phone" name="customer_phone" type="tel" />
@@ -172,6 +179,39 @@
       const nameEl = document.getElementById("customer_name");
       const phoneEl = document.getElementById("customer_phone");
       const addressEl = document.getElementById("customer_address");
+      const custSelectedNote = document.getElementById("custSelectedNote");
+
+      let selectedCustomer = { id: "", name: "" };
+      let lastCustomer = { id: "", name: "", phone: "", address: "" };
+
+      function setSelectedIndicator(on) {
+        custSelectedNote.style.display = on ? "" : "none";
+      }
+
+      function applySelectedCustomer({ id, name, phone, address }) {
+        selectedCustomer = {
+          id: String(id || ""),
+          name: String(name || ""),
+        };
+        custIdEl.value = selectedCustomer.id;
+        nameEl.value = selectedCustomer.name;
+        phoneEl.value = phone || "";
+        addressEl.value = address || "";
+        lastCustomer = {
+          id: selectedCustomer.id,
+          name: selectedCustomer.name,
+          phone: phoneEl.value,
+          address: addressEl.value,
+        };
+        setSelectedIndicator(!!selectedCustomer.id);
+      }
+
+      function clearSelectedCustomerId() {
+        selectedCustomer = { id: "", name: "" };
+        custIdEl.value = "";
+        lastCustomer = { ...lastCustomer, id: "" };
+        setSelectedIndicator(false);
+      }
 
       function esc(s) {
         return String(s ?? "").replace(
@@ -226,10 +266,12 @@
 
         custResults.querySelectorAll(".custPick").forEach((btn) => {
           btn.addEventListener("click", () => {
-            custIdEl.value = btn.dataset.id || "";
-            nameEl.value = btn.dataset.name || "";
-            phoneEl.value = btn.dataset.phone || "";
-            addressEl.value = btn.dataset.address || "";
+            applySelectedCustomer({
+              id: btn.dataset.id || "",
+              name: btn.dataset.name || "",
+              phone: btn.dataset.phone || "",
+              address: btn.dataset.address || "",
+            });
 
             custResults.style.display = "none";
             toast(`Customer selected ✔️`, "ok");
@@ -239,7 +281,7 @@
         document
           .getElementById("custClearBtn")
           .addEventListener("click", () => {
-            custIdEl.value = "";
+            clearSelectedCustomerId();
             custSearch.value = "";
             custResults.style.display = "none";
             toast("Customer cleared", "ok");
@@ -260,9 +302,16 @@
         renderCustomerResults(data);
       }
 
+      nameEl.addEventListener("input", () => {
+        if (!selectedCustomer.id && !custIdEl.value) return;
+        if (nameEl.value !== selectedCustomer.name) {
+          clearSelectedCustomerId();
+        }
+      });
+
       custSearch.addEventListener("input", () => {
         const q = custSearch.value.trim();
-        custIdEl.value = "";
+        clearSelectedCustomerId();
 
         clearTimeout(__custTimer);
         if (q.length < 2) {
@@ -296,9 +345,6 @@
       createRefurbEl.addEventListener("change", syncRefurbCategoryState);
       syncRefurbCategoryState();
 
-      // store last selected customer details so reset doesn’t wipe them
-      let lastCustomer = { id: "", name: "", phone: "", address: "" };
-
       form.addEventListener("submit", async (e) => {
         e.preventDefault();
 
@@ -331,12 +377,10 @@
           form.reset();
           syncRefurbCategoryState();
 
-          // restore selected customer after reset (if there was one)
           if (lastCustomer.id) {
-            custIdEl.value = lastCustomer.id;
-            nameEl.value = lastCustomer.name;
-            phoneEl.value = lastCustomer.phone;
-            addressEl.value = lastCustomer.address;
+            applySelectedCustomer(lastCustomer);
+          } else {
+            clearSelectedCustomerId();
           }
         } catch (err) {
           console.error(err);

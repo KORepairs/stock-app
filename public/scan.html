@@ -14,7 +14,7 @@
 
     <div class="row">
   <select id="cameraSelect"></select>
-  <input id="qty" type="number" value="1" min="1" />
+  <input id="qty" type="number" value="1" min="1" step="1" />
   <select id="mode">
     <option value="OUT" selected>OUT (dispatch)</option>
     <option value="IN">IN (restock)</option>
@@ -62,7 +62,7 @@
     if (postBusy || code === lastSent) return;
     lastSent = code;
 
-    const qty  = Math.max(1, Number(qtyEl?.value || 1));
+    const qty  = qtyEl ? qtyEl.value : '';
     const mode = (modeEl?.value || 'out').toLowerCase(); // 'out' | 'in'
     const endpoint = mode === 'in' ? '/api/stock/in' : '/api/stock/out';
 

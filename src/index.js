@@ -16,6 +16,7 @@ import {
   createProductPG,
   getProductByIdPG,
   getProductByCodePG,
+  findProductsBySkuOrCodePG,
   adjustQtyPG,
   setQtyPG,
   insertSalePG,
@@ -220,11 +221,11 @@ app.get('/api/health/db', async (req, res) => {
   }
 });
 
-async function setEbayStatus(productId, status) {
+async function setEbayStatus(productId, status, queryFn = pgQuery) {
   const statusText = String(status);
   const onEbay = statusText === 'listed' ? 1 : 0;
 
-  const { rows } = await pgQuery(
+  const { rows } = await queryFn(
     `UPDATE products
      SET ebay_status = $2,
          on_ebay = $3
@@ -567,12 +568,16 @@ app.get('/api/products/lookup/:code', async (req, res) => {
   const code = String(req.params.code || '').trim().toUpperCase();
 
   try {
-    const row = await getProductByCodePG(code);   
-    if (!row) return res.status(404).json({ error: 'not found' });
-    res.json(row);
+    const matches = await findProductsBySkuOrCodePG(code);
+    if (!matches.length) return res.status(404).json({ error: 'not found' });
+    if (matches.length > 1) {
+      return res.status(409).json({
+        error: 'Identifier matches multiple products; use the exact SKU',
+      });
+    }
+    res.json(matches[0]);
   } catch (err) {
-    console.error('PG lookup error:', err);
-    res.status(500).json({ error: err.message });
+    sendStockError(res, err, 'PG lookup error:', 'Failed to look up product');
   }
 });
 
@@ -1691,50 +1696,123 @@ app.post('/api/tradein', upload.single('id_image'), async (req, res) => {
 
 /* ---------- API: Stock ops ---------- */
 
+function stockStatusError(statusCode, message) {
+  const err = new Error(message);
+  err.statusCode = statusCode;
+  return err;
+}
+
+const PG_INTEGER_MAX = 2147483647;
+
+function parseWholeInteger(value) {
+  if (typeof value === 'number') {
+    if (!Number.isSafeInteger(value) || value > PG_INTEGER_MAX) return null;
+    return value;
+  }
+  if (typeof value === 'string') {
+    const trimmed = value.trim();
+    if (!/^[0-9]+$/.test(trimmed)) return null;
+    const n = Number(trimmed);
+    if (!Number.isSafeInteger(n) || n > PG_INTEGER_MAX) return null;
+    return n;
+  }
+  return null;
+}
+
+function parsePositiveWholeQuantity(value) {
+  if (value === undefined || value === null || value === '') return null;
+  const n = parseWholeInteger(value);
+  if (n === null || n < 1) return null;
+  return n;
+}
+
+function parseNonNegativeWholeQuantity(value) {
+  if (value === undefined || value === null || value === '') return null;
+  const n = parseWholeInteger(value);
+  if (n === null || n < 0) return null;
+  return n;
+}
+
+function sendStockError(res, err, logLabel, fallbackMessage) {
+  if (err && (err.statusCode === 400 || err.statusCode === 404 || err.statusCode === 409)) {
+    return res.status(err.statusCode).json({ error: err.message });
+  }
+  console.error(logLabel, err);
+  return res.status(500).json({ error: fallbackMessage });
+}
+
+async function resolveUniqueStockProduct(code, exec) {
+  const matches = await findProductsBySkuOrCodePG(code, exec);
+  if (matches.length === 0) {
+    throw stockStatusError(404, 'product not found');
+  }
+  if (matches.length > 1) {
+    throw stockStatusError(
+      409,
+      'Identifier matches multiple products; use the exact SKU'
+    );
+  }
+  return matches[0];
+}
+
 app.post('/api/stock/in', async (req, res) => {
   try {
-    const { sku, barcode, qty = 1 } = req.body || {};
+    const { sku, barcode, qty } = req.body || {};
     const code = String(sku || barcode || '').trim().toUpperCase();
 
     if (!code) {
       return res.status(400).json({ error: 'sku or barcode is required' });
     }
 
-    const product = await getProductByCodePG(code);
-    if (!product) {
-      return res.status(404).json({ error: 'product not found' });
+    const amount = parsePositiveWholeQuantity(qty);
+    if (amount === null) {
+      return res.status(400).json({ error: 'quantity must be a positive whole number' });
     }
 
-    const amount = Number(qty) || 1;
+    const updated = await withTransaction(async (client) => {
+      const exec = (text, params) => client.query(text, params);
+      const product = await resolveUniqueStockProduct(code, exec);
 
-    // remember old qty before change
-    const oldQty = Number(product.quantity) || 0;
+      const { rows } = await exec(
+        `
+        UPDATE products
+        SET quantity = COALESCE(quantity, 0) + $1
+        WHERE id = $2
+        RETURNING *;
+        `,
+        [amount, product.id]
+      );
 
-    // update quantity
-    const updated = await adjustQtyPG(product.id, amount);
-    const newQty = Number(updated.quantity) || 0;
+      const row = rows[0];
+      if (!row) {
+        throw stockStatusError(404, 'product not found');
+      }
 
-    // 0 -> 1+ should be RELIST only, not quantity update
-if (oldQty === 0 && newQty > 0) {
-  await setEbayStatus(product.id, "ready_to_list");
-}
-// otherwise, normal stock increase for eBay item = quantity update
-else if (Number(product.on_ebay) === 1) {
-  await logEbayUpdatePG({
-    sku: product.sku,
-    code: product.code || code,
-    delta: amount,
-    oldQty,
-    newQty,
-    note: 'Stock IN via scanner',
-  });
-}
+      const newQty = Number(row.quantity) || 0;
+      const oldQty = newQty - amount;
+
+      if (oldQty === 0 && newQty > 0) {
+        await setEbayStatus(product.id, 'ready_to_list', exec);
+      } else if (Number(product.on_ebay) === 1) {
+        await logEbayUpdatePG(
+          {
+            sku: product.sku,
+            code: product.code || code,
+            delta: amount,
+            oldQty,
+            newQty,
+            note: 'Stock IN via scanner',
+          },
+          exec
+        );
+      }
+
+      return row;
+    });
 
     res.json(updated);
-
   } catch (err) {
-    console.error('PG stock/in error:', err);
-    res.status(500).json({ error: err.message });
+    sendStockError(res, err, 'PG stock/in error:', 'Failed to add stock');
   }
 });
 
@@ -1745,7 +1823,7 @@ app.post('/api/stock/out', async (req, res) => {
     const {
       sku,
       barcode,
-      qty = 1,
+      qty,
       channel = 'manual',
       order_ref = null,
       note = null,
@@ -1756,46 +1834,58 @@ app.post('/api/stock/out', async (req, res) => {
       return res.status(400).json({ error: 'sku or barcode is required' });
     }
 
-    const product = await getProductByCodePG(code);
-    if (!product) {
-      return res.status(404).json({ error: 'product not found' });
+    const amount = parsePositiveWholeQuantity(qty);
+    if (amount === null) {
+      return res.status(400).json({ error: 'quantity must be a positive whole number' });
     }
 
-    const amount = Number(qty) || 1;
-    if (product.quantity - amount < 0) {
-      return res.status(400).json({ error: 'insufficient stock' });
-    }
+    const updated = await withTransaction(async (client) => {
+      const exec = (text, params) => client.query(text, params);
+      const product = await resolveUniqueStockProduct(code, exec);
 
-    // 1) Update quantity
-    const updated = await adjustQtyPG(product.id, -amount);
+      const { rows } = await exec(
+        `
+        UPDATE products
+        SET quantity = COALESCE(quantity, 0) - $1
+        WHERE id = $2
+          AND COALESCE(quantity, 0) >= $1
+        RETURNING *;
+        `,
+        [amount, product.id]
+      );
 
-    const newQty = Number(updated.quantity) || 0;
+      const row = rows[0];
+      if (!row) {
+        throw stockStatusError(400, 'insufficient stock');
+      }
 
-// If quantity drops to 0 → remove from eBay listing
-if (newQty === 0 && Number(product.on_ebay) === 1) {
-  await setEbayStatus(product.id, "not_listed");
-}
+      await insertSalePG(
+        {
+          product_id: product.id,
+          sku: product.sku,
+          quantity: amount,
+          unit_cost: product.cost || 0,
+          unit_retail: product.retail || 0,
+          fees: product.fees || 0,
+          postage: product.postage || 0,
+          channel,
+          order_ref,
+          note,
+        },
+        exec
+      );
 
+      const newQty = Number(row.quantity) || 0;
+      if (newQty === 0 && Number(product.on_ebay) === 1) {
+        await setEbayStatus(product.id, 'not_listed', exec);
+      }
 
-
-    // 2) Insert sale record
-    await insertSalePG({
-      product_id: product.id,
-      sku: product.sku,
-      quantity: amount,
-      unit_cost: product.cost || 0,
-      unit_retail: product.retail || 0,
-      fees: product.fees || 0,
-      postage: product.postage || 0,
-      channel,
-      order_ref,
-      note,
+      return row;
     });
 
     res.json(updated);
   } catch (err) {
-    console.error('PG stock/out error:', err);
-    res.status(500).json({ error: err.message });
+    sendStockError(res, err, 'PG stock/out error:', 'Failed to remove stock');
   }
 });
 
@@ -1804,51 +1894,72 @@ if (newQty === 0 && Number(product.on_ebay) === 1) {
 app.post('/api/stock/take', async (req, res) => {
   try {
     const { sku, barcode, qty } = req.body || {};
-    if (qty === undefined || qty === null) {
-      return res.status(400).json({ error: 'qty is required' });
-    }
-
     const code = String(sku || barcode || '').trim().toUpperCase();
     if (!code) {
       return res.status(400).json({ error: 'sku or barcode is required' });
     }
 
-    const product = await getProductByCodePG(code);
-    if (!product) {
-      return res.status(404).json({ error: 'product not found' });
+    const counted = parseNonNegativeWholeQuantity(qty);
+    if (counted === null) {
+      return res.status(400).json({ error: 'quantity must be a whole number of zero or more' });
     }
 
-    const oldQty = Number(product.quantity) || 0;
-const updated = await setQtyPG(product.id, Number(qty) || 0);
-const newQty = Number(updated.quantity) || 0;
+    const updated = await withTransaction(async (client) => {
+      const exec = (text, params) => client.query(text, params);
+      const product = await resolveUniqueStockProduct(code, exec);
 
-// 0 → 1+ = relist
-if (oldQty === 0 && newQty > 0) {
-  await setEbayStatus(product.id, "ready_to_list");
-}
+      const { rows: lockedRows } = await exec(
+        `SELECT * FROM products WHERE id = $1 FOR UPDATE`,
+        [product.id]
+      );
+      const locked = lockedRows[0];
+      if (!locked) {
+        throw stockStatusError(404, 'product not found');
+      }
 
-// 1+ → 0 = remove from eBay
-else if (oldQty > 0 && newQty === 0) {
-  await setEbayStatus(product.id, "not_listed");
-}
+      const oldQty = Number(locked.quantity) || 0;
 
-// otherwise normal quantity change
-else if (Number(product.on_ebay) === 1 && oldQty !== newQty) {
-  await logEbayUpdatePG({
-    sku: product.sku,
-    code: product.code || code,
-    delta: newQty - oldQty,
-    oldQty,
-    newQty,
-    note: 'Stock take adjustment',
-  });
-}
+      const { rows } = await exec(
+        `
+        UPDATE products
+        SET quantity = $1
+        WHERE id = $2
+        RETURNING *;
+        `,
+        [counted, locked.id]
+      );
 
-res.json(updated);
+      const row = rows[0];
+      if (!row) {
+        throw stockStatusError(404, 'product not found');
+      }
 
+      const newQty = Number(row.quantity) || 0;
+
+      if (oldQty === 0 && newQty > 0) {
+        await setEbayStatus(product.id, 'ready_to_list', exec);
+      } else if (oldQty > 0 && newQty === 0) {
+        await setEbayStatus(product.id, 'not_listed', exec);
+      } else if (Number(product.on_ebay) === 1 && oldQty !== newQty) {
+        await logEbayUpdatePG(
+          {
+            sku: product.sku,
+            code: product.code || code,
+            delta: newQty - oldQty,
+            oldQty,
+            newQty,
+            note: 'Stock take adjustment',
+          },
+          exec
+        );
+      }
+
+      return row;
+    });
+
+    res.json(updated);
   } catch (err) {
-    console.error('PG stock/take error:', err);
-    res.status(500).json({ error: err.message });
+    sendStockError(res, err, 'PG stock/take error:', 'Failed to set stock count');
   }
 });
 

@@ -120,9 +120,10 @@
         try {
           const r = await fetch('/api/products/lookup/' + encodeURIComponent(code));
           if (!r.ok) {
+            const errBody = await r.json().catch(() => ({}));
             panel.style.display = 'none';
-            show(await r.json());
-            msg('No product for that SKU', 'err');
+            show(errBody);
+            msg(errBody.error || 'No product for that SKU', 'err');
             return;
           }
           const p = await r.json();
@@ -141,17 +142,14 @@
 
       async function setCount() {
         const code = (barcodeInput.value || '').trim();
-        const counted = parseInt(countedEl.value || '0', 10);
+        const countedRaw = countedEl.value;
 
         if (!code) { msg('Scan or enter a SKU first', 'err'); return; }
-        if (!Number.isInteger(counted) || counted < 0) {
-          msg('Count must be a whole number ≥ 0', 'err'); return;
-        }
 
         const r = await fetch('/api/stock/take', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ sku: code, qty: counted })
+          body: JSON.stringify({ sku: code, qty: countedRaw })
         });
 
         const text = await r.text();
@@ -161,7 +159,7 @@
         show(data);
 
         if (r.ok && data && !data.error) {
-          curEl.textContent = data.quantity ?? data.product?.quantity ?? counted;
+          curEl.textContent = data.quantity ?? data.product?.quantity ?? countedRaw;
           msg('Count set', 'ok');
         } else {
           msg('Failed to set count: ' + (data.error || r.status), 'err');

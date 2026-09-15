@@ -117,6 +117,28 @@ export async function getProductByCodePG(code) {
   return rows[0] || null;
 }
 
+// All products whose sku or code equals the identifier. Optional queryFn for transactions.
+export async function findProductsBySkuOrCodePG(code, queryFn = pgQuery) {
+  const codeNorm = String(code || '').trim().toUpperCase();
+  if (!codeNorm) return [];
+
+  const { rows } = await queryFn(
+    `
+    SELECT *
+    FROM products
+    WHERE code = $1 OR sku = $1
+    ORDER BY id ASC
+    `,
+    [codeNorm]
+  );
+
+  const byId = new Map();
+  for (const row of rows) {
+    byId.set(row.id, row);
+  }
+  return [...byId.values()];
+}
+
 // Increase/decrease quantity by a delta
 export async function adjustQtyPG(productId, delta) {
   const { rows } = await pgQuery(
@@ -146,7 +168,7 @@ export async function setQtyPG(productId, qty) {
 }
 
 // Insert a sale record
-export async function insertSalePG(sale) {
+export async function insertSalePG(sale, queryFn = pgQuery) {
   const {
     product_id,
     sku,
@@ -160,7 +182,7 @@ export async function insertSalePG(sale) {
     note = null,
   } = sale;
 
-  const { rows } = await pgQuery(
+  const { rows } = await queryFn(
     `
     INSERT INTO sales
       (product_id, sku, quantity, unit_cost, unit_retail,
@@ -260,8 +282,8 @@ export async function getNextSkuForCategoryPG(prefix) {
   return `${p}${String(nextNum).padStart(4, '0')}`; // 4 digits
 }
 
-export async function logEbayUpdatePG({ sku, code = null, delta, oldQty, newQty, note = null }) {
-  const { rows } = await pgQuery(
+export async function logEbayUpdatePG({ sku, code = null, delta, oldQty, newQty, note = null }, queryFn = pgQuery) {
+  const { rows } = await queryFn(
     `INSERT INTO ebay_updates (sku, code, delta, old_qty, new_qty, note)
      VALUES ($1,$2,$3,$4,$5,$6)
      RETURNING *`,

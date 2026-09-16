@@ -370,9 +370,10 @@ app.put('/api/products/:id', async (req, res) => {
     const id = Number(req.params.id);
     if (!id) return res.status(400).json({ error: 'invalid id' });
 
+    const body = req.body || {};
+    const codeProvided = Object.prototype.hasOwnProperty.call(body, 'code');
     const {
   sku,
-  code = null,
   name,
   quantity = 0,
   onEbay = false,
@@ -387,12 +388,14 @@ app.put('/api/products/:id', async (req, res) => {
 server_cpu_2 = null,
 server_ram = null,
 server_hdd = null,
-} = req.body || {};
+} = body;
 
     const skuNorm   = String(sku || '').trim().toUpperCase();
-    const codeNorm = (code == null || String(code).trim() === '')
+    const codeNorm = !codeProvided
   ? null
-  : String(code).trim().toUpperCase();
+  : (body.code == null || String(body.code).trim() === '')
+  ? null
+  : String(body.code).trim().toUpperCase();
 
     const notesNorm = (notes == null || String(notes).trim() === '')
       ? null
@@ -447,7 +450,7 @@ server_hdd: server_hdd || null,
       UPDATE products
 SET
   sku = $1,
-  code = $2,
+  code = CASE WHEN $18::boolean THEN $2 ELSE code END,
   name = $3,
   notes = $4,
   on_ebay = $5,
@@ -484,6 +487,7 @@ data.server_cpu_2,
 data.server_ram,
 data.server_hdd,
 data.id,
+codeProvided,
 ]
     );
 
@@ -493,7 +497,17 @@ data.id,
     res.json(row);
   } catch (err) {
     console.error('PG updateProduct error:', err);
-    res.status(400).json({ error: err.message });
+    if (err && err.code === '23505' && err.constraint === 'products_code_uq') {
+      return res.status(409).json({
+        error: 'Part Number is already used by another product',
+      });
+    }
+    if (err && err.code === '23505' && err.constraint === 'products_sku_key') {
+      return res.status(409).json({
+        error: 'SKU is already used by another product',
+      });
+    }
+    return res.status(500).json({ error: 'Failed to update product' });
   }
 });
 

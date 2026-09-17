@@ -394,6 +394,341 @@ export async function findProductsByCodePG(part) {
   return rows;
 }
 
+export async function listDuplicateReviewProductsPG() {
+  const { rows } = await pgQuery(
+    `
+    SELECT id, sku, code, name, notes, quantity, created_at,
+           retail, cost, ebay_status
+    FROM products
+    ORDER BY id ASC
+    `
+  );
+  return rows;
+}
+
+export function skuKey(value) {
+  if (value == null) return null;
+  const key = String(value).trim().toUpperCase();
+  return key === '' ? null : key;
+}
+
+export function codeKey(value) {
+  return skuKey(value);
+}
+
+export function codeCompact(value) {
+  const key = codeKey(value);
+  if (!key) return null;
+  const compact = key.replace(/[^A-Z0-9]/g, '');
+  return compact === '' ? null : compact;
+}
+
+export function nameKey(value) {
+  if (value == null) return null;
+  const key = String(value).trim().toUpperCase().replace(/[^A-Z0-9]/g, '');
+  return key === '' ? null : key;
+}
+
+export function notesKey(value) {
+  if (value == null) return '';
+  return String(value).trim().replace(/\s+/g, ' ').toUpperCase();
+}
+
+const DUPLICATE_CATEGORY_ORDER = [
+  'exact_sku',
+  'exact_part_number',
+  'possible_variant',
+  'cross_collision',
+  'likely_part_number',
+  'exact_name',
+  'suspicious',
+];
+
+function displayProduct(row) {
+  return {
+    id: row.id,
+    sku: row.sku,
+    code: row.code,
+    name: row.name,
+    notes: row.notes,
+    quantity: row.quantity,
+    created_at: row.created_at,
+    retail: row.retail,
+    cost: row.cost,
+    ebay_status: row.ebay_status,
+  };
+}
+
+function sortProductsById(products) {
+  return [...products].sort((a, b) => Number(a.id) - Number(b.id));
+}
+
+function uniqueById(products) {
+  const byId = new Map();
+  for (const product of products) {
+    byId.set(product.id, product);
+  }
+  return sortProductsById([...byId.values()]);
+}
+
+function pushGroup(groups, category, confidence, label, matchKey, reason, products, groupId) {
+  const members = uniqueById(products.map(displayProduct));
+  if (category !== 'suspicious' && members.length < 2) return;
+  if (category === 'suspicious' && members.length === 0) return;
+
+  groups.push({
+    id: groupId || `${category}:${matchKey}`,
+    category,
+    confidence,
+    label,
+    matchKey,
+    reason,
+    products: members,
+  });
+}
+
+function compareMatchKeys(a, b) {
+  return String(a).localeCompare(String(b), undefined, {
+    numeric: true,
+    sensitivity: 'base',
+  });
+}
+
+function canonicalPairKey(idA, idB) {
+  const a = Number(idA);
+  const b = Number(idB);
+  return a <= b ? `${a}:${b}` : `${b}:${a}`;
+}
+
+function crossCollisionReason(keys) {
+  const listed = keys.join(', ');
+  if (keys.length === 1) {
+    return `One product’s internal SKU matches a different product’s manufacturer Part Number (${listed}). A product whose own SKU equals its own Part Number is valid and is not flagged by itself.`;
+  }
+  return `These products’ internal SKU and Part Number values collide on more than one identifier (${listed}). A product whose own SKU equals its own Part Number is valid and is not flagged by itself.`;
+}
+
+export function buildDuplicateReview(products) {
+  const rows = Array.isArray(products) ? products : [];
+  const annotated = rows.map((row) => ({
+    row,
+    skuKey: skuKey(row.sku),
+    codeKey: codeKey(row.code),
+    codeCompact: codeCompact(row.code),
+    nameKey: nameKey(row.name),
+    notesKey: notesKey(row.notes),
+  }));
+
+  const groups = [];
+
+  const bySkuKey = new Map();
+  const byCodeKey = new Map();
+  const byCodeCompact = new Map();
+  const byNameKey = new Map();
+
+  for (const item of annotated) {
+    if (item.skuKey) {
+      if (!bySkuKey.has(item.skuKey)) bySkuKey.set(item.skuKey, []);
+      bySkuKey.get(item.skuKey).push(item.row);
+    }
+    if (item.codeKey) {
+      if (!byCodeKey.has(item.codeKey)) byCodeKey.set(item.codeKey, []);
+      byCodeKey.get(item.codeKey).push(item.row);
+    }
+    if (item.codeCompact) {
+      if (!byCodeCompact.has(item.codeCompact)) byCodeCompact.set(item.codeCompact, []);
+      byCodeCompact.get(item.codeCompact).push(item);
+    }
+    if (item.nameKey) {
+      if (!byNameKey.has(item.nameKey)) byNameKey.set(item.nameKey, []);
+      byNameKey.get(item.nameKey).push(item.row);
+    }
+  }
+
+  for (const [key, members] of bySkuKey) {
+    pushGroup(
+      groups,
+      'exact_sku',
+      'high',
+      'Exact duplicate SKU',
+      key,
+      'These records share the same internal SKU after trimming and case normalisation. This should not normally happen.',
+      members
+    );
+  }
+
+  for (const [key, members] of byCodeKey) {
+    if (members.length < 2) continue;
+    const noteSet = new Set(
+      members.map((row) => notesKey(row.notes))
+    );
+    if (noteSet.size === 1) {
+      pushGroup(
+        groups,
+        'exact_part_number',
+        'high',
+        'Same Part Number and notes',
+        key,
+        'These records share the same manufacturer Part Number and the same notes. They may be duplicates, but this page does not merge them automatically.',
+        members
+      );
+    } else {
+      pushGroup(
+        groups,
+        'possible_variant',
+        'review',
+        'Same Part Number, different notes',
+        key,
+        'These records share the same manufacturer Part Number but have different notes. They may be intentional variants, such as the same board with a different CPU. Inspect the physical stock before treating them as duplicates.',
+        members
+      );
+    }
+  }
+
+  const pairCollisions = new Map();
+  for (const item of annotated) {
+    if (!item.skuKey) continue;
+    const codeHolders = byCodeKey.get(item.skuKey) || [];
+    for (const other of codeHolders) {
+      if (other.id === item.row.id) continue;
+      const pairKey = canonicalPairKey(item.row.id, other.id);
+      if (!pairCollisions.has(pairKey)) {
+        pairCollisions.set(pairKey, { keys: new Set(), products: [] });
+      }
+      const pair = pairCollisions.get(pairKey);
+      pair.keys.add(item.skuKey);
+      pair.products.push(item.row, other);
+    }
+  }
+  for (const [pairKey, pair] of pairCollisions) {
+    const keys = [...pair.keys].sort(compareMatchKeys);
+    pushGroup(
+      groups,
+      'cross_collision',
+      'high',
+      'SKU / Part Number collision',
+      keys.join(' / '),
+      crossCollisionReason(keys),
+      pair.products,
+      `cross_collision:${pairKey}`
+    );
+  }
+
+  for (const [compact, items] of byCodeCompact) {
+    const codeKeys = new Set(items.map((item) => item.codeKey).filter(Boolean));
+    if (codeKeys.size < 2) continue;
+    pushGroup(
+      groups,
+      'likely_part_number',
+      'medium',
+      'Part Numbers differ only by formatting',
+      compact,
+      'These Part Numbers become the same value after removing spaces, hyphens and punctuation, but they are stored differently. Example: LA-B843P and LAB843P.',
+      items.map((item) => item.row)
+    );
+  }
+
+  for (const [key, members] of byNameKey) {
+    pushGroup(
+      groups,
+      'exact_name',
+      'review',
+      'Same product name',
+      key,
+      'These records have the same normalised product name. Generic names can create false positives, so treat this as a review list only.',
+      members
+    );
+  }
+
+  const blankSku = rows.filter((row) => skuKey(row.sku) == null);
+  const blankCode = rows.filter((row) => codeKey(row.code) == null);
+  const blankName = rows.filter((row) => row.name == null || String(row.name).trim() === '');
+  const nullQty = rows.filter((row) => row.quantity == null);
+  const negativeQty = rows.filter((row) => row.quantity != null && Number(row.quantity) < 0);
+
+  pushGroup(
+    groups,
+    'suspicious',
+    'review',
+    'Missing SKU',
+    'blank_sku',
+    'These records have a blank or missing internal SKU.',
+    blankSku
+  );
+  pushGroup(
+    groups,
+    'suspicious',
+    'review',
+    'Missing Part Number',
+    'blank_part_number',
+    'These records have a blank or missing manufacturer Part Number. Some products may legitimately have none.',
+    blankCode
+  );
+  pushGroup(
+    groups,
+    'suspicious',
+    'review',
+    'Missing name',
+    'blank_name',
+    'These records have a blank or missing product name.',
+    blankName
+  );
+  pushGroup(
+    groups,
+    'suspicious',
+    'review',
+    'NULL quantity',
+    'null_quantity',
+    'These records have a NULL quantity.',
+    nullQty
+  );
+  pushGroup(
+    groups,
+    'suspicious',
+    'review',
+    'Negative quantity',
+    'negative_quantity',
+    'These records have a negative quantity.',
+    negativeQty
+  );
+
+  const categoryRank = new Map(DUPLICATE_CATEGORY_ORDER.map((name, index) => [name, index]));
+  groups.sort((a, b) => {
+    const rank = (categoryRank.get(a.category) ?? 99) - (categoryRank.get(b.category) ?? 99);
+    if (rank !== 0) return rank;
+    const keyCmp = compareMatchKeys(a.matchKey, b.matchKey);
+    if (keyCmp !== 0) return keyCmp;
+    return String(a.id).localeCompare(String(b.id), undefined, {
+      numeric: true,
+      sensitivity: 'base',
+    });
+  });
+
+  const byCategory = {
+    exact_sku: 0,
+    exact_part_number: 0,
+    cross_collision: 0,
+    likely_part_number: 0,
+    possible_variant: 0,
+    exact_name: 0,
+    suspicious: 0,
+  };
+  for (const group of groups) {
+    if (Object.prototype.hasOwnProperty.call(byCategory, group.category)) {
+      byCategory[group.category] += 1;
+    }
+  }
+
+  return {
+    summary: {
+      productCount: rows.length,
+      groupCount: groups.length,
+      byCategory,
+    },
+    groups,
+  };
+}
+
 
 
 

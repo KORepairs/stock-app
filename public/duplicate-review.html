@@ -1,0 +1,417 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <title>Inventory Duplicate Review</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <link rel="stylesheet" href="/app.css" />
+    <style>
+      .banner {
+        background: #fef3c7;
+        border: 1px solid #f59e0b;
+        color: #78350f;
+        border-radius: 12px;
+        padding: 12px 14px;
+        font-weight: 700;
+        margin: 0 0 16px;
+      }
+      .toolbar {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 10px;
+        align-items: center;
+        margin: 0 0 16px;
+      }
+      .toolbar input[type="search"] {
+        min-width: min(100%, 280px);
+        flex: 1;
+        background: var(--panel);
+        color: var(--text);
+        border: 1px solid var(--border);
+        border-radius: 6px;
+        padding: 0.55rem 0.65rem;
+      }
+      .meta {
+        color: var(--muted);
+        font-size: 14px;
+      }
+      .cards {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
+        gap: 10px;
+        margin: 0 0 16px;
+      }
+      .summary-card {
+        background: var(--panel);
+        border: 1px solid var(--border);
+        border-radius: 12px;
+        padding: 12px;
+        cursor: pointer;
+        text-align: left;
+      }
+      .summary-card.active {
+        outline: 2px solid #2563eb;
+      }
+      .summary-card .count {
+        font-size: 28px;
+        font-weight: 800;
+        line-height: 1.1;
+      }
+      .summary-card .label {
+        color: var(--muted);
+        font-size: 13px;
+        margin-top: 4px;
+      }
+      .filters {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 8px;
+        margin: 0 0 16px;
+      }
+      .filters button {
+        border: 1px solid var(--border);
+        background: var(--panel);
+        border-radius: 999px;
+        padding: 6px 12px;
+        cursor: pointer;
+      }
+      .filters button.active {
+        background: #111;
+        color: #fff;
+        border-color: #111;
+      }
+      .group {
+        background: var(--panel);
+        border: 1px solid var(--border);
+        border-radius: 12px;
+        padding: 14px;
+        margin: 0 0 12px;
+      }
+      .group.variant {
+        border-color: #7c3aed;
+        background: #f5f3ff;
+      }
+      .group.high {
+        border-color: #b91c1c;
+      }
+      .group.medium {
+        border-color: #d97706;
+      }
+      .group-head {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 8px 14px;
+        align-items: baseline;
+        margin-bottom: 8px;
+      }
+      .pill {
+        display: inline-block;
+        border-radius: 999px;
+        padding: 2px 8px;
+        font-size: 12px;
+        font-weight: 700;
+        border: 1px solid var(--border);
+      }
+      .pill.high { background: #fee2e2; color: #991b1b; }
+      .pill.medium { background: #ffedd5; color: #9a3412; }
+      .pill.review { background: #ede9fe; color: #5b21b6; }
+      .reason { color: var(--muted); margin: 0 0 10px; }
+      .table-wrap { overflow-x: auto; }
+      table.dup {
+        width: 100%;
+        border-collapse: collapse;
+        font-size: 14px;
+      }
+      table.dup th,
+      table.dup td {
+        border-top: 1px solid var(--border);
+        padding: 8px 6px;
+        text-align: left;
+        vertical-align: top;
+      }
+      table.dup th { font-size: 12px; color: var(--muted); }
+      .empty, .status {
+        background: var(--panel);
+        border: 1px solid var(--border);
+        border-radius: 12px;
+        padding: 16px;
+      }
+      .status.err { color: #b91c1c; }
+      .notes { white-space: pre-wrap; word-break: break-word; }
+      .mono {
+        font-family: ui-monospace, Menlo, Consolas, monospace;
+        overflow-wrap: anywhere;
+        word-break: break-word;
+      }
+    </style>
+  </head>
+  <body>
+    <div class="wrap">
+      <aside id="sidebar"></aside>
+      <main class="page">
+        <h1>Inventory Duplicate Review</h1>
+        <div class="banner">
+          Read-only review. Nothing on this page changes stock, products or quantities.
+        </div>
+
+        <div class="toolbar">
+          <button type="button" class="btn" id="reloadBtn">Reload</button>
+          <span class="meta" id="generatedAt">Not loaded yet</span>
+          <span class="meta" id="totals"></span>
+          <input id="search" type="search" placeholder="Search SKU, Part Number, name or notes" />
+        </div>
+
+        <div class="cards" id="summaryCards"></div>
+        <div class="filters" id="filters"></div>
+        <div id="status" class="status">Loading…</div>
+        <div id="results"></div>
+      </main>
+    </div>
+
+    <script>
+      const CATEGORIES = [
+        { id: 'exact_sku', label: 'Exact SKU' },
+        { id: 'exact_part_number', label: 'Same Part Number and notes' },
+        { id: 'possible_variant', label: 'Possible variants' },
+        { id: 'cross_collision', label: 'SKU / Part Number collision' },
+        { id: 'likely_part_number', label: 'Likely Part Number' },
+        { id: 'exact_name', label: 'Same name' },
+        { id: 'suspicious', label: 'Missing / suspicious' },
+      ];
+
+      const FILTERS = [
+        { id: 'all', label: 'All' },
+        { id: 'high', label: 'High confidence' },
+        { id: 'medium', label: 'Medium confidence' },
+        { id: 'review', label: 'Review only' },
+        ...CATEGORIES.map((c) => ({ id: c.id, label: c.label })),
+      ];
+
+      const $ = (id) => document.getElementById(id);
+      let payload = null;
+      let activeFilter = 'all';
+      let loadGeneration = 0;
+      let loadController = null;
+
+      function isAbortError(err) {
+        return Boolean(err) && (err.name === 'AbortError' || err.code === 20);
+      }
+
+      function resetStaleView(statusText, isError) {
+        payload = null;
+        $('generatedAt').textContent = isError ? 'Not loaded' : 'Loading…';
+        $('totals').textContent = '';
+        $('summaryCards').replaceChildren();
+        $('results').replaceChildren();
+        const status = $('status');
+        status.hidden = false;
+        status.className = isError ? 'status err' : 'status';
+        status.textContent = statusText;
+      }
+
+      function el(tag, className, text) {
+        const node = document.createElement(tag);
+        if (className) node.className = className;
+        if (text != null) node.textContent = text;
+        return node;
+      }
+
+      function display(value) {
+        if (value == null || value === '') return '—';
+        return String(value);
+      }
+
+      function formatDate(value) {
+        if (value == null || value === '') return '—';
+        const d = new Date(value);
+        if (Number.isNaN(d.getTime())) return String(value);
+        return d.toLocaleString();
+      }
+
+      function matchesSearch(group, q) {
+        if (!q) return true;
+        return group.products.some((p) => {
+          const hay = [p.sku, p.code, p.name, p.notes]
+            .map((v) => String(v || '').toLowerCase())
+            .join(' ');
+          return hay.includes(q);
+        });
+      }
+
+      function matchesFilter(group) {
+        if (activeFilter === 'all') return true;
+        if (activeFilter === 'high' || activeFilter === 'medium' || activeFilter === 'review') {
+          return group.confidence === activeFilter;
+        }
+        return group.category === activeFilter;
+      }
+
+      function renderFilters() {
+        const host = $('filters');
+        host.replaceChildren();
+        for (const filter of FILTERS) {
+          const btn = el('button', activeFilter === filter.id ? 'active' : '', filter.label);
+          btn.type = 'button';
+          btn.addEventListener('click', () => {
+            activeFilter = filter.id;
+            render();
+          });
+          host.appendChild(btn);
+        }
+      }
+
+      function renderSummary() {
+        const host = $('summaryCards');
+        host.replaceChildren();
+        const summary = payload?.summary;
+        const counts = summary?.byCategory || {};
+        for (const cat of CATEGORIES) {
+          const card = el('button', 'summary-card' + (activeFilter === cat.id ? ' active' : ''));
+          card.type = 'button';
+          card.appendChild(el('div', 'count', String(counts[cat.id] ?? 0)));
+          card.appendChild(el('div', 'label', cat.label));
+          card.addEventListener('click', () => {
+            activeFilter = cat.id;
+            render();
+          });
+          host.appendChild(card);
+        }
+      }
+
+      function renderGroup(group) {
+        const wrap = el(
+          'article',
+          'group' +
+            (group.category === 'possible_variant' ? ' variant' : '') +
+            (group.confidence === 'high' ? ' high' : '') +
+            (group.confidence === 'medium' ? ' medium' : '')
+        );
+        const head = el('div', 'group-head');
+        head.appendChild(el('strong', '', group.label || group.category));
+        head.appendChild(el('span', 'pill ' + (group.confidence || 'review'), group.confidence || 'review'));
+        head.appendChild(el('span', 'mono', group.matchKey || ''));
+        wrap.appendChild(head);
+        wrap.appendChild(el('p', 'reason', group.reason || ''));
+
+        const tableWrap = el('div', 'table-wrap');
+        const table = el('table', 'dup');
+        const thead = document.createElement('thead');
+        const hr = document.createElement('tr');
+        ['ID', 'SKU', 'Part Number', 'Name', 'Notes', 'Qty', 'Created', 'Retail', 'Cost', 'eBay'].forEach((h) => {
+          hr.appendChild(el('th', '', h));
+        });
+        thead.appendChild(hr);
+        table.appendChild(thead);
+        const tbody = document.createElement('tbody');
+        for (const p of group.products || []) {
+          const tr = document.createElement('tr');
+          const cells = [
+            display(p.id),
+            display(p.sku),
+            display(p.code),
+            display(p.name),
+            display(p.notes),
+            p.quantity == null ? '—' : String(p.quantity),
+            formatDate(p.created_at),
+            display(p.retail),
+            display(p.cost),
+            display(p.ebay_status),
+          ];
+          cells.forEach((text, i) => {
+            const td = el('td', i === 1 || i === 2 ? 'mono' : i === 4 ? 'notes' : '', text);
+            tr.appendChild(td);
+          });
+          tbody.appendChild(tr);
+        }
+        table.appendChild(tbody);
+        tableWrap.appendChild(table);
+        wrap.appendChild(tableWrap);
+        return wrap;
+      }
+
+      function render() {
+        renderFilters();
+        const status = $('status');
+        const results = $('results');
+        results.replaceChildren();
+
+        if (!payload) return;
+
+        renderSummary();
+        $('generatedAt').textContent = payload.generatedAt
+          ? 'Generated ' + formatDate(payload.generatedAt)
+          : '';
+        const productCount = payload.summary?.productCount ?? 0;
+        const groupCount = payload.summary?.groupCount ?? 0;
+        $('totals').textContent = productCount + ' products · ' + groupCount + ' groups';
+
+        const q = ($('search').value || '').trim().toLowerCase();
+        const groups = (payload.groups || []).filter(
+          (g) => matchesFilter(g) && matchesSearch(g, q)
+        );
+
+        if (!groups.length) {
+          status.className = 'empty';
+          status.textContent = 'No groups match the current filters.';
+          status.hidden = false;
+          return;
+        }
+
+        status.hidden = true;
+        for (const group of groups) {
+          results.appendChild(renderGroup(group));
+        }
+      }
+
+      async function load() {
+        const generation = ++loadGeneration;
+        if (loadController) loadController.abort();
+        const controller = new AbortController();
+        loadController = controller;
+
+        resetStaleView('Loading…', false);
+        renderFilters();
+
+        let data = null;
+        try {
+          const r = await fetch('/api/products/duplicate-review', {
+            method: 'GET',
+            signal: controller.signal,
+          });
+          if (generation !== loadGeneration) return;
+          const text = await r.text();
+          if (generation !== loadGeneration) return;
+          try {
+            data = JSON.parse(text);
+          } catch {
+            data = {};
+          }
+          if (!r.ok) {
+            throw new Error(
+              (data && typeof data.error === 'string' && data.error) ||
+                'Failed to load duplicate review'
+            );
+          }
+          if (generation !== loadGeneration) return;
+          payload = data;
+          render();
+        } catch (err) {
+          if (generation !== loadGeneration) return;
+          if (isAbortError(err)) return;
+          const message =
+            (data && typeof data.error === 'string' && data.error) ||
+            'Failed to load duplicate review';
+          resetStaleView(message, true);
+          renderFilters();
+        }
+      }
+
+      $('reloadBtn').addEventListener('click', load);
+      $('search').addEventListener('input', () => {
+        if (payload) render();
+      });
+      load();
+    </script>
+    <script src="/js/sidebar.js"></script>
+  </body>
+</html>

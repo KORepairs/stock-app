@@ -29,8 +29,8 @@ import {
   updateEbayStatusPG,
   ebayStatusCountsPG,
   findProductsByCodePG,
-
-
+  listDuplicateReviewProductsPG,
+  buildDuplicateReview,
 } from './pgProducts.js';
 import fs from 'node:fs';
 import multer from 'multer';
@@ -155,6 +155,7 @@ app.use(express.static(PUBLIC_DIR, { index: false }));
 app.get('/', (req, res) => res.sendFile(path.join(PUBLIC_DIR, 'dashboard.html')));
 app.get('/products',       (req, res) => res.sendFile(path.join(PUBLIC_DIR, 'products.html')));
 app.get('/products/list',  (req, res) => res.sendFile(path.join(PUBLIC_DIR, 'products-list.html')));
+app.get('/duplicate-review', (req, res) => res.sendFile(path.join(PUBLIC_DIR, 'duplicate-review.html')));
 app.get('/import',         (req, res) => res.sendFile(path.join(PUBLIC_DIR, 'import.html')));
 app.get('/scan',           (req, res) => res.sendFile(path.join(PUBLIC_DIR, 'scan.html')));
 app.get('/stocktake',      (req, res) => res.sendFile(path.join(PUBLIC_DIR, 'stocktake.html')));
@@ -302,6 +303,19 @@ app.get('/api/products', async (req, res) => {
   }
 });
 
+app.get('/api/products/duplicate-review', async (req, res) => {
+  try {
+    const rows = await listDuplicateReviewProductsPG();
+    const review = buildDuplicateReview(rows);
+    res.json({
+      generatedAt: new Date().toISOString(),
+      ...review,
+    });
+  } catch (err) {
+    console.error('PG duplicate-review error:', err);
+    return res.status(500).json({ error: 'Failed to load duplicate review' });
+  }
+});
 
 app.get('/api/products/:id', async (req, res) => {
   const id = Number(req.params.id);

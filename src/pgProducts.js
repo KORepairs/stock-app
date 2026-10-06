@@ -1,17 +1,12 @@
 // src/pgProducts.js
 import { pgQuery } from './pg.js';
 import { memberKeyFromProductIds, productIdsFromGroupMembers } from './duplicateReview.js';
+import { ebayStatusCountsQuery, productsListWhere } from './needsListing.js';
 
 
 // List products (used by /api/products)
 export async function listProductsPG({ ebay_status } = {}) {
-  const params = [];
-  let where = '';
-
-  if (ebay_status) {
-    params.push(String(ebay_status));
-    where = `WHERE ebay_status = $${params.length}`;
-  }
+  const { params, where } = productsListWhere({ ebay_status });
 
   const { rows } = await pgQuery(
     `SELECT id, sku, code, name, quantity, notes, on_ebay,
@@ -365,12 +360,8 @@ export async function updateEbayStatusPG(id, { ebay_status, ebay_notes } = {}) {
 }
 
 export async function ebayStatusCountsPG() {
-  const { rows } = await pgQuery(`
-    SELECT ebay_status, COUNT(*)::int AS count
-    FROM products
-    GROUP BY ebay_status
-  `);
-
+  const { text, params } = ebayStatusCountsQuery();
+  const { rows } = await pgQuery(text, params);
   return rows;
 }
 

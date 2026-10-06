@@ -808,6 +808,39 @@ if (path === '/refurb/sold' && updatedRow.status !== 'sold') {
   });
 }
 
+  function wireBackToQueueButtons() {
+    document.querySelectorAll('.backQueueBtn').forEach((btn) => {
+      btn.addEventListener('click', async () => {
+        const id = Number(btn.getAttribute('data-id'));
+        if (!Number.isFinite(id) || id <= 0) {
+          toast('Invalid item');
+          return;
+        }
+
+        const originalLabel = btn.textContent;
+        btn.disabled = true;
+        btn.textContent = 'Moving…';
+
+        try {
+          const res = await fetch('/api/refurb/' + id + '/back-to-queue', {
+            method: 'PUT',
+          });
+
+          if (!res.ok) {
+            throw new Error('move-failed');
+          }
+
+          window.location.href = '/refurb';
+        } catch (err) {
+          console.error(err);
+          toast('Failed to move back to queue');
+          btn.disabled = false;
+          btn.textContent = originalLabel;
+        }
+      });
+    });
+  }
+
 
 ['fSku','fStatus','fParts','fCpu','fColour','fStorage','fStorageConsole','fController'].forEach(id => {
   const el = document.getElementById(id);

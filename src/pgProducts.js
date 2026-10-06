@@ -1,5 +1,6 @@
 // src/pgProducts.js
 import { pgQuery } from './pg.js';
+import { memberKeyFromProductIds, productIdsFromGroupMembers } from './duplicateReview.js';
 
 
 // List products (used by /api/products)
@@ -476,12 +477,15 @@ function pushGroup(groups, category, confidence, label, matchKey, reason, produc
   if (category !== 'suspicious' && members.length < 2) return;
   if (category === 'suspicious' && members.length === 0) return;
 
+  const productIds = productIdsFromGroupMembers(members);
   groups.push({
     id: groupId || `${category}:${matchKey}`,
     category,
     confidence,
     label,
     matchKey,
+    memberKey: memberKeyFromProductIds(productIds),
+    productIds,
     reason,
     products: members,
   });

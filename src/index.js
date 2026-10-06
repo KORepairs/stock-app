@@ -32,6 +32,18 @@ import {
   listDuplicateReviewProductsPG,
   buildDuplicateReview,
 } from './pgProducts.js';
+import {
+  attachDecisionsToReview,
+  establishBasicAuthIdentity,
+  formatDecisionSaveResponse,
+  prepareDecisionSave,
+  reviewedByFromRequest,
+  validateDecisionBody,
+} from './duplicateReview.js';
+import {
+  listDuplicateReviewDecisionsPG,
+  upsertDuplicateReviewDecisionPG,
+} from './pgDuplicateReviewDecisions.js';
 import fs from 'node:fs';
 import multer from 'multer';
 import archiver from 'archiver';
@@ -136,9 +148,11 @@ app.use((req, res, next) => {
   }
   if (!USER || !PASS) return next();
 
-  const creds = auth(req);
-
-  if (creds && creds.name === USER && creds.pass === PASS) return next();
+  const identity = establishBasicAuthIdentity(USER, PASS, auth(req));
+  if (identity.allow) {
+    req.authenticatedBasicUser = identity.authenticatedBasicUser;
+    return next();
+  }
   res.set('WWW-Authenticate', 'Basic realm="stock-app"');
   return res.status(401).send('Authentication required');
 });
@@ -306,7 +320,8 @@ app.get('/api/products', async (req, res) => {
 app.get('/api/products/duplicate-review', async (req, res) => {
   try {
     const rows = await listDuplicateReviewProductsPG();
-    const review = buildDuplicateReview(rows);
+    const decisionRows = await listDuplicateReviewDecisionsPG();
+    const review = attachDecisionsToReview(buildDuplicateReview(rows), decisionRows);
     res.json({
       generatedAt: new Date().toISOString(),
       ...review,
@@ -314,6 +329,32 @@ app.get('/api/products/duplicate-review', async (req, res) => {
   } catch (err) {
     console.error('PG duplicate-review error:', err);
     return res.status(500).json({ error: 'Failed to load duplicate review' });
+  }
+});
+
+app.put('/api/products/duplicate-review/decision', async (req, res) => {
+  try {
+    const validated = validateDecisionBody(req.body);
+    if (!validated.ok) {
+      return res.status(400).json({ error: validated.error });
+    }
+
+    const rows = await listDuplicateReviewProductsPG();
+    const review = buildDuplicateReview(rows);
+    const prepared = prepareDecisionSave(review.groups, validated.value);
+    if (!prepared.ok) {
+      return res.status(409).json({ error: prepared.error });
+    }
+
+    const saved = await upsertDuplicateReviewDecisionPG({
+      ...prepared.record,
+      reviewedBy: reviewedByFromRequest(req),
+    });
+
+    return res.json(formatDecisionSaveResponse(saved));
+  } catch (err) {
+    console.error('PG duplicate-review decision error:', err);
+    return res.status(500).json({ error: 'Failed to save duplicate review decision' });
   }
 });
 

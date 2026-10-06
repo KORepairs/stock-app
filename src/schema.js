@@ -11,6 +11,7 @@ export const EXPECTED_TABLES = [
   'export_logs',
   'trade_ins',
   'backup_files',
+  'duplicate_review_decisions',
 ];
 
 export const EXPECTED_COLUMNS = {
@@ -129,6 +130,20 @@ export const EXPECTED_COLUMNS = {
     'created_at',
   ],
   backup_files: ['id', 'filename', 'file_data', 'created_at'],
+  duplicate_review_decisions: [
+    'id',
+    'category',
+    'member_key',
+    'product_ids',
+    'decision',
+    'notes',
+    'match_key',
+    'group_id',
+    'reviewed_at',
+    'reviewed_by',
+    'created_at',
+    'updated_at',
+  ],
 };
 
 // FK-safe order: parents before children.
@@ -261,4 +276,41 @@ export const CREATE_STATEMENTS = [
       file_data BYTEA NOT NULL,
       created_at TIMESTAMP DEFAULT NOW()
     )`,
+  `CREATE TABLE duplicate_review_decisions (
+      id BIGSERIAL PRIMARY KEY,
+      category TEXT NOT NULL
+        CHECK (category IN (
+          'exact_sku',
+          'exact_part_number',
+          'possible_variant',
+          'cross_collision',
+          'likely_part_number',
+          'exact_name',
+          'suspicious'
+        )),
+      member_key TEXT NOT NULL,
+      product_ids INTEGER[] NOT NULL,
+      decision TEXT NOT NULL
+        CHECK (decision IN (
+          'needs_physical_check',
+          'confirmed_duplicate',
+          'valid_variant',
+          'keep_separate'
+        )),
+      notes TEXT,
+      match_key TEXT,
+      group_id TEXT,
+      reviewed_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+      reviewed_by TEXT,
+      created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+      updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+      CONSTRAINT duplicate_review_decisions_member_uniq
+        UNIQUE (category, member_key),
+      CONSTRAINT duplicate_review_decisions_ids_nonempty
+        CHECK (cardinality(product_ids) >= 1)
+    )`,
+  `CREATE INDEX duplicate_review_decisions_decision_idx
+      ON duplicate_review_decisions (decision)`,
+  `CREATE INDEX duplicate_review_decisions_reviewed_at_idx
+      ON duplicate_review_decisions (reviewed_at DESC)`,
 ];

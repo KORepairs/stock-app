@@ -47,9 +47,11 @@
 
     // highlight the current page link
     const path = (location.pathname.replace(/\/$/, '') || '/');
+    const isDashboardHome = path === '/' || path === '/dashboard';
     host.querySelectorAll('a').forEach(a => {
       const href = (a.getAttribute('href') || '').replace(/\/$/, '') || '/';
       if (href === path) a.classList.add('active');
+      else if (isDashboardHome && href === '/') a.classList.add('active');
     });
   } catch (err) {
     console.error('Sidebar load failed:', err);

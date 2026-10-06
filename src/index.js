@@ -164,6 +164,11 @@ app.use("/api/exports", exportsRouter);
 
 /* ---------- Static / Pages ---------- */
 const PUBLIC_DIR = path.join(__dirname, '..', 'public');
+
+// Must be registered before express.static so the obsolete iframe shell is
+// not served from public/index.html.
+app.get('/index.html', (req, res) => res.redirect('/'));
+
 app.use(express.static(PUBLIC_DIR, { index: false }));
 
 app.get('/', (req, res) => res.sendFile(path.join(PUBLIC_DIR, 'dashboard.html')));

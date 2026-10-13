@@ -2,6 +2,10 @@
 import { pgQuery } from './pg.js';
 import { memberKeyFromProductIds, productIdsFromGroupMembers } from './duplicateReview.js';
 import { ebayStatusCountsQuery, productsListWhere } from './needsListing.js';
+import {
+  assertProductCreateSkuAllowed,
+  canonicalSku,
+} from './retiredCategoryC.js';
 
 
 // List products (used by /api/products)
@@ -60,6 +64,9 @@ export async function createProductPG(data) {
     server_hdd = null
   } = data;
 
+  assertProductCreateSkuAllowed(sku);
+  const skuInsert = canonicalSku(sku);
+
   const { rows } = await pgQuery(
     `INSERT INTO products
      (sku, code, name, notes, on_ebay, ebay_status, ebay_notes, cost, retail, fees, postage, postage_group, needs_pics, battery_health, server_cpu_1, server_cpu_2, server_ram, server_hdd, quantity)
@@ -70,7 +77,7 @@ export async function createProductPG(data) {
        retail, cost, fees, postage, postage_group, battery_health,
        server_cpu_1, server_cpu_2, server_ram, server_hdd`,
     [
-      sku,
+      skuInsert,
       code,
       name,
       notes,

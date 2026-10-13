@@ -44,6 +44,18 @@ import {
   listDuplicateReviewDecisionsPG,
   upsertDuplicateReviewDecisionPG,
 } from './pgDuplicateReviewDecisions.js';
+import {
+  INVALID_PRODUCT_SKU_ERROR,
+  RETIRED_CATEGORY_C_ERROR,
+  canonicalSku,
+  isInvalidProductSkuError,
+  isRetiredCategoryCError,
+  planRetiredCRefurbCompletion,
+  retiredCAddSmartError,
+  retiredCCreateError,
+  retiredCUpdateError,
+  skuHasRetiredCPrefix,
+} from './retiredCategoryC.js';
 import fs from 'node:fs';
 import multer from 'multer';
 import archiver from 'archiver';
@@ -430,6 +442,9 @@ app.put('/api/products/:id', async (req, res) => {
     const id = Number(req.params.id);
     if (!id) return res.status(400).json({ error: 'invalid id' });
 
+    const existing = await getProductByIdPG(id);
+    if (!existing) return res.status(404).json({ error: 'not found' });
+
     const body = req.body || {};
     const codeProvided = Object.prototype.hasOwnProperty.call(body, 'code');
     const {
@@ -450,7 +465,18 @@ server_ram = null,
 server_hdd = null,
 } = body;
 
-    const skuNorm   = String(sku || '').trim().toUpperCase();
+    if (typeof sku !== 'string') {
+      return res.status(400).json({ error: 'sku is required' });
+    }
+    const skuNorm = canonicalSku(sku);
+    if (!skuNorm) {
+      return res.status(400).json({ error: 'sku is required' });
+    }
+    const existingSkuNorm = canonicalSku(existing.sku);
+    const retiredCError = retiredCUpdateError(skuNorm, existingSkuNorm);
+    if (retiredCError) {
+      return res.status(400).json({ error: RETIRED_CATEGORY_C_ERROR });
+    }
     const codeNorm = !codeProvided
   ? null
   : (body.code == null || String(body.code).trim() === '')
@@ -696,8 +722,18 @@ app.post('/api/products', async (req, res) => {
     if (!sku || !name) {
       return res.status(400).json({ error: 'sku and name are required' });
     }
+    if (typeof sku !== 'string') {
+      return res.status(400).json({ error: 'sku and name are required' });
+    }
 
-    const skuNorm   = String(sku).trim().toUpperCase();
+    const skuNorm = canonicalSku(sku);
+    if (!skuNorm) {
+      return res.status(400).json({ error: 'sku and name are required' });
+    }
+    const createCError = retiredCCreateError(skuNorm);
+    if (createCError) {
+      return res.status(400).json({ error: RETIRED_CATEGORY_C_ERROR });
+    }
     const codeNorm = (code == null || String(code).trim() === '')
   ? null
   : String(code).trim().toUpperCase();
@@ -725,6 +761,12 @@ app.post('/api/products', async (req, res) => {
     const row = await createProductPG(data);
     return res.status(201).json(row);
   } catch (err) {
+    if (isRetiredCategoryCError(err)) {
+      return res.status(400).json({ error: RETIRED_CATEGORY_C_ERROR });
+    }
+    if (isInvalidProductSkuError(err)) {
+      return res.status(400).json({ error: INVALID_PRODUCT_SKU_ERROR });
+    }
     console.error('PG createProduct error:', err);
     return res.status(400).json({ error: err.message });
   }
@@ -759,9 +801,19 @@ pick_id = null,
     if (!code) return res.status(400).json({ error: 'part number (code) is required' });
     if (qtyDelta <= 0) return res.status(400).json({ error: 'quantity must be > 0' });
 
+    const addSmartCError = retiredCAddSmartError(category);
+    if (addSmartCError) {
+      return res.status(400).json({ error: RETIRED_CATEGORY_C_ERROR });
+    }
+
     const codeNorm = String(code).trim().toUpperCase();
 
-const prefix = String(category || '').trim().toUpperCase();
+const prefix = typeof category === 'string'
+  ? category.trim().toUpperCase()
+  : '';
+if (prefix.startsWith('C')) {
+  return res.status(400).json({ error: RETIRED_CATEGORY_C_ERROR });
+}
 const isUniqueItem = prefix === 'C' || prefix === 'E';
 
 // 1) Duplicate check by PART NUMBER (code)
@@ -889,6 +941,12 @@ server_hdd: server_hdd || null,
       message: `CREATED: New SKU ${created.sku} (qty ${created.quantity}) ✅ label the item`,
     });
   } catch (err) {
+    if (isRetiredCategoryCError(err)) {
+      return res.status(400).json({ error: RETIRED_CATEGORY_C_ERROR });
+    }
+    if (isInvalidProductSkuError(err)) {
+      return res.status(400).json({ error: INVALID_PRODUCT_SKU_ERROR });
+    }
     console.error('add-smart failed:', err);
     res.status(500).json({ error: err.message });
   }
@@ -1201,8 +1259,23 @@ app.post('/api/refurb', async (req, res) => {
   }
 
   // If no SKU was supplied, auto-generate from category
-  let skuNorm = sku ? String(sku).trim().toUpperCase() : null;
-  const prefix = String(category || '').trim().toUpperCase(); // V/M/L/H
+  let skuNorm = null;
+  if (typeof sku === 'string' && sku.trim()) {
+    skuNorm = canonicalSku(sku);
+  } else if (sku) {
+    const coerced = String(sku).trim().toUpperCase();
+    if (skuHasRetiredCPrefix(coerced)) {
+      return res.status(400).json({ error: RETIRED_CATEGORY_C_ERROR });
+    }
+    skuNorm = coerced || null;
+  }
+  const prefix = typeof category === 'string'
+    ? category.trim().toUpperCase()
+    : String(category || '').trim().toUpperCase();
+
+  if (skuHasRetiredCPrefix(skuNorm) || prefix.startsWith('C')) {
+    return res.status(400).json({ error: RETIRED_CATEGORY_C_ERROR });
+  }
 
   if (!skuNorm && !prefix) {
     return res.status(400).json({ error: 'category is required' });
@@ -1252,6 +1325,9 @@ VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12)
 
     res.json(created);
   } catch (err) {
+    if (isRetiredCategoryCError(err)) {
+      return res.status(400).json({ error: RETIRED_CATEGORY_C_ERROR });
+    }
     console.error('Error creating refurb item:', err);
     res.status(500).json({ error: 'Failed to create refurb item' });
   }
@@ -1327,8 +1403,16 @@ app.put('/api/refurb/:id', async (req, res) => {
     }
   }
 
-  // normalise SKU to uppercase like products
-  const skuNorm = sku ? String(sku).trim().toUpperCase() : null;
+  let skuNorm = null;
+  if (typeof sku === 'string' && sku.trim()) {
+    skuNorm = canonicalSku(sku);
+  } else if (sku) {
+    const coerced = String(sku).trim().toUpperCase();
+    if (skuHasRetiredCPrefix(coerced)) {
+      return res.status(400).json({ error: RETIRED_CATEGORY_C_ERROR });
+    }
+    skuNorm = coerced || null;
+  }
 
   const autoCat = skuNorm ? categoryFromSkuPrefix(skuNorm) : null;
 
@@ -1348,7 +1432,29 @@ const categoryToUse = (category ?? null) || autoCat;
       return res.status(404).json({ error: 'Refurb item not found' });
     }
 
-    const oldStatus = existing.rows[0].status;
+    const existingRow = existing.rows[0];
+    const oldStatus = existingRow.status;
+    if (skuHasRetiredCPrefix(skuNorm)) {
+      return res.status(400).json({ error: RETIRED_CATEGORY_C_ERROR });
+    }
+    const skuAfterUpdate = skuNorm || existingRow.sku;
+    const requestedStatus = status ?? oldStatus;
+    const wouldComplete =
+      oldStatus !== 'complete' &&
+      requestedStatus === 'complete' &&
+      skuAfterUpdate;
+
+    let retainedCProduct = null;
+    if (wouldComplete && skuHasRetiredCPrefix(skuAfterUpdate)) {
+      retainedCProduct = await getProductByCodePG(skuAfterUpdate);
+      const cPlan = planRetiredCRefurbCompletion(
+        skuAfterUpdate,
+        retainedCProduct
+      );
+      if (cPlan.action === 'reject') {
+        return res.status(400).json({ error: RETIRED_CATEGORY_C_ERROR });
+      }
+    }
 
     // 2) Update refurb row
         const query = `
@@ -1426,42 +1532,61 @@ RETURNING *;
       skuToUse
     ) {
       try {
-        // Look up existing product by SKU
-        const existingProduct = await getProductByCodePG(skuToUse);
-
-        if (existingProduct) {
-          // If it exists, just bump quantity
-          const bumped = await adjustQtyPG(existingProduct.id, 1);
-          console.log(
-            'Stock incremented by 1 for SKU',
-            skuToUse,
-            '→ product id',
-            existingProduct.id,
-            'new qty:',
-            bumped.quantity
-          );
+        if (retainedCProduct) {
+          const bumped = await adjustQtyPG(retainedCProduct.id, 1);
+          if (!bumped) {
+            console.error(
+              'Failed to sync stock after refurb complete: product not found',
+              retainedCProduct.id
+            );
+          } else {
+            console.log(
+              'Stock incremented by 1 for SKU',
+              skuToUse,
+              '→ product id',
+              retainedCProduct.id,
+              'new qty:',
+              bumped.quantity
+            );
+          }
         } else {
-          // If it doesn't exist, create a new product with qty = 1
-          const data = {
-            sku: skuToUse,
-            name: updated.description || `Refurb item #${updated.id}`,
-            notes: `Auto-created from refurb #${updated.id}`,
-            on_ebay: 0,
-            cost: Number(updated.cost) || 0,
-            retail: Number(updated.retail) || 0,
-            fees: 0,
-            postage: 0,
-            quantity: 1,
-          };
+          const existingProduct = await getProductByCodePG(skuToUse);
 
-          const created = await createProductPG(data);
-          console.log('Created new product from refurb complete:', {
-            id: created.id,
-            sku: created.sku,
-            quantity: created.quantity,
-          });
+          if (existingProduct) {
+            const bumped = await adjustQtyPG(existingProduct.id, 1);
+            console.log(
+              'Stock incremented by 1 for SKU',
+              skuToUse,
+              '→ product id',
+              existingProduct.id,
+              'new qty:',
+              bumped.quantity
+            );
+          } else {
+            const data = {
+              sku: skuToUse,
+              name: updated.description || `Refurb item #${updated.id}`,
+              notes: `Auto-created from refurb #${updated.id}`,
+              on_ebay: 0,
+              cost: Number(updated.cost) || 0,
+              retail: Number(updated.retail) || 0,
+              fees: 0,
+              postage: 0,
+              quantity: 1,
+            };
+
+            const created = await createProductPG(data);
+            console.log('Created new product from refurb complete:', {
+              id: created.id,
+              sku: created.sku,
+              quantity: created.quantity,
+            });
+          }
         }
       } catch (stockErr) {
+        if (!retainedCProduct && isRetiredCategoryCError(stockErr)) {
+          return res.status(400).json({ error: RETIRED_CATEGORY_C_ERROR });
+        }
         console.error('Failed to sync stock after refurb complete:', stockErr);
         // Don't fail the refurb update if stock sync fails
       }
@@ -1471,6 +1596,9 @@ RETURNING *;
     res.json(updated);
 
   } catch (err) {
+    if (isRetiredCategoryCError(err)) {
+      return res.status(400).json({ error: RETIRED_CATEGORY_C_ERROR });
+    }
     console.error('Error updating refurb:', err);
     res.status(500).json({ error: 'Failed to update refurb item' });
   }

@@ -26,8 +26,9 @@ import {
   listEbayUpdatesPG,
   setEbayUpdateDonePG,
   getNextRefurbSkuPG,
-  updateEbayStatusPG,
+  applyProductEbayStatusPG,
   ebayStatusCountsPG,
+  getProductBySkuPG,
   findProductsByCodePG,
   listDuplicateReviewProductsPG,
   buildDuplicateReview,
@@ -56,6 +57,11 @@ import {
   retiredCUpdateError,
   skuHasRetiredCPrefix,
 } from './retiredCategoryC.js';
+import {
+  combinePostageFromUpdate,
+  getPostagePrice,
+  resolvePostageAssignment,
+} from './postageAutoAssignment.js';
 import fs from 'node:fs';
 import multer from 'multer';
 import archiver from 'archiver';
@@ -77,44 +83,6 @@ function categoryFromSkuPrefix(sku) {
   return null;
 }
 
-const POSTAGE_GROUPS = {
-  large_letter: { label: "Large Letter", price: 1.84 },
-  large_letter_tracked: { label: "Large Letter Tracked", price: 3.8 },
-  small_parcel: { label: "Small Parcel", price: 4.65 },
-  courier: { label: "Courier", price: 8.0 },
-  server: { label: "Server", price: 15.0 },
-  battery: { label: "Battery", price: 3.0 }, // 👈 ADD THIS
-};
-
-function getPostagePrice(postageGroup) {
-  return POSTAGE_GROUPS[String(postageGroup || '').trim()] ?? 0;
-}
-
-function autoPostageGroup(sku, price = 0) {
-  if (!sku) return null;
-
-  const prefix = String(sku).trim().toUpperCase()[0];
-
-  // NEW: Battery (C)
-  if (prefix === "C") return "battery";
-
-  // NEW: Server (E)
-  if (prefix === "E") return "server";
-
-  // NEW: A, B, D → Small Parcel
-  if (["A", "B", "D"].includes(prefix)) return "small_parcel";
-
-  // Existing rules
-  if (prefix === "F") {
-    return price >= 20 ? "large_letter_tracked" : "large_letter";
-  }
-
-  if (prefix === "S") return "small_parcel";
-  if (prefix === "P") return "small_parcel";
-  if (prefix === "R") return "large_letter";
-
-  return null;
-}
 
 
 /* ---------- Paths ---------- */
@@ -254,19 +222,11 @@ app.get('/api/health/db', async (req, res) => {
 });
 
 async function setEbayStatus(productId, status, queryFn = pgQuery) {
-  const statusText = String(status);
-  const onEbay = statusText === 'listed' ? 1 : 0;
-
-  const { rows } = await queryFn(
-    `UPDATE products
-     SET ebay_status = $2,
-         on_ebay = $3
-     WHERE id = $1
-     RETURNING *;`,
-    [Number(productId), statusText, onEbay]
+  return applyProductEbayStatusPG(
+    productId,
+    { ebay_status: status },
+    queryFn
   );
-
-  return rows[0] || null;
 }
 
 async function findProductByLooseCodePG(codeNorm) {
@@ -455,8 +415,6 @@ app.put('/api/products/:id', async (req, res) => {
   retail = 0,
   cost = 0,
   fees = 0,
-  postage = 0,
-  postage_group = null,
   notes = null,
   battery_health = null,
   server_cpu_1 = null,
@@ -487,24 +445,18 @@ server_hdd = null,
       ? null
       : String(notes).trim();
 
-      const autoGroup = autoPostageGroup(skuNorm, Number(retail) || 0);
-
-const manualPostageProvided =
-  postage !== null &&
-  postage !== undefined &&
-  String(postage).trim() !== "";
-
-const finalPostageGroup = manualPostageProvided
-  ? postage_group || null
-  : autoGroup || postage_group || null;
-
-const finalPostage = manualPostageProvided
-  ? Number(postage) || 0
-  : finalPostageGroup
-    ? getPostagePrice(finalPostageGroup)
-    : 0;
-
-    const cleanPostageGroup = postage_group ? String(postage_group).trim() : null;
+    const retailNum = Number(retail) || 0;
+    const combinedPostage = combinePostageFromUpdate({
+      existing,
+      body,
+    });
+    const resolvedPostage = resolvePostageAssignment({
+      sku: skuNorm,
+      retail: retailNum,
+      ebay_status: existing.ebay_status,
+      postage_group: combinedPostage.postage_group,
+      postage: combinedPostage.postage,
+    });
 
 const data = {
   id,
@@ -515,11 +467,11 @@ const data = {
     onEbay === true || onEbay === 'yes' || onEbay === 1
       ? 1
       : 0,
-  retail: Number(retail) || 0,
+  retail: retailNum,
   cost: Number(retail || 0) * 0.20,
   fees: Number(retail || 0) * 0.25,
-  postage_group: finalPostageGroup,
-postage: finalPostage,
+  postage_group: resolvedPostage.postage_group,
+postage: resolvedPostage.postage,
   quantity: Number(quantity) || 0,
   battery_health:
   battery_health == null || String(battery_health).trim() === ''
@@ -611,9 +563,9 @@ app.patch('/api/products/:id/ebay', async (req, res) => {
       return res.status(400).json({ error: 'invalid ebay_status' });
     }
 
-    const row = await updateEbayStatusPG(id, {
+    const row = await applyProductEbayStatusPG(id, {
       ebay_status: ebay_status ? String(ebay_status) : null,
-      ebay_notes:  ebay_notes  != null ? String(ebay_notes) : null,
+      ebay_notes: ebay_notes != null ? String(ebay_notes) : null,
     });
 
     if (!row) return res.status(404).json({ error: 'not found' });
@@ -629,6 +581,8 @@ app.patch('/api/products/:id/needs-pics', async (req, res) => {
     const id = Number(req.params.id);
     if (!id) return res.status(400).json({ error: 'invalid id' });
 
+    // Intentionally outside postage auto-assignment: this flag-only
+    // transition must not assign or clear postage.
     const { rows } = await pgQuery(
       `
       UPDATE products
@@ -996,16 +950,10 @@ app.put('/api/ebay-updates/:id/relist', async (req, res) => {
     const update = updateRows[0];
     if (!update) return res.status(404).json({ error: 'update not found' });
 
-    const { rows: productRows } = await pgQuery(
-      `
-      UPDATE products
-      SET ebay_status = 'ready_to_list',
-          on_ebay = 0
-      WHERE sku = $1
-      RETURNING *;
-      `,
-      [update.sku]
-    );
+    const existingProduct = await getProductBySkuPG(update.sku);
+    const product = existingProduct
+      ? await setEbayStatus(existingProduct.id, 'ready_to_list')
+      : null;
 
     await pgQuery(
       `UPDATE ebay_updates SET done = true WHERE id = $1`,
@@ -1015,7 +963,7 @@ app.put('/api/ebay-updates/:id/relist', async (req, res) => {
     res.json({
       ok: true,
       update,
-      product: productRows[0] || null,
+      product: product || null,
     });
   } catch (err) {
     console.error('mark ebay update as relist error:', err);

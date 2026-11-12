@@ -338,12 +338,13 @@ const productsList = read('public/products-list.html');
 assert.match(productsList, /data-letter="C"/, '23. products-list legacy C filter remains');
 assert.match(productsList, /id="batteryHeader"/, '23b. battery column remains');
 
+const postageHelper = read('src/postageAutoAssignment.js');
 assert.match(
-  indexSrc,
-  /if \(prefix === "C"\) return "battery";/,
+  postageHelper,
+  /if \(prefix === 'C'\) return 'battery';/,
   '24. C → battery postage mapping remains'
 );
-assert.match(indexSrc, /battery:\s*\{\s*label:\s*"Battery"/);
+assert.match(postageHelper, /battery:\s*\{\s*label:\s*'Battery'/);
 
 assert.doesNotMatch(
   indexSrc,

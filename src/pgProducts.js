@@ -6,6 +6,10 @@ import {
   assertProductCreateSkuAllowed,
   canonicalSku,
 } from './retiredCategoryC.js';
+import {
+  POSTAGE_AUTOFILL_SQL_PREDICATE,
+  planEbayStatusPostage,
+} from './postageAutoAssignment.js';
 
 
 // List products (used by /api/products)
@@ -28,9 +32,10 @@ server_cpu_1, server_cpu_2, server_ram, server_hdd
 
 
 // Get single product by id
-export async function getProductByIdPG(id) {
-  const { rows } = await pgQuery(
+export async function getProductByIdPG(id, queryFn = pgQuery) {
+  const { rows } = await queryFn(
     `SELECT id, sku, code, name, quantity, notes, on_ebay,
+            ebay_status, ebay_notes, needs_pics,
             retail, cost, fees, postage, postage_group, battery_health,
 server_cpu_1, server_cpu_2, server_ram, server_hdd
      FROM products
@@ -343,27 +348,81 @@ export async function getNextRefurbSkuPG(prefix, queryFn = pgQuery) {
   return `${p}${String(nextNum).padStart(4, '0')}`; // 4 digits
 }
 
-export async function updateEbayStatusPG(id, { ebay_status, ebay_notes } = {}) {
+export async function updateEbayStatusPG(
+  id,
+  {
+    ebay_status,
+    ebay_notes,
+    applyPostage = false,
+    postage = null,
+    postage_group = null,
+    snapshotSku = null,
+    snapshotRetail = null,
+  } = {},
+  queryFn = pgQuery
+) {
 
   const statusText = ebay_status != null ? String(ebay_status) : null;
   const onEbay = statusText != null ? (statusText === 'listed' ? 1 : 0) : null;
 
   const needsPics = statusText === 'listed' ? 'N' : null;
 
-  const { rows } = await pgQuery(
+  const { rows } = await queryFn(
     `
     UPDATE products
     SET ebay_status = COALESCE($2, ebay_status),
         ebay_notes  = COALESCE($3, ebay_notes),
         on_ebay     = COALESCE($4, on_ebay),
-        needs_pics  = COALESCE($5, needs_pics)
+        needs_pics  = COALESCE($5, needs_pics),
+        postage = CASE WHEN ${POSTAGE_AUTOFILL_SQL_PREDICATE} THEN $7 ELSE postage END,
+        postage_group = CASE WHEN ${POSTAGE_AUTOFILL_SQL_PREDICATE} THEN $8 ELSE postage_group END
     WHERE id = $1
     RETURNING *
     `,
-    [Number(id), statusText, ebay_notes ?? null, onEbay, needsPics]
+    [
+      Number(id),
+      statusText,
+      ebay_notes ?? null,
+      onEbay,
+      needsPics,
+      Boolean(applyPostage),
+      postage,
+      postage_group,
+      snapshotSku ?? null,
+      snapshotRetail ?? null,
+    ]
   );
 
   return rows[0] || null;
+}
+
+export async function applyProductEbayStatusPG(
+  id,
+  { ebay_status, ebay_notes } = {},
+  queryFn = pgQuery
+) {
+  const existing = await getProductByIdPG(id, queryFn);
+  if (!existing) return null;
+
+  const statusText =
+    ebay_status != null && String(ebay_status).trim() !== ''
+      ? String(ebay_status)
+      : null;
+  const plan = planEbayStatusPostage(existing, statusText);
+
+  return updateEbayStatusPG(
+    id,
+    {
+      ebay_status: statusText,
+      ebay_notes: ebay_notes != null ? String(ebay_notes) : null,
+      applyPostage: plan.applyPostage,
+      postage: plan.postage,
+      postage_group: plan.postage_group,
+      snapshotSku: plan.snapshotSku,
+      snapshotRetail: plan.snapshotRetail,
+    },
+    queryFn
+  );
 }
 
 export async function ebayStatusCountsPG() {

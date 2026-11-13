@@ -376,7 +376,10 @@
             const sku = item.sku || "";
             const cat = getCategoryFromSKU(sku);
 
-            // Hide refurb/shop stock from this inventory page
+            // Inventory default: hide refurb/shop prefixes (H/L/M/V/T/K).
+            // Dashboard-linked filters (not_listed, ready_to_list, needs_pics=Y,
+            // loss=1) already exclude those prefixes in SQL, so this hide does
+            // not change membership for those four views.
             if (cat === "refurb") return false;
 
             // 1) filter by stock type first
@@ -433,9 +436,14 @@
           try {
             const params = new URLSearchParams(window.location.search);
             const ebayStatus = params.get("ebay_status"); // e.g. "not_listed" or "listed"
-
-            const url = ebayStatus
-              ? `/api/products?ebay_status=${encodeURIComponent(ebayStatus)}`
+            const needsPics = params.get("needs_pics");
+            const loss = params.get("loss");
+            const qs = new URLSearchParams();
+            if (ebayStatus) qs.set("ebay_status", ebayStatus);
+            if (needsPics === "Y") qs.set("needs_pics", "Y");
+            if (loss === "1") qs.set("loss", "1");
+            const url = qs.toString()
+              ? `/api/products?${qs.toString()}`
               : "/api/products";
 
             const r = await fetch(url);
@@ -456,7 +464,6 @@
           const onlyNotes = $("pf-notes")?.checked; // when checked, show ONLY items with notes
 
           const params = new URLSearchParams(window.location.search);
-          const lossOnly = params.get("loss") === "1";
 
           const showBatteryColumn = currentPrefixFilter === "C";
           const showServerColumns = currentPrefixFilter === "E";
@@ -475,19 +482,9 @@
 
           // 2) apply your existing filters on top
           rows = rows.filter((p) => {
-            const profit =
-              Number(p.retail || 0) -
-              Number(p.cost || 0) -
-              Number(p.fees || 0) -
-              Number(p.postage || 0);
-
-            const first = String(p.sku || "")
-              .trim()
-              .toUpperCase()[0];
-            if (lossOnly && ["H", "L", "M", "V", "T", "K"].includes(first))
-              return false;
-
-            if (lossOnly && profit >= 0) return false;
+            // loss=1 / needs_pics=Y / not_listed / ready_to_list membership is
+            // applied by /api/products. Do not re-filter profit, quantity, or
+            // prefix here — that would contradict the shared server predicate.
             const qty = Number(p.quantity) || 0;
             const isListed = p.ebay_status === "listed"; // new workflow field
             const notesHasText = String(p.notes || "").trim().length > 0;

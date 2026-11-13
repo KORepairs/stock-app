@@ -170,12 +170,11 @@
 
       /* ebay row = 4 cards */
       #kpis_ebay {
-        grid-template-columns: repeat(5, 1fr);
+        grid-template-columns: repeat(4, 1fr);
         margin-top: 8px;
       }
 
       @media (max-width: 700px) {
-        #kpis_refurb,
         #kpis_ebay {
           grid-template-columns: 1fr;
         }
@@ -223,17 +222,10 @@
 
           <h3 style="margin: 18px 0 6px">eBay workflow</h3>
           <div class="kpis" id="kpis_ebay">
-            <!-- move ebay cards here -->
-             <div class="card kpi" id="kpiEbayListed">
-              <div class="num" id="kpi_ebay_listed">–</div>
-              <div class="label">Listed on eBay</div>
-              <div class="muted sub">Currently marked as listed</div>
-            </div>
-
             <div class="card kpi" id="kpiEbayNotListed">
               <div class="num" id="kpi_ebay_not_listed">–</div>
               <div class="label">Needs listing</div>
-              <div class="muted sub">Products not listed on eBay</div>
+              <div class="muted sub">In-stock eBay products not yet listed</div>
             </div>
 
             <div class="card kpi" id="kpiEbay">
@@ -244,14 +236,14 @@
 
             <div class="card kpi" id="kpiRelist">
               <div class="num" id="kpi_relist">–</div>
-              <div class="label">Relist needed</div>
-              <div class="muted sub">Stock returned from 0</div>
+              <div class="label">Ready to list</div>
+              <div class="muted sub">In-stock products marked ready to list</div>
             </div>
 
             <div class="card kpi" id="kpiNeedsPics">
               <div class="num" id="kpi_needs_pics">–</div>
               <div class="label">Needs pictures</div>
-              <div class="muted sub">Products awaiting photos</div>
+              <div class="muted sub">In-stock products awaiting photos</div>
             </div>
           </div>
         </div>
@@ -318,7 +310,7 @@
               </div>
             </div>
 
-            <div class="pipeItem" data-go="status:complete">
+            <div class="pipeItem" data-go="complete">
               <span class="pill complete">Complete</span>
               <div
                 class="row"
@@ -346,7 +338,7 @@
 
 <div class="card">
   <h2 style="margin: 0 0 10px">Loss-making stock</h2>
-  <div class="muted">Items currently making no profit or a loss.</div>
+  <div class="muted">Products currently priced at a loss. Missing prices are not included.</div>
 
   <div id="lossWrap" class="list" style="margin-top:12px;">
     <div class="listItem">
@@ -394,18 +386,28 @@
 
       function setNum(id, n) {
         const el = $(id);
-        if (el) el.textContent = String(n ?? "–");
+        if (!el) return;
+        if (n === "!") {
+          el.textContent = "!";
+          return;
+        }
+        el.textContent = String(n ?? "–");
       }
 
-      // We’ll use your existing refurb page filters:
-      // /refurb then set dropdowns via querystring you can read later if you want.
-      // For now we’ll just jump to refurb page; later we can support ?status=refurb etc.
+      function setFailed(id) {
+        setNum(id, "!");
+      }
+
       function goToRefurbWith(filter) {
         const [k, v] = String(filter || "").split(":");
 
-        // NEW: Active shortcut
+        if (k === "complete") {
+          window.location.href = "/refurb/complete";
+          return;
+        }
+
         if (k === "active") {
-          window.location.href = "/refurb"; // active view is default
+          window.location.href = "/refurb";
           return;
         }
 
@@ -414,58 +416,63 @@
         window.location.href = "/refurb?" + qs.toString();
       }
 
-      // Click wiring for pipeline blocks
       function wirePipelineClicks() {
         document.querySelectorAll(".pipeItem").forEach((el) => {
           el.addEventListener("click", () => goToRefurbWith(el.dataset.go));
         });
       }
 
-      // KPI clicks
       function wireKpiClicks() {
-        $("kpiActive")?.addEventListener(
-          "click",
-          () => (window.location.href = "/refurb"),
-        );
-        $("kpiNeedsParts")?.addEventListener(
-          "click",
-          () => (window.location.href = "/refurb"),
-        );
-        $("kpiAwaiting")?.addEventListener(
-          "click",
-          () => (window.location.href = "/refurb"),
-        );
-        $("kpiComplete")?.addEventListener(
-          "click",
-          () => (window.location.href = "/refurb"),
-        );
         $("kpiEbay")?.addEventListener(
           "click",
           () => (window.location.href = "/report/ebay-updates"),
-        );
-        $("kpiScrapped")?.addEventListener(
-          "click",
-          () => (window.location.href = "/refurb/retired"),
-        );
-        $("kpiStripped")?.addEventListener(
-          "click",
-          () => (window.location.href = "/refurb/retired"),
         );
         $("kpiEbayNotListed")?.addEventListener(
           "click",
           () =>
             (window.location.href = "/products/list?ebay_status=not_listed"),
         );
-
-        $("kpiEbayListed")?.addEventListener(
+        $("kpiRelist")?.addEventListener(
           "click",
-          () => (window.location.href = "/products/list?ebay_status=listed"),
+          () =>
+            (window.location.href =
+              "/products/list?ebay_status=ready_to_list"),
+        );
+        $("kpiNeedsPics")?.addEventListener(
+          "click",
+          () => (window.location.href = "/products/list?needs_pics=Y"),
         );
       }
 
-      function renderActions(actions) {
+      function setSectionError(wrap, title, subtitle) {
+        if (!wrap) return;
+        wrap.replaceChildren();
+        const item = document.createElement("div");
+        item.className = "listItem";
+        item.style.cursor = "default";
+        const left = document.createElement("div");
+        const strong = document.createElement("strong");
+        strong.textContent = title;
+        const muted = document.createElement("div");
+        muted.className = "muted";
+        muted.textContent = subtitle;
+        left.append(strong, muted);
+        item.append(left);
+        wrap.append(item);
+      }
+
+      function renderActions(actions, { sourcesFailed } = {}) {
         const wrap = $("actionList");
         if (!wrap) return;
+
+        if ((!actions || !actions.length) && sourcesFailed) {
+          setSectionError(
+            wrap,
+            "Could not load actions",
+            "One or more action queues failed to load.",
+          );
+          return;
+        }
 
         if (!actions || !actions.length) {
           wrap.innerHTML = `
@@ -476,36 +483,61 @@
           return;
         }
 
-        wrap.innerHTML = actions
-          .map(
-            (a) => `
-          <div class="listItem" data-link="${a.link || ""}">
-            <div>
-              <strong>${a.title}</strong>
-              <div class="muted">${a.subtitle || ""}</div>
-            </div>
-            <div class="right">
-              <strong>${a.value ?? ""}</strong>
-              <div class="muted">open</div>
-            </div>
-          </div>
-        `,
-          )
-          .join("");
+        wrap.replaceChildren();
+        for (const a of actions) {
+          const item = document.createElement("div");
+          item.className = "listItem";
+          const link = String(a.link || "");
+          if (link.startsWith("/")) item.dataset.link = link;
 
-        wrap.querySelectorAll(".listItem").forEach((x) => {
-          const link = x.getAttribute("data-link");
-          if (!link) return;
-          x.addEventListener("click", () => (window.location.href = link));
-        });
+          const left = document.createElement("div");
+          const title = document.createElement("strong");
+          title.textContent = a.title || "";
+          const subtitle = document.createElement("div");
+          subtitle.className = "muted";
+          subtitle.textContent = a.subtitle || "";
+          left.append(title, subtitle);
+
+          const right = document.createElement("div");
+          right.className = "right";
+          const value = document.createElement("strong");
+          value.textContent = a.value == null ? "" : String(a.value);
+          const open = document.createElement("div");
+          open.className = "muted";
+          open.textContent = "open";
+          right.append(value, open);
+
+          item.append(left, right);
+          if (item.dataset.link) {
+            item.addEventListener(
+              "click",
+              () => (window.location.href = item.dataset.link),
+            );
+          }
+          wrap.append(item);
+        }
+      }
+
+      function parseParts(partsNeeded) {
+        if (!partsNeeded) return [];
+        if (Array.isArray(partsNeeded)) return partsNeeded;
+        if (typeof partsNeeded === "string") {
+          try {
+            const parsed = JSON.parse(partsNeeded);
+            return Array.isArray(parsed) ? parsed : [];
+          } catch {
+            return [];
+          }
+        }
+        return [];
       }
 
       function renderPartsOrderList(items) {
-  const wrap = $("partsOrderList");
-  if (!wrap) return;
+        const wrap = $("partsOrderList");
+        if (!wrap) return;
 
-  if (!items || !items.length) {
-    wrap.innerHTML = `
+        if (!items || !items.length) {
+          wrap.innerHTML = `
       <div class="listItem" style="cursor:default">
         <div>
           <strong>Nothing to order ✅</strong>
@@ -513,347 +545,384 @@
         </div>
       </div>
     `;
-    return;
-  }
-
-  function parseParts(partsNeeded) {
-    if (!partsNeeded) return [];
-
-    if (Array.isArray(partsNeeded)) return partsNeeded;
-
-    if (typeof partsNeeded === "string") {
-      try {
-        const parsed = JSON.parse(partsNeeded);
-        return Array.isArray(parsed) ? parsed : [];
-      } catch {
-        return [];
-      }
-    }
-
-    return [];
-  }
-
-  wrap.innerHTML = items.map(item => {
-    const parts = parseParts(item.parts_needed);
-
-    const lines = parts.length
-      ? parts.map(p => {
-          const part = (p.part || '').trim();
-          const code = (p.code || '').trim();
-          return `
-            <div class="muted">
-              ${part || 'Unnamed part'}${code ? ` - ${code}` : ''}
-            </div>
-          `;
-        }).join('')
-      : `<div class="muted">No parts listed</div>`;
-
-    return `
-      <div class="listItem" data-link="/refurb/${item.id}">
-        <div>
-          <strong>${item.sku || ''} — ${item.description || ''}</strong>
-          ${lines}
-        </div>
-        <div class="right">
-          <strong>£${Number(item.parts_cost || 0).toFixed(2)}</strong>
-          <div class="muted">open</div>
-        </div>
-      </div>
-    `;
-  }).join("");
-
-  wrap.querySelectorAll(".listItem").forEach(x => {
-    const link = x.getAttribute("data-link");
-    if (!link) return;
-    x.addEventListener("click", () => (window.location.href = link));
-  });
-}
-
-function renderPartsSummaryList(items) {
-  const wrap = $("partsSummaryList");
-  if (!wrap) return;
-
-  function parseParts(partsNeeded) {
-    if (!partsNeeded) return [];
-    if (Array.isArray(partsNeeded)) return partsNeeded;
-
-    if (typeof partsNeeded === "string") {
-      try {
-        const parsed = JSON.parse(partsNeeded);
-        return Array.isArray(parsed) ? parsed : [];
-      } catch {
-        return [];
-      }
-    }
-    return [];
-  }
-
-  const grouped = new Map();
-
-  for (const item of items || []) {
-    const parts = parseParts(item.parts_needed);
-
-    for (const p of parts) {
-      const part = String(p.part || '').trim();
-      const code = String(p.code || '').trim() || 'No code';
-
-      if (!part) continue;
-
-      if (!grouped.has(part)) {
-        grouped.set(part, new Map());
-      }
-
-      const codesMap = grouped.get(part);
-
-      if (!codesMap.has(code)) {
-        codesMap.set(code, 0);
-      }
-
-      codesMap.set(code, codesMap.get(code) + 1);
-    }
-  }
-
-  const rows = Array.from(grouped.entries());
-
-  if (!rows.length) {
-    wrap.innerHTML = `
-      <div class="listItem" style="cursor:default">
-        <div>
-          <strong>No parts found ✅</strong>
-          <div class="muted">Nothing currently grouped for ordering.</div>
-        </div>
-      </div>
-    `;
-    return;
-  }
-
-  wrap.innerHTML = rows.map(([part, codes]) => {
-    const codeLines = Array.from(codes.entries())
-      .map(([code, qty]) => `
-        <div class="muted">${code} ×${qty}</div>
-      `).join('');
-
-    return `
-      <div class="listItem" style="cursor:default">
-        <div>
-          <strong>${part}</strong>
-          ${codeLines}
-        </div>
-      </div>
-    `;
-  }).join('');
-}
-
-function fmtGBP(n) {
-  return Number(n || 0).toLocaleString("en-GB", {
-    style: "currency",
-    currency: "GBP",
-  });
-}
-
-function renderLossMaking(items, totalLoss) {
-  const wrap = $("lossWrap");
-  if (!wrap) return;
-
-  if (!items || !items.length) {
-    wrap.innerHTML = `
-      <div class="listItem" style="cursor:default">
-        <div>
-          <strong>No loss-making stock ✅</strong>
-          <div class="muted">Everything currently priced at break-even or better.</div>
-        </div>
-      </div>
-    `;
-    return;
-  }
-
-  const top = items.slice(0, 5);
-
-  wrap.innerHTML = `
-    <div class="listItem" data-link="/products/list?loss=1">
-      <div>
-        <strong>${items.length} item(s) need review</strong>
-        <div class="muted">Total potential loss: ${fmtGBP(totalLoss)}</div>
-      </div>
-      <div class="right">
-        <strong style="color:#b91c1c;">Open list</strong>
-      </div>
-    </div>
-
-    ${top.map(item => `
-      <div class="listItem" data-link="/products/list?loss=1">
-        <div>
-          <strong>${item.sku} — ${item.name}</strong>
-          <div class="muted">Qty: ${Number(item.quantity || 0)}</div>
-        </div>
-        <div class="right">
-          <strong style="color:#b91c1c;">${fmtGBP(item.total_profit)}</strong>
-          <div class="muted">total</div>
-        </div>
-      </div>
-    `).join("")}
-  `;
-
-  wrap.querySelectorAll(".listItem").forEach((x) => {
-    const link = x.getAttribute("data-link");
-    if (!link) return;
-    x.addEventListener("click", () => {
-      window.location.href = link;
-    });
-  });
-}
-
-      // ✅ Dashboard loader (uses your existing endpoints)
-      async function loadDashboard() {
-        // 1) Refurb items (active)
-        const retiredRes = await fetch("/api/refurb?view=retired", {
-          cache: "no-store",
-        });
-        const retiredJson = await retiredRes.json();
-        const retired = Array.isArray(retiredJson) ? retiredJson : [];
-
-        const scrapped = retired.filter(
-          (x) =>
-            String(x.status || "") === "scrapped" ||
-            String(x.status || "") === "scrap",
-        ).length;
-        const stripped = retired.filter(
-          (x) =>
-            String(x.status || "") === "stripped" ||
-            String(x.status || "") === "strip",
-        ).length;
-
-        setNum("kpi_scrapped", scrapped);
-        setNum("kpi_stripped", stripped);
-
-        const refurbRes = await fetch("/api/refurb?view=active", {
-          cache: "no-store",
-        });
-        const refurbs = await refurbRes.json();
-
-        const items = Array.isArray(refurbs) ? refurbs : [];
-
-        const active = items.length;
-
-        const countStatus = (s) =>
-          items.filter((x) => String(x.status || "") === s).length;
-        const countParts = (p) =>
-          items.filter((x) => String(x.parts_status || "") === p).length;
-
-        const refurb = countStatus("refurb");
-        const complete = countStatus("complete");
-
-        const needs = countParts("needs_parts");
-        const awaiting = countParts("awaiting_parts");
-        const hasParts = countParts("has_parts");
-
-        // “Complete but retail missing/0”
-        const completeNoRetail = items.filter(
-          (x) =>
-            String(x.status || "") === "complete" && Number(x.retail || 0) <= 0,
-        ).length;
-
-        setNum("kpi_active", active);
-        setNum("kpi_needs", needs);
-        setNum("kpi_awaiting", awaiting);
-        setNum("kpi_complete", complete);
-        setNum("pipe_refurb", refurb);
-        setNum("pipe_needs", needs);
-        setNum("pipe_awaiting", awaiting);
-        setNum("pipe_has", hasParts);
-        setNum("pipe_complete", complete);
-        setNum("pipe_active", active);
-
-        // 2) eBay updates count (pending)
-        let ebayPending = 0;
-        try {
-          const ebayRes = await fetch("/api/ebay-updates?done=false", {
-            cache: "no-store",
-          });
-          const ebay = await ebayRes.json();
-          ebayPending = Array.isArray(ebay) ? ebay.length : 0;
-        } catch {}
-        setNum("kpi_ebay", ebayPending);
-
-        let ebayListed = 0;
-        let ebayNotListed = 0;
-        let relistCount = 0;
-        let needsPicsCount = 0;
-
-        try {
-          const statsRes = await fetch("/api/stats/ebay", {
-            cache: "no-store",
-          });
-          const stats = await statsRes.json();
-          const arr = Array.isArray(stats) ? stats : [];
-
-          for (const r of arr) {
-            const c = Number(r.count) || 0;
-            if (r.ebay_status === "listed") ebayListed = c;
-            if (r.ebay_status === "not_listed") ebayNotListed = c;
-            if (r.ebay_status === "ready_to_list") relistCount = c;
-          }
-        } catch {}
-
-        setNum("kpi_ebay_listed", ebayListed);
-        setNum("kpi_ebay_not_listed", ebayNotListed);
-        setNum("kpi_relist", relistCount);
-
-        try {
-          const r = await fetch("/api/products");
-          const products = await r.json();
-
-          needsPicsCount = products.filter(
-            (p) => String(p.needs_pics || "") === "Y"
-          ).length;
-          } catch {}
-
-setNum("kpi_needs_pics", needsPicsCount);
-
-                // 3) Loss-making stock
-        let lossItems = [];
-        let totalLoss = 0;
-
-        try {
-          const lossRes = await fetch("/api/dashboard/loss-making", {
-            cache: "no-store",
-          });
-          const lossJson = await lossRes.json();
-
-          lossItems = Array.isArray(lossJson.rows) ? lossJson.rows : [];
-          totalLoss = Number(lossJson.totalLoss || 0);
-        } catch {}
-
-        // 3) Action list
-        const actions = [];
-
-        if (needs > 0) {
-          actions.push({
-            title: "Devices need parts",
-            subtitle: "Open refurb list and filter parts = needs_parts",
-            value: needs,
-            link: "/refurb",
-          });
+          return;
         }
 
-        if (awaiting > 0) {
+        wrap.replaceChildren();
+        for (const item of items) {
+          const row = document.createElement("div");
+          row.className = "listItem";
+          const id = Number(item.id);
+          if (Number.isFinite(id) && id > 0) {
+            row.dataset.link = "/refurb/" + id;
+          }
+
+          const left = document.createElement("div");
+          const title = document.createElement("strong");
+          title.textContent = `${item.sku || ""} — ${item.description || ""}`;
+          left.append(title);
+
+          const parts = parseParts(item.parts_needed);
+          if (!parts.length) {
+            const none = document.createElement("div");
+            none.className = "muted";
+            none.textContent = "No parts listed";
+            left.append(none);
+          } else {
+            for (const p of parts) {
+              const part = String(p.part || "").trim() || "Unnamed part";
+              const code = String(p.code || "").trim();
+              const line = document.createElement("div");
+              line.className = "muted";
+              line.textContent = code ? `${part} - ${code}` : part;
+              left.append(line);
+            }
+          }
+
+          const right = document.createElement("div");
+          right.className = "right";
+          const cost = document.createElement("strong");
+          cost.textContent = `£${Number(item.parts_cost || 0).toFixed(2)}`;
+          const open = document.createElement("div");
+          open.className = "muted";
+          open.textContent = "open";
+          right.append(cost, open);
+
+          row.append(left, right);
+          if (row.dataset.link) {
+            row.addEventListener(
+              "click",
+              () => (window.location.href = row.dataset.link),
+            );
+          }
+          wrap.append(row);
+        }
+      }
+
+      function renderPartsSummaryList(items) {
+        const wrap = $("partsSummaryList");
+        if (!wrap) return;
+
+        const grouped = new Map();
+        for (const item of items || []) {
+          for (const p of parseParts(item.parts_needed)) {
+            const part = String(p.part || "").trim();
+            const code = String(p.code || "").trim() || "No code";
+            if (!part) continue;
+            if (!grouped.has(part)) grouped.set(part, new Map());
+            const codesMap = grouped.get(part);
+            codesMap.set(code, (codesMap.get(code) || 0) + 1);
+          }
+        }
+
+        const rows = Array.from(grouped.entries());
+        if (!rows.length) {
+          wrap.innerHTML = `
+        <div class="listItem" style="cursor:default">
+          <div>
+            <strong>No parts found ✅</strong>
+            <div class="muted">Nothing currently grouped for ordering.</div>
+          </div>
+        </div>
+      `;
+          return;
+        }
+
+        wrap.replaceChildren();
+        for (const [part, codes] of rows) {
+          const item = document.createElement("div");
+          item.className = "listItem";
+          item.style.cursor = "default";
+          const left = document.createElement("div");
+          const title = document.createElement("strong");
+          title.textContent = part;
+          left.append(title);
+          for (const [code, qty] of codes.entries()) {
+            const line = document.createElement("div");
+            line.className = "muted";
+            line.textContent = `${code} ×${qty}`;
+            left.append(line);
+          }
+          item.append(left);
+          wrap.append(item);
+        }
+      }
+
+      function fmtGBP(n) {
+        return Number(n || 0).toLocaleString("en-GB", {
+          style: "currency",
+          currency: "GBP",
+        });
+      }
+
+      function renderLossMaking(items, totalLoss) {
+        const wrap = $("lossWrap");
+        if (!wrap) return;
+
+        if (!items || !items.length) {
+          wrap.innerHTML = `
+      <div class="listItem" style="cursor:default">
+        <div>
+          <strong>No loss-making products ✅</strong>
+          <div class="muted">No in-stock eBay products are currently priced at a loss.</div>
+        </div>
+      </div>
+    `;
+          return;
+        }
+
+        wrap.replaceChildren();
+
+        function addRow(cfg) {
+          const item = document.createElement("div");
+          item.className = "listItem";
+          item.dataset.link = "/products/list?loss=1";
+
+          const left = document.createElement("div");
+          const title = document.createElement("strong");
+          title.textContent = cfg.title;
+          const sub = document.createElement("div");
+          sub.className = "muted";
+          sub.textContent = cfg.subtitle;
+          left.append(title, sub);
+
+          const right = document.createElement("div");
+          right.className = "right";
+          const value = document.createElement("strong");
+          value.style.color = "#b91c1c";
+          value.textContent = cfg.value;
+          const hint = document.createElement("div");
+          hint.className = "muted";
+          hint.textContent = cfg.hint;
+          right.append(value, hint);
+
+          item.append(left, right);
+          item.addEventListener(
+            "click",
+            () => (window.location.href = item.dataset.link),
+          );
+          wrap.append(item);
+        }
+
+        addRow({
+          title: `${items.length} product(s) priced at a loss`,
+          subtitle: `Total potential loss: ${fmtGBP(totalLoss)}`,
+          value: "Open list",
+          hint: "",
+        });
+
+        for (const product of items.slice(0, 5)) {
+          addRow({
+            title: `${product.sku || ""} — ${product.name || ""}`,
+            subtitle: `Qty: ${Number(product.quantity || 0)}`,
+            value: fmtGBP(product.total_profit),
+            hint: "total",
+          });
+        }
+      }
+
+      async function fetchJson(url) {
+        const res = await fetch(url, { cache: "no-store" });
+        if (!res.ok) throw new Error("request failed");
+        return res.json();
+      }
+
+      function requireArray(data) {
+        if (!Array.isArray(data)) throw new Error("request failed");
+        return data;
+      }
+
+      function readDashboardCounts(data) {
+        if (!data || typeof data !== "object" || Array.isArray(data)) {
+          throw new Error("request failed");
+        }
+        const out = {};
+        for (const key of ["needsListing", "readyToList", "needsPics"]) {
+          const value = data[key];
+          if (typeof value !== "number" || !Number.isFinite(value)) {
+            throw new Error("request failed");
+          }
+          out[key] = value;
+        }
+        return out;
+      }
+
+      // Phase A: each loader is isolated so one failure cannot skip later sections.
+      async function isolated(label, fn, onFail) {
+        try {
+          return await fn();
+        } catch (err) {
+          console.error(label, err);
+          if (onFail) onFail();
+          return null;
+        }
+      }
+
+      function countStatus(items, status) {
+        return items.filter((x) => String(x.status || "") === status).length;
+      }
+
+      function countParts(items, parts) {
+        return items.filter((x) => String(x.parts_status || "") === parts)
+          .length;
+      }
+
+      async function loadDashboard() {
+        const activeResult = isolated(
+          "active-refurb",
+          async () => {
+            return requireArray(await fetchJson("/api/refurb?view=active"));
+          },
+          () => {
+            setFailed("pipe_active");
+            setFailed("pipe_refurb");
+            setFailed("pipe_needs");
+            setFailed("pipe_awaiting");
+            setFailed("pipe_has");
+          },
+        );
+
+        const completeResult = isolated(
+          "complete-refurb",
+          async () => {
+            return requireArray(
+              await fetchJson("/api/refurb?view=complete"),
+            );
+          },
+          () => setFailed("pipe_complete"),
+        );
+
+        const ebayUpdatesResult = isolated(
+          "ebay-updates",
+          async () => {
+            return requireArray(
+              await fetchJson("/api/ebay-updates?done=false"),
+            );
+          },
+          () => setFailed("kpi_ebay"),
+        );
+
+        const countsResult = isolated(
+          "dashboard-counts",
+          async () =>
+            readDashboardCounts(await fetchJson("/api/dashboard/counts")),
+          () => {
+            setFailed("kpi_ebay_not_listed");
+            setFailed("kpi_relist");
+            setFailed("kpi_needs_pics");
+          },
+        );
+
+        const lossResult = isolated(
+          "loss-making",
+          async () => {
+            const data = await fetchJson("/api/dashboard/loss-making");
+            if (!data || typeof data !== "object" || Array.isArray(data)) {
+              throw new Error("request failed");
+            }
+            const rows = requireArray(data.rows);
+            const totalLoss = Number(data.totalLoss);
+            if (!Number.isFinite(totalLoss)) throw new Error("request failed");
+            return { rows, totalLoss };
+          },
+          () =>
+            setSectionError(
+              $("lossWrap"),
+              "Could not load loss-making products",
+              "The loss-making list is unavailable.",
+            ),
+        );
+
+        const partsResult = isolated(
+          "parts-needed",
+          async () => {
+            return requireArray(
+              await fetchJson("/api/refurb/parts-needed-list"),
+            );
+          },
+          () => {
+            setSectionError(
+              $("partsSummaryList"),
+              "Could not load parts list",
+              "The parts-to-order summary is unavailable.",
+            );
+            setSectionError(
+              $("partsOrderList"),
+              "Could not load parts list",
+              "The parts-by-device list is unavailable.",
+            );
+          },
+        );
+
+        const [items, completeItems, ebay, counts, loss, partsNeededItems] =
+          await Promise.all([
+            activeResult,
+            completeResult,
+            ebayUpdatesResult,
+            countsResult,
+            lossResult,
+            partsResult,
+          ]);
+
+        let needs = 0;
+        let awaiting = 0;
+        if (items) {
+          const active = items.length;
+          const refurb = countStatus(items, "refurb");
+          needs = countParts(items, "needs_parts");
+          awaiting = countParts(items, "awaiting_parts");
+          const hasParts = countParts(items, "has_parts");
+          setNum("pipe_active", active);
+          setNum("pipe_refurb", refurb);
+          setNum("pipe_needs", needs);
+          setNum("pipe_awaiting", awaiting);
+          setNum("pipe_has", hasParts);
+        }
+
+        if (completeItems) {
+          setNum("pipe_complete", completeItems.length);
+        }
+
+        let ebayPending = null;
+        if (ebay) {
+          ebayPending = ebay.length;
+          setNum("kpi_ebay", ebayPending);
+        }
+
+        let ebayNotListed = null;
+        if (counts) {
+          ebayNotListed = counts.needsListing;
+          setNum("kpi_ebay_not_listed", counts.needsListing);
+          setNum("kpi_relist", counts.readyToList);
+          setNum("kpi_needs_pics", counts.needsPics);
+        }
+
+        if (loss) {
+          renderLossMaking(loss.rows, loss.totalLoss);
+        }
+
+        if (partsNeededItems) {
+          renderPartsSummaryList(partsNeededItems);
+          renderPartsOrderList(partsNeededItems);
+        }
+
+        const actions = [];
+        if (items && needs > 0) {
+          actions.push({
+            title: "Devices need parts",
+            subtitle: "Open refurb list filtered to needs parts",
+            value: needs,
+            link: "/refurb?parts=needs_parts",
+          });
+        }
+        if (items && awaiting > 0) {
           actions.push({
             title: "Parts awaiting arrival",
             subtitle: "These are waiting on deliveries",
             value: awaiting,
-            link: "/refurb",
+            link: "/refurb?parts=awaiting_parts",
           });
         }
-
-        if (completeNoRetail > 0) {
-          actions.push({
-            title: "Complete items missing retail price",
-            subtitle: "Set retail so you can put it straight on the till",
-            value: completeNoRetail,
-            link: "/refurb",
-          });
-        }
-
         if (ebayPending > 0) {
           actions.push({
             title: "eBay updates pending",
@@ -862,7 +931,6 @@ setNum("kpi_needs_pics", needsPicsCount);
             link: "/report/ebay-updates",
           });
         }
-
         if (ebayNotListed > 0) {
           actions.push({
             title: "Products need listing on eBay",
@@ -871,31 +939,17 @@ setNum("kpi_needs_pics", needsPicsCount);
             link: "/products/list?ebay_status=not_listed",
           });
         }
-
-        if (lossItems.length > 0) {
+        if (loss && loss.rows.length > 0) {
           actions.push({
-            title: "Loss-making stock needs review",
-            subtitle: "Reprice, relist or discard items making a loss",
-            value: lossItems.length,
+            title: "Loss-making products need review",
+            subtitle: "Reprice products currently priced at a loss",
+            value: loss.rows.length,
             link: "/products/list?loss=1",
           });
         }
 
-        // 🔧 Parts to order list
-let partsNeededItems = [];
-
-try {
-  const partsRes = await fetch('/api/refurb/parts-needed-list', {
-    cache: 'no-store',
-  });
-  const partsJson = await partsRes.json();
-  partsNeededItems = Array.isArray(partsJson) ? partsJson : [];
-} catch {}
-
-renderActions(actions);
-renderLossMaking(lossItems, totalLoss);
-renderPartsSummaryList(partsNeededItems);
-renderPartsOrderList(partsNeededItems);
+        const sourcesFailed = !items || ebayPending == null || !counts || !loss;
+        renderActions(actions, { sourcesFailed });
       }
 
       window.addEventListener("DOMContentLoaded", () => {
@@ -903,19 +957,7 @@ renderPartsOrderList(partsNeededItems);
         wireKpiClicks();
         loadDashboard().catch(console.error);
       });
-
-      $("kpiRelist")?.addEventListener(
-        "click",
-        () =>
-          (window.location.href = "/products/list?ebay_status=ready_to_list"),
-      );
-
-      $("kpiNeedsPics")?.addEventListener(
-        "click",
-        () => (window.location.href = "/products/list")
-      );
     </script>
-
     <script src="/js/sidebar.js"></script>
   </body>
 </html>

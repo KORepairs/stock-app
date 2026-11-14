@@ -536,9 +536,26 @@ assert.deepEqual([...DASHBOARD_COUNT_FIELDS], [
 ]);
 
 console.log('--- dashboard destinations and isolation ---');
-assert.match(dashboardHtml, /Ready to list/);
+assert.match(dashboardHtml, /<div class="label">Needs relisting<\/div>/);
 assert.equal(dashboardHtml.includes('Stock returned from 0'), false);
+assert.equal(/Ready to list/i.test(dashboardHtml), false);
+assert.equal(/ready to list/i.test(dashboardHtml), false);
 assert.equal(dashboardHtml.includes('Relist needed'), false);
+assert.equal(READY_TO_LIST_STATUS, 'ready_to_list');
+assert.equal(
+  DASHBOARD_DESTINATIONS.readyToList,
+  '/products/list?ebay_status=ready_to_list'
+);
+assert.match(
+  productsListHtml,
+  /<option value="ready_to_list">Needs relisting<\/option>/
+);
+assert.equal(/Ready to list/i.test(productsListHtml), false);
+assert.equal(productsListHtml.includes('>Relist</option>'), false);
+assert.match(
+  productsListHtml,
+  /params\.get\("ebay_status"\) === "ready_to_list"/
+);
 assert.equal(dashboardHtml.includes('Listed on eBay'), false);
 assert.equal(dashboardHtml.includes('kpiEbayListed'), false);
 assert.equal(dashboardHtml.includes('kpi_ebay_listed'), false);

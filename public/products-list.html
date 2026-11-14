@@ -266,7 +266,7 @@
               <label>eBay status</label>
               <select id="e_ebay_status">
                 <option value="not_listed">Not listed</option>
-                <option value="ready_to_list">Relist</option>
+                <option value="ready_to_list">Needs relisting</option>
                 <option value="listed">Listed</option>
                 <option value="sold_on_ebay">Sold on eBay</option>
               </select>
@@ -538,7 +538,7 @@
 
           const actionsHeader = document.getElementById("actionsHeader");
           if (actionsHeader) {
-            actionsHeader.textContent = isRelistPage ? "Relist" : "Actions";
+            actionsHeader.textContent = isRelistPage ? "Needs relisting" : "Actions";
           }
 
           // 6) render normal rows

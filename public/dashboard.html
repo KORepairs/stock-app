@@ -2,187 +2,330 @@
 <html lang="en">
   <head>
     <meta charset="utf-8" />
-    <title>Dashboard</title>
+    <title>Operations Dashboard</title>
     <meta name="viewport" content="width=device-width,initial-scale=1" />
     <link rel="stylesheet" href="/app.css" />
     <style>
-      .row {
+      main.page {
+        min-width: 0;
+      }
+
+      .dash-header {
         display: flex;
-        gap: 12px;
-        align-items: center;
+        justify-content: space-between;
+        align-items: flex-start;
+        gap: 16px;
         flex-wrap: wrap;
+        margin-bottom: 8px;
       }
-      .muted {
-        color: var(--muted, #9aa);
-        font-size: 13px;
+
+      .dash-header h1 {
+        margin: 0 0 6px;
+        font-size: 1.75rem;
       }
-      .card {
+
+      .dash-header .lede {
+        margin: 0;
+        color: var(--muted);
+        max-width: 42rem;
+      }
+
+      .dash-toolbar {
+        display: flex;
+        flex-direction: column;
+        align-items: flex-end;
+        gap: 8px;
+      }
+
+      .dash-updated {
+        color: var(--muted);
+        font-size: 0.95rem;
+      }
+
+      #refreshBtn {
+        min-height: 44px;
+        min-width: 44px;
+        padding: 0.65rem 1rem;
+        font-weight: 700;
+      }
+
+      #refreshBtn[aria-busy="true"] {
+        opacity: 0.75;
+      }
+
+      #loadStatus {
+        min-height: 1.4em;
+        margin: 4px 0 12px;
+        color: var(--muted);
+        font-size: 0.95rem;
+      }
+
+      .dash-section {
         background: var(--panel);
         border: 1px solid var(--border);
         border-radius: 12px;
-        padding: 14px;
-        margin-top: 14px;
+        box-shadow: 0 1px 2px rgba(15, 18, 24, 0.04);
+        padding: 18px;
+        margin-top: 16px;
       }
 
-      .kpi {
-        cursor: pointer;
-        transition:
-          transform 0.08s ease,
-          border-color 0.08s ease;
-      }
-      .kpi:hover {
-        transform: translateY(-1px);
-        border-color: rgba(255, 255, 255, 0.18);
+      .dash-section h2 {
+        margin: 0 0 6px;
+        font-size: 1.15rem;
       }
 
-      .kpi .num {
-        font-size: 28px;
-        font-weight: 800;
-        line-height: 1;
-      }
-      .kpi .label {
-        margin-top: 6px;
-        font-weight: 700;
-      }
-      .kpi .sub {
-        margin-top: 4px;
+      .dash-section h3 {
+        margin: 16px 0 8px;
+        font-size: 0.95rem;
+        color: var(--text);
+        text-transform: none;
+        letter-spacing: 0;
       }
 
-      .pipe {
-        display: grid;
-        grid-template-columns: repeat(6, 1fr);
-        gap: 10px;
-      }
-      @media (max-width: 1100px) {
-        .pipe {
-          grid-template-columns: repeat(3, 1fr);
-        }
-      }
-      @media (max-width: 700px) {
-        .pipe {
-          grid-template-columns: 1fr;
-        }
-      }
-
-      .pipeItem {
-        border: 1px solid var(--border);
-        border-radius: 12px;
-        padding: 12px;
-        cursor: pointer;
-        background: rgba(255, 255, 255, 0.02);
-      }
-      .pipeItem:hover {
-        border-color: rgba(255, 255, 255, 0.18);
-      }
-
-      .pill {
-        display: inline-flex;
-        align-items: center;
-        border-radius: 999px;
-        padding: 4px 10px;
-        font-size: 12px;
-        font-weight: 700;
-        border: 1px solid rgba(255, 255, 255, 0.1);
-      }
-      .pill.strip {
-        background: #ed9507;
-        color: #111;
-      }
-      .pill.refurb {
-        background: #0819d1;
-        color: #fff;
-      }
-      .pill.needs {
-        background: #a81703;
-        color: #fff;
-      }
-      .pill.await {
-        background: #d9c61e;
-        color: #111;
-      }
-      .pill.has {
-        background: #053802;
-        color: #fff;
-      }
-      .pill.complete {
-        background: #158207;
-        color: #fff;
-      }
-
-      .actions {
-        display: flex;
-        gap: 10px;
-        flex-wrap: wrap;
-        justify-content: flex-end;
-      }
-
-      .list {
-        display: grid;
-        gap: 10px;
-        margin-top: 10px;
-      }
-      .listItem {
-        display: flex;
-        justify-content: space-between;
-        align-items: center;
-        gap: 12px;
-        border: 1px solid var(--border);
-        border-radius: 12px;
-        padding: 10px 12px;
-        background: rgba(255, 255, 255, 0.02);
-        cursor: pointer;
-      }
-      .listItem:hover {
-        border-color: rgba(255, 255, 255, 0.18);
-      }
-      .listItem strong {
-        font-weight: 800;
-      }
-      .right {
-        text-align: right;
-      }
-
-      #kpis_ebay {
-        margin-top: 8px;
-      }
-
-      /* section titles */
-      .card h3 {
-        font-size: 13px;
-        text-transform: uppercase;
-        letter-spacing: 0.06em;
+      .section-intro {
+        margin: 0 0 14px;
         color: var(--muted);
       }
 
-      #kpis_ebay .kpi {
-        background: linear-gradient(
-          to bottom,
-          rgba(40, 120, 255, 0.06),
-          transparent
-        );
-        border-color: rgba(40, 120, 255, 0.25);
-      }
-      /* default */
-      .kpis {
+      .queue-grid {
         display: grid;
+        grid-template-columns: repeat(4, minmax(0, 1fr));
         gap: 12px;
       }
 
-      /* ebay row = 4 cards */
-      #kpis_ebay {
-        grid-template-columns: repeat(4, 1fr);
-        margin-top: 8px;
+      .queue-card,
+      .pipe-card,
+      .panel-row,
+      .action-row {
+        display: block;
+        text-decoration: none;
+        color: inherit;
+        border: 1px solid var(--border);
+        border-radius: 12px;
+        background: #fff;
+        min-height: 44px;
+        overflow-wrap: anywhere;
       }
 
-      @media (max-width: 700px) {
-        #kpis_ebay {
+      .queue-card {
+        padding: 16px;
+        box-shadow: 0 1px 2px rgba(15, 18, 24, 0.04);
+      }
+
+      .queue-card:hover,
+      .pipe-card:hover,
+      .panel-row:hover,
+      .action-row:hover {
+        border-color: #9ca3af;
+        background: #fafafa;
+      }
+
+      .queue-card:focus-visible,
+      .pipe-card:focus-visible,
+      .panel-row:focus-visible,
+      .action-row:focus-visible,
+      #refreshBtn:focus-visible,
+      #backupDownloadBtn:focus-visible {
+        outline: 3px solid #111;
+        outline-offset: 2px;
+      }
+
+      .queue-count,
+      .pipe-count {
+        display: block;
+        font-size: 2rem;
+        font-weight: 800;
+        line-height: 1.1;
+        letter-spacing: -0.03em;
+      }
+
+      .queue-count.is-failed,
+      .pipe-count.is-failed {
+        color: #9f1239;
+      }
+
+      .queue-label,
+      .pipe-label {
+        display: block;
+        margin-top: 8px;
+        font-weight: 800;
+      }
+
+      .queue-sub,
+      .pipe-hint {
+        display: block;
+        margin-top: 4px;
+        color: var(--muted);
+        font-size: 0.92rem;
+      }
+
+      .pipe-layout {
+        display: grid;
+        grid-template-columns: minmax(0, 5fr) minmax(0, 1fr);
+        gap: 16px;
+        align-items: stretch;
+      }
+
+      .pipe-inprogress,
+      .pipe-complete-wrap {
+        min-width: 0;
+      }
+
+      .pipe-inprogress .pipe-grid {
+        display: grid;
+        grid-template-columns: repeat(5, minmax(0, 1fr));
+        gap: 10px;
+      }
+
+      .pipe-card {
+        padding: 14px;
+      }
+
+      .pipe-complete-wrap .pipe-card {
+        height: 100%;
+        border-color: #d1d5db;
+      }
+
+      .pipe-kind {
+        display: block;
+        font-size: 0.75rem;
+        font-weight: 700;
+        letter-spacing: 0.04em;
+        text-transform: uppercase;
+        color: var(--muted);
+        margin-bottom: 4px;
+      }
+
+      .attention-grid {
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        gap: 16px;
+      }
+
+      .attention-panel h3 {
+        margin-top: 0;
+      }
+
+      .panel-list {
+        display: grid;
+        gap: 8px;
+      }
+
+      .panel-row,
+      .action-row,
+      .empty-state {
+        padding: 12px 14px;
+      }
+
+      .panel-row,
+      .action-row {
+        display: flex;
+        justify-content: space-between;
+        align-items: flex-start;
+        gap: 12px;
+      }
+
+      .panel-row .row-copy,
+      .action-row .row-copy {
+        min-width: 0;
+      }
+
+      .panel-row .row-meta,
+      .action-row .row-meta {
+        text-align: right;
+        flex: 0 0 auto;
+        font-weight: 800;
+      }
+
+      .loss-value {
+        color: #9f1239;
+      }
+
+      .empty-state {
+        border: 1px dashed var(--border);
+        border-radius: 12px;
+        background: #fafafa;
+      }
+
+      .empty-state.is-error {
+        border-style: solid;
+        border-color: #fecdd3;
+        background: #fff1f2;
+      }
+
+      .empty-state strong {
+        display: block;
+      }
+
+      .action-list {
+        display: grid;
+        gap: 8px;
+      }
+
+      .partial-warning {
+        margin: 0 0 10px;
+        padding: 10px 12px;
+        border-radius: 10px;
+        border: 1px solid #f3e8c2;
+        background: #fffbeb;
+        color: #111;
+      }
+
+      .maintenance-copy {
+        margin: 0 0 12px;
+        color: var(--muted);
+        max-width: 40rem;
+      }
+
+      #backupDownloadBtn {
+        min-height: 44px;
+        padding: 0.65rem 1rem;
+        font-weight: 700;
+      }
+
+      @media (max-width: 1100px) {
+        .queue-grid {
+          grid-template-columns: repeat(2, minmax(0, 1fr));
+        }
+        .pipe-layout {
           grid-template-columns: 1fr;
+        }
+        .pipe-inprogress .pipe-grid {
+          grid-template-columns: repeat(3, minmax(0, 1fr));
         }
       }
 
-      .pill.active {
-        background: #0f766e; /* teal-ish */
-        color: #fff;
+      @media (max-width: 768px) {
+        .attention-grid {
+          grid-template-columns: 1fr;
+        }
+        .pipe-inprogress .pipe-grid {
+          grid-template-columns: repeat(2, minmax(0, 1fr));
+        }
+        .dash-toolbar {
+          align-items: flex-start;
+        }
+      }
+
+      @media (max-width: 430px) {
+        .queue-grid,
+        .pipe-inprogress .pipe-grid {
+          grid-template-columns: 1fr;
+        }
+        .panel-row,
+        .action-row {
+          flex-direction: column;
+        }
+        .panel-row .row-meta,
+        .action-row .row-meta {
+          text-align: left;
+        }
+      }
+
+      @media (prefers-reduced-motion: reduce) {
+        * {
+          transition: none !important;
+        }
       }
     </style>
   </head>
@@ -192,329 +335,287 @@
       <aside id="sidebar"></aside>
 
       <main class="page">
-        <div class="row" style="justify-content: space-between">
+        <header class="dash-header">
           <div>
-            <h1 style="margin: 0">Dashboard</h1>
-            <div class="muted">
-              Your daily overview — refurbs first (no low-stock).
-            </div>
+            <h1>Operations Dashboard</h1>
+            <p class="lede">
+              Daily work queues for listing, pictures, refurb and loss-making
+              stock.
+            </p>
           </div>
+          <div class="dash-toolbar">
+            <div class="dash-updated" id="lastUpdated">Last updated: not yet</div>
+            <button type="button" id="refreshBtn">Refresh</button>
+          </div>
+        </header>
+        <div id="loadStatus" aria-live="polite" aria-atomic="true"></div>
 
-          <div class="actions">
-            <a href="/refurb/add"
-              ><button type="button">+ Add refurb</button></a
+        <section class="dash-section" aria-labelledby="queues-heading">
+          <h2 id="queues-heading">Work queues</h2>
+          <p class="section-intro">
+            Open a queue to work the matching product or eBay list.
+          </p>
+          <div class="queue-grid" id="kpis_ebay">
+            <a
+              class="queue-card"
+              id="kpiEbayNotListed"
+              href="/products/list?ebay_status=not_listed"
             >
-            <a href="/refurb"
-              ><button type="button">Open refurb list</button></a
+              <span class="queue-count" id="kpi_ebay_not_listed">–</span>
+              <span class="queue-label">Needs listing</span>
+              <span class="queue-sub"
+                >In-stock eBay products not yet listed</span
+              >
+            </a>
+            <a
+              class="queue-card"
+              id="kpiRelist"
+              href="/products/list?ebay_status=ready_to_list"
             >
-            <a href="/tradein"><button type="button">Trade-in</button></a>
-            <a href="/report/ebay-updates"
-              ><button type="button">eBay updates</button></a>
-              <a href="/api/backup/download">
-  <button type="button">Download backup</button>
-</a>
+              <span class="queue-count" id="kpi_relist">–</span>
+              <span class="queue-label">Needs relisting</span>
+              <span class="queue-sub"
+                >In-stock products that need relisting</span
+              >
+            </a>
+            <a
+              class="queue-card"
+              id="kpiNeedsPics"
+              href="/products/list?needs_pics=Y"
+            >
+              <span class="queue-count" id="kpi_needs_pics">–</span>
+              <span class="queue-label">Needs pictures</span>
+              <span class="queue-sub"
+                >In-stock products awaiting photos</span
+              >
+            </a>
+            <a
+              class="queue-card"
+              id="kpiEbay"
+              href="/report/ebay-updates"
+            >
+              <span class="queue-count" id="kpi_ebay">–</span>
+              <span class="queue-label">eBay updates</span>
+              <span class="queue-sub">Pending listing or quantity changes</span>
+            </a>
           </div>
-        </div>
+        </section>
 
-        <!-- KPI CARDS -->
-        <div class="card">
-          <h2 style="margin: 0 0 10px">Today at a glance</h2>
-
-          <h3 style="margin: 18px 0 6px">eBay workflow</h3>
-          <div class="kpis" id="kpis_ebay">
-            <div class="card kpi" id="kpiEbayNotListed">
-              <div class="num" id="kpi_ebay_not_listed">–</div>
-              <div class="label">Needs listing</div>
-              <div class="muted sub">In-stock eBay products not yet listed</div>
+        <section class="dash-section" aria-labelledby="refurb-heading">
+          <h2 id="refurb-heading">Refurb pipeline</h2>
+          <p class="section-intro">
+            Active is the in-progress total. Complete is finished work and is
+            counted separately.
+          </p>
+          <div class="pipe-layout">
+            <div class="pipe-inprogress">
+              <h3 id="refurb-active-heading">In progress</h3>
+              <div class="pipe-grid">
+                <a class="pipe-card" href="/refurb">
+                  <span class="pipe-kind">Summary</span>
+                  <span class="pipe-label">Active</span>
+                  <span class="pipe-count" id="pipe_active">–</span>
+                  <span class="pipe-hint">All in-progress refurb items</span>
+                </a>
+                <a class="pipe-card" href="/refurb?status=refurb">
+                  <span class="pipe-kind">Stage</span>
+                  <span class="pipe-label">Refurb</span>
+                  <span class="pipe-count" id="pipe_refurb">–</span>
+                  <span class="pipe-hint">Marked as refurb</span>
+                </a>
+                <a class="pipe-card" href="/refurb?parts=needs_parts">
+                  <span class="pipe-kind">Parts</span>
+                  <span class="pipe-label">Needs parts</span>
+                  <span class="pipe-count" id="pipe_needs">–</span>
+                  <span class="pipe-hint">Waiting for parts to be ordered</span>
+                </a>
+                <a class="pipe-card" href="/refurb?parts=awaiting_parts">
+                  <span class="pipe-kind">Parts</span>
+                  <span class="pipe-label">Awaiting parts</span>
+                  <span class="pipe-count" id="pipe_awaiting">–</span>
+                  <span class="pipe-hint">Parts ordered, not yet arrived</span>
+                </a>
+                <a class="pipe-card" href="/refurb?parts=has_parts">
+                  <span class="pipe-kind">Parts</span>
+                  <span class="pipe-label">Has parts</span>
+                  <span class="pipe-count" id="pipe_has">–</span>
+                  <span class="pipe-hint">Parts in stock for the job</span>
+                </a>
+              </div>
             </div>
-
-            <div class="card kpi" id="kpiEbay">
-              <div class="num" id="kpi_ebay">–</div>
-              <div class="label">eBay updates</div>
-              <div class="muted sub">Pending changes</div>
-            </div>
-
-            <div class="card kpi" id="kpiRelist">
-              <div class="num" id="kpi_relist">–</div>
-              <div class="label">Needs relisting</div>
-              <div class="muted sub">In-stock products that need relisting</div>
-            </div>
-
-            <div class="card kpi" id="kpiNeedsPics">
-              <div class="num" id="kpi_needs_pics">–</div>
-              <div class="label">Needs pictures</div>
-              <div class="muted sub">In-stock products awaiting photos</div>
+            <div class="pipe-complete-wrap">
+              <h3 id="refurb-complete-heading">Finished</h3>
+              <a class="pipe-card" href="/refurb/complete">
+                <span class="pipe-kind">Terminal</span>
+                <span class="pipe-label">Complete</span>
+                <span class="pipe-count" id="pipe_complete">–</span>
+                <span class="pipe-hint">Not included in Active</span>
+              </a>
             </div>
           </div>
-        </div>
+        </section>
 
-        <div class="card">
-          <h3 style="margin: 0 0 10px">Refurb Workflow</h3>
-          <div class="muted">
-            Click a block to jump into the refurb list with filters.
-          </div>
-
-          <div class="pipe" style="margin-top: 12px">
-            <div class="pipeItem" data-go="active:1">
-              <span class="pill active">Active</span>
-              <div
-                class="row"
-                style="justify-content: space-between; margin-top: 10px"
-              >
-                <strong id="pipe_active">–</strong>
-                <span class="muted">items</span>
+        <section class="dash-section" aria-labelledby="attention-heading">
+          <h2 id="attention-heading">Attention needed</h2>
+          <p class="section-intro">
+            Loss-making stock and parts still required for in-progress refurbs.
+          </p>
+          <div class="attention-grid">
+            <div class="attention-panel">
+              <h3 id="loss-heading">Loss-making products</h3>
+              <div id="lossWrap" class="panel-list">
+                <div class="empty-state">Loading…</div>
               </div>
             </div>
-
-            <div class="pipeItem" data-go="status:refurb">
-              <span class="pill refurb">Refurb</span>
-              <div
-                class="row"
-                style="justify-content: space-between; margin-top: 10px"
-              >
-                <strong id="pipe_refurb">–</strong>
-                <span class="muted">items</span>
+            <div class="attention-panel">
+              <h3 id="parts-heading">Parts required</h3>
+              <div id="partsOrderList" class="panel-list">
+                <div class="empty-state">Loading…</div>
               </div>
-            </div>
-
-            <div class="pipeItem" data-go="parts:needs_parts">
-              <span class="pill needs">Needs parts</span>
-              <div
-                class="row"
-                style="justify-content: space-between; margin-top: 10px"
-              >
-                <strong id="pipe_needs">–</strong>
-                <span class="muted">items</span>
-              </div>
-            </div>
-
-            <div class="pipeItem" data-go="parts:awaiting_parts">
-              <span class="pill await">Awaiting</span>
-              <div
-                class="row"
-                style="justify-content: space-between; margin-top: 10px"
-              >
-                <strong id="pipe_awaiting">–</strong>
-                <span class="muted">items</span>
-              </div>
-            </div>
-
-            <div class="pipeItem" data-go="parts:has_parts">
-              <span class="pill has">Has parts</span>
-              <div
-                class="row"
-                style="justify-content: space-between; margin-top: 10px"
-              >
-                <strong id="pipe_has">–</strong>
-                <span class="muted">items</span>
-              </div>
-            </div>
-
-            <div class="pipeItem" data-go="complete">
-              <span class="pill complete">Complete</span>
-              <div
-                class="row"
-                style="justify-content: space-between; margin-top: 10px"
-              >
-                <strong id="pipe_complete">–</strong>
-                <span class="muted">items</span>
+              <h3 id="parts-summary-heading">Combined for ordering</h3>
+              <div id="partsSummaryList" class="panel-list">
+                <div class="empty-state">Loading…</div>
               </div>
             </div>
           </div>
-        </div>
+        </section>
 
-    
-<!-- ACTION NEEDED -->
-<div class="card">
-  <h2 style="margin: 0 0 10px">Action needed</h2>
-  <div class="muted">These are your “don’t forget” items.</div>
+        <section class="dash-section" aria-labelledby="actions-heading">
+          <h2 id="actions-heading">Action list</h2>
+          <p class="section-intro">
+            Outstanding operational work from the queues above.
+          </p>
+          <div id="actionList" class="action-list">
+            <div class="empty-state">Loading…</div>
+          </div>
+        </section>
 
-  <div class="list" id="actionList">
-    <div class="listItem">
-      <div>Loading…</div>
+        <section
+          class="dash-section"
+          id="maintenanceSection"
+          aria-labelledby="maintenance-heading"
+        >
+          <h2 id="maintenance-heading">Data maintenance</h2>
+          <p class="maintenance-copy">
+            Download a ZIP of current stock and refurb data. This is a backup
+            control, not a daily work action.
+          </p>
+          <button type="button" id="backupDownloadBtn">
+            Download backup
+          </button>
+        </section>
+      </main>
     </div>
-  </div>
-</div>
-
-<div class="card">
-  <h2 style="margin: 0 0 10px">Loss-making stock</h2>
-  <div class="muted">Products currently priced at a loss. Missing prices are not included.</div>
-
-  <div id="lossWrap" class="list" style="margin-top:12px;">
-    <div class="listItem">
-      <div>Loading…</div>
-    </div>
-  </div>
-</div>
-
-<div class="card">
-  <h2 style="margin: 0 0 10px">Parts quick list</h2>
-  <div class="muted">Combined duplicate parts to make ordering easier.</div>
-
-  <div class="list" id="partsSummaryList">
-    <div class="listItem">
-      <div>Loading…</div>
-    </div>
-  </div>
-</div>
-
-<div class="card">
-  <details>
-    <summary style="cursor:pointer; font-weight:800; font-size:20px; display:flex; align-items:center; justify-content:space-between;">
-      <span>Parts required by device</span>
-      <span style="font-size:14px; opacity:.7;">Click to expand</span>
-    </summary>
-
-    <div class="muted" style="margin-top:10px;">
-      Items marked as needs parts with parts listed in the detail page.
-    </div>
-
-    <div class="list" id="partsOrderList">
-      <div class="listItem">
-        <div>Loading…</div>
-      </div>
-    </div>
-  </details>
-</div>
-
-</main>
-</div>
     <script>
       function $(id) {
         return document.getElementById(id);
       }
 
-      function setNum(id, n) {
-        const el = $(id);
+      let loadGeneration = 0;
+      let loadInFlight = false;
+
+      function setLoadStatus(text) {
+        const el = $("loadStatus");
+        if (el) el.textContent = text || "";
+      }
+
+      function setRefreshState(loading) {
+        const btn = $("refreshBtn");
+        if (!btn) return;
+        btn.disabled = loading;
+        btn.setAttribute("aria-busy", loading ? "true" : "false");
+        btn.textContent = loading ? "Refreshing…" : "Refresh";
+      }
+
+      function markCount(el, n, failed) {
         if (!el) return;
-        if (n === "!") {
+        el.classList.toggle("is-failed", !!failed);
+        if (failed) {
           el.textContent = "!";
+          el.setAttribute("aria-label", "Could not load this figure");
           return;
         }
+        el.removeAttribute("aria-label");
         el.textContent = String(n ?? "–");
       }
 
+      function setNum(id, n) {
+        markCount($(id), n, false);
+      }
+
       function setFailed(id) {
-        setNum(id, "!");
-      }
-
-      function goToRefurbWith(filter) {
-        const [k, v] = String(filter || "").split(":");
-
-        if (k === "complete") {
-          window.location.href = "/refurb/complete";
-          return;
-        }
-
-        if (k === "active") {
-          window.location.href = "/refurb";
-          return;
-        }
-
-        const qs = new URLSearchParams();
-        if (k && v) qs.set(k, v);
-        window.location.href = "/refurb?" + qs.toString();
-      }
-
-      function wirePipelineClicks() {
-        document.querySelectorAll(".pipeItem").forEach((el) => {
-          el.addEventListener("click", () => goToRefurbWith(el.dataset.go));
-        });
-      }
-
-      function wireKpiClicks() {
-        $("kpiEbay")?.addEventListener(
-          "click",
-          () => (window.location.href = "/report/ebay-updates"),
-        );
-        $("kpiEbayNotListed")?.addEventListener(
-          "click",
-          () =>
-            (window.location.href = "/products/list?ebay_status=not_listed"),
-        );
-        $("kpiRelist")?.addEventListener(
-          "click",
-          () =>
-            (window.location.href =
-              "/products/list?ebay_status=ready_to_list"),
-        );
-        $("kpiNeedsPics")?.addEventListener(
-          "click",
-          () => (window.location.href = "/products/list?needs_pics=Y"),
-        );
+        markCount($(id), "!", true);
       }
 
       function setSectionError(wrap, title, subtitle) {
         if (!wrap) return;
         wrap.replaceChildren();
         const item = document.createElement("div");
-        item.className = "listItem";
-        item.style.cursor = "default";
-        const left = document.createElement("div");
+        item.className = "empty-state is-error";
         const strong = document.createElement("strong");
         strong.textContent = title;
         const muted = document.createElement("div");
-        muted.className = "muted";
+        muted.className = "queue-sub";
         muted.textContent = subtitle;
-        left.append(strong, muted);
-        item.append(left);
+        item.append(strong, muted);
+        wrap.append(item);
+      }
+
+      function appendLinkRow(wrap, { href, title, subtitle, value, valueClass }) {
+        const item = document.createElement("a");
+        item.className = wrap.id === "actionList" ? "action-row" : "panel-row";
+        item.href = href;
+        const copy = document.createElement("div");
+        copy.className = "row-copy";
+        const heading = document.createElement("strong");
+        heading.textContent = title;
+        copy.append(heading);
+        if (subtitle) {
+          const sub = document.createElement("div");
+          sub.className = "queue-sub";
+          sub.textContent = subtitle;
+          copy.append(sub);
+        }
+        const meta = document.createElement("div");
+        meta.className = "row-meta" + (valueClass ? " " + valueClass : "");
+        meta.textContent = value == null ? "" : String(value);
+        item.append(copy, meta);
         wrap.append(item);
       }
 
       function renderActions(actions, { sourcesFailed } = {}) {
         const wrap = $("actionList");
         if (!wrap) return;
+        wrap.replaceChildren();
 
-        if ((!actions || !actions.length) && sourcesFailed) {
-          setSectionError(
-            wrap,
-            "Could not load actions",
-            "One or more action queues failed to load.",
-          );
-          return;
+        if (sourcesFailed) {
+          const warn = document.createElement("div");
+          warn.className = "partial-warning";
+          warn.textContent =
+            "Some operational queues could not be loaded. This list may be incomplete.";
+          wrap.append(warn);
         }
 
         if (!actions || !actions.length) {
+          if (sourcesFailed) return;
           wrap.innerHTML = `
-            <div class="listItem" style="cursor:default">
-              <div><strong>All clear ✅</strong><div class="muted">No urgent items right now.</div></div>
+            <div class="empty-state">
+              <strong>All clear</strong>
+              <div class="queue-sub">No outstanding listing, pictures, parts or loss-making work.</div>
             </div>
           `;
           return;
         }
 
-        wrap.replaceChildren();
         for (const a of actions) {
-          const item = document.createElement("div");
-          item.className = "listItem";
-          const link = String(a.link || "");
-          if (link.startsWith("/")) item.dataset.link = link;
-
-          const left = document.createElement("div");
-          const title = document.createElement("strong");
-          title.textContent = a.title || "";
-          const subtitle = document.createElement("div");
-          subtitle.className = "muted";
-          subtitle.textContent = a.subtitle || "";
-          left.append(title, subtitle);
-
-          const right = document.createElement("div");
-          right.className = "right";
-          const value = document.createElement("strong");
-          value.textContent = a.value == null ? "" : String(a.value);
-          const open = document.createElement("div");
-          open.className = "muted";
-          open.textContent = "open";
-          right.append(value, open);
-
-          item.append(left, right);
-          if (item.dataset.link) {
-            item.addEventListener(
-              "click",
-              () => (window.location.href = item.dataset.link),
-            );
-          }
-          wrap.append(item);
+          const href = String(a.link || "");
+          if (!href.startsWith("/")) continue;
+          appendLinkRow(wrap, {
+            href,
+            title: a.title || "",
+            subtitle: a.subtitle || "",
+            value: a.value == null ? "Open" : String(a.value),
+          });
         }
       }
 
@@ -538,64 +639,48 @@
 
         if (!items || !items.length) {
           wrap.innerHTML = `
-      <div class="listItem" style="cursor:default">
-        <div>
-          <strong>Nothing to order ✅</strong>
-          <div class="muted">No items currently marked as needs parts.</div>
-        </div>
-      </div>
-    `;
+            <div class="empty-state">
+              <strong>Nothing to order</strong>
+              <div class="queue-sub">No items currently marked as needs parts.</div>
+            </div>
+          `;
           return;
         }
 
         wrap.replaceChildren();
         for (const item of items) {
-          const row = document.createElement("div");
-          row.className = "listItem";
           const id = Number(item.id);
-          if (Number.isFinite(id) && id > 0) {
-            row.dataset.link = "/refurb/" + id;
-          }
-
-          const left = document.createElement("div");
-          const title = document.createElement("strong");
-          title.textContent = `${item.sku || ""} — ${item.description || ""}`;
-          left.append(title);
-
+          const href =
+            Number.isFinite(id) && id > 0 ? "/refurb/" + id : "";
           const parts = parseParts(item.parts_needed);
-          if (!parts.length) {
-            const none = document.createElement("div");
-            none.className = "muted";
-            none.textContent = "No parts listed";
-            left.append(none);
-          } else {
-            for (const p of parts) {
-              const part = String(p.part || "").trim() || "Unnamed part";
-              const code = String(p.code || "").trim();
-              const line = document.createElement("div");
-              line.className = "muted";
-              line.textContent = code ? `${part} - ${code}` : part;
-              left.append(line);
-            }
+          const partLines = parts.length
+            ? parts
+                .map((p) => {
+                  const part = String(p.part || "").trim() || "Unnamed part";
+                  const code = String(p.code || "").trim();
+                  return code ? part + " - " + code : part;
+                })
+                .join("; ")
+            : "No parts listed";
+          const title = `${item.sku || ""} — ${item.description || ""}`;
+          if (!href) {
+            const row = document.createElement("div");
+            row.className = "empty-state";
+            const strong = document.createElement("strong");
+            strong.textContent = title;
+            const sub = document.createElement("div");
+            sub.className = "queue-sub";
+            sub.textContent = partLines;
+            row.append(strong, sub);
+            wrap.append(row);
+            continue;
           }
-
-          const right = document.createElement("div");
-          right.className = "right";
-          const cost = document.createElement("strong");
-          cost.textContent = `£${Number(item.parts_cost || 0).toFixed(2)}`;
-          const open = document.createElement("div");
-          open.className = "muted";
-          open.textContent = "open";
-          right.append(cost, open);
-
-          row.append(left, right);
-          if (row.dataset.link) {
-            row.addEventListener(
-              "click",
-              () => (window.location.href = row.dataset.link),
-            );
-          }
-          wrap.append(row);
+          appendLinkRow(wrap, {
+            href,
+            title,
+            subtitle: partLines,
+            value: `£${Number(item.parts_cost || 0).toFixed(2)}`,
+          });
         }
       }
 
@@ -618,32 +703,27 @@
         const rows = Array.from(grouped.entries());
         if (!rows.length) {
           wrap.innerHTML = `
-        <div class="listItem" style="cursor:default">
-          <div>
-            <strong>No parts found ✅</strong>
-            <div class="muted">Nothing currently grouped for ordering.</div>
-          </div>
-        </div>
-      `;
+            <div class="empty-state">
+              <strong>No parts found</strong>
+              <div class="queue-sub">Nothing currently grouped for ordering.</div>
+            </div>
+          `;
           return;
         }
 
         wrap.replaceChildren();
         for (const [part, codes] of rows) {
           const item = document.createElement("div");
-          item.className = "listItem";
-          item.style.cursor = "default";
-          const left = document.createElement("div");
+          item.className = "empty-state";
           const title = document.createElement("strong");
           title.textContent = part;
-          left.append(title);
+          item.append(title);
           for (const [code, qty] of codes.entries()) {
             const line = document.createElement("div");
-            line.className = "muted";
+            line.className = "queue-sub";
             line.textContent = `${code} ×${qty}`;
-            left.append(line);
+            item.append(line);
           }
-          item.append(left);
           wrap.append(item);
         }
       }
@@ -661,62 +741,30 @@
 
         if (!items || !items.length) {
           wrap.innerHTML = `
-      <div class="listItem" style="cursor:default">
-        <div>
-          <strong>No loss-making products ✅</strong>
-          <div class="muted">No in-stock eBay products are currently priced at a loss.</div>
-        </div>
-      </div>
-    `;
+            <div class="empty-state">
+              <strong>No loss-making products</strong>
+              <div class="queue-sub">No in-stock eBay products are currently priced at a loss.</div>
+            </div>
+          `;
           return;
         }
 
         wrap.replaceChildren();
-
-        function addRow(cfg) {
-          const item = document.createElement("div");
-          item.className = "listItem";
-          item.dataset.link = "/products/list?loss=1";
-
-          const left = document.createElement("div");
-          const title = document.createElement("strong");
-          title.textContent = cfg.title;
-          const sub = document.createElement("div");
-          sub.className = "muted";
-          sub.textContent = cfg.subtitle;
-          left.append(title, sub);
-
-          const right = document.createElement("div");
-          right.className = "right";
-          const value = document.createElement("strong");
-          value.style.color = "#b91c1c";
-          value.textContent = cfg.value;
-          const hint = document.createElement("div");
-          hint.className = "muted";
-          hint.textContent = cfg.hint;
-          right.append(value, hint);
-
-          item.append(left, right);
-          item.addEventListener(
-            "click",
-            () => (window.location.href = item.dataset.link),
-          );
-          wrap.append(item);
-        }
-
-        addRow({
+        appendLinkRow(wrap, {
+          href: "/products/list?loss=1",
           title: `${items.length} product(s) priced at a loss`,
-          subtitle: `Total potential loss: ${fmtGBP(totalLoss)}`,
+          subtitle: `Total current loss: ${fmtGBP(totalLoss)}`,
           value: "Open list",
-          hint: "",
+          valueClass: "loss-value",
         });
 
         for (const product of items.slice(0, 5)) {
-          addRow({
+          appendLinkRow(wrap, {
+            href: "/products/list?loss=1",
             title: `${product.sku || ""} — ${product.name || ""}`,
             subtitle: `Qty: ${Number(product.quantity || 0)}`,
             value: fmtGBP(product.total_profit),
-            hint: "total",
+            valueClass: "loss-value",
           });
         }
       }
@@ -747,13 +795,11 @@
         return out;
       }
 
-      // Phase A: each loader is isolated so one failure cannot skip later sections.
-      async function isolated(label, fn, onFail) {
+      async function isolated(label, fn) {
         try {
           return await fn();
         } catch (err) {
           console.error(label, err);
-          if (onFail) onFail();
           return null;
         }
       }
@@ -767,92 +813,41 @@
           .length;
       }
 
-      async function loadDashboard() {
-        const activeResult = isolated(
-          "active-refurb",
-          async () => {
-            return requireArray(await fetchJson("/api/refurb?view=active"));
-          },
-          () => {
-            setFailed("pipe_active");
-            setFailed("pipe_refurb");
-            setFailed("pipe_needs");
-            setFailed("pipe_awaiting");
-            setFailed("pipe_has");
-          },
+      async function loadDashboard(generation) {
+        const activeResult = isolated("active-refurb", async () => {
+          return requireArray(await fetchJson("/api/refurb?view=active"));
+        });
+
+        const completeResult = isolated("complete-refurb", async () => {
+          return requireArray(await fetchJson("/api/refurb?view=complete"));
+        });
+
+        const ebayUpdatesResult = isolated("ebay-updates", async () => {
+          return requireArray(
+            await fetchJson("/api/ebay-updates?done=false"),
+          );
+        });
+
+        const countsResult = isolated("dashboard-counts", async () =>
+          readDashboardCounts(await fetchJson("/api/dashboard/counts")),
         );
 
-        const completeResult = isolated(
-          "complete-refurb",
-          async () => {
-            return requireArray(
-              await fetchJson("/api/refurb?view=complete"),
-            );
-          },
-          () => setFailed("pipe_complete"),
-        );
+        const lossResult = isolated("loss-making", async () => {
+          const data = await fetchJson("/api/dashboard/loss-making");
+          if (!data || typeof data !== "object" || Array.isArray(data)) {
+            throw new Error("request failed");
+          }
+          const rows = requireArray(data.rows);
+          const totalLoss = Number(data.totalLoss);
+          if (!Number.isFinite(totalLoss)) throw new Error("request failed");
+          return { rows, totalLoss };
+        });
 
-        const ebayUpdatesResult = isolated(
-          "ebay-updates",
-          async () => {
-            return requireArray(
-              await fetchJson("/api/ebay-updates?done=false"),
-            );
-          },
-          () => setFailed("kpi_ebay"),
-        );
-
-        const countsResult = isolated(
-          "dashboard-counts",
-          async () =>
-            readDashboardCounts(await fetchJson("/api/dashboard/counts")),
-          () => {
-            setFailed("kpi_ebay_not_listed");
-            setFailed("kpi_relist");
-            setFailed("kpi_needs_pics");
-          },
-        );
-
-        const lossResult = isolated(
-          "loss-making",
-          async () => {
-            const data = await fetchJson("/api/dashboard/loss-making");
-            if (!data || typeof data !== "object" || Array.isArray(data)) {
-              throw new Error("request failed");
-            }
-            const rows = requireArray(data.rows);
-            const totalLoss = Number(data.totalLoss);
-            if (!Number.isFinite(totalLoss)) throw new Error("request failed");
-            return { rows, totalLoss };
-          },
-          () =>
-            setSectionError(
-              $("lossWrap"),
-              "Could not load loss-making products",
-              "The loss-making list is unavailable.",
-            ),
-        );
-
-        const partsResult = isolated(
-          "parts-needed",
-          async () => {
-            return requireArray(
-              await fetchJson("/api/refurb/parts-needed-list"),
-            );
-          },
-          () => {
-            setSectionError(
-              $("partsSummaryList"),
-              "Could not load parts list",
-              "The parts-to-order summary is unavailable.",
-            );
-            setSectionError(
-              $("partsOrderList"),
-              "Could not load parts list",
-              "The parts-by-device list is unavailable.",
-            );
-          },
-        );
+        const partsResult = isolated("parts-needed", async () => {
+          return requireArray(
+            await fetchJson("/api/refurb/parts-needed-list"),
+          );
+        });
 
         const [items, completeItems, ebay, counts, loss, partsNeededItems] =
           await Promise.all([
@@ -863,6 +858,8 @@
             lossResult,
             partsResult,
           ]);
+
+        if (generation !== loadGeneration) return;
 
         let needs = 0;
         let awaiting = 0;
@@ -877,39 +874,100 @@
           setNum("pipe_needs", needs);
           setNum("pipe_awaiting", awaiting);
           setNum("pipe_has", hasParts);
+        } else {
+          setFailed("pipe_active");
+          setFailed("pipe_refurb");
+          setFailed("pipe_needs");
+          setFailed("pipe_awaiting");
+          setFailed("pipe_has");
         }
 
         if (completeItems) {
           setNum("pipe_complete", completeItems.length);
+        } else {
+          setFailed("pipe_complete");
         }
 
         let ebayPending = null;
         if (ebay) {
           ebayPending = ebay.length;
           setNum("kpi_ebay", ebayPending);
+        } else {
+          setFailed("kpi_ebay");
         }
 
-        let ebayNotListed = null;
         if (counts) {
-          ebayNotListed = counts.needsListing;
           setNum("kpi_ebay_not_listed", counts.needsListing);
           setNum("kpi_relist", counts.readyToList);
           setNum("kpi_needs_pics", counts.needsPics);
+        } else {
+          setFailed("kpi_ebay_not_listed");
+          setFailed("kpi_relist");
+          setFailed("kpi_needs_pics");
         }
 
         if (loss) {
           renderLossMaking(loss.rows, loss.totalLoss);
+        } else {
+          setSectionError(
+            $("lossWrap"),
+            "Could not load loss-making products",
+            "The loss-making list is unavailable.",
+          );
         }
 
         if (partsNeededItems) {
           renderPartsSummaryList(partsNeededItems);
           renderPartsOrderList(partsNeededItems);
+        } else {
+          setSectionError(
+            $("partsSummaryList"),
+            "Could not load parts list",
+            "The parts-to-order summary is unavailable.",
+          );
+          setSectionError(
+            $("partsOrderList"),
+            "Could not load parts list",
+            "The parts-by-device list is unavailable.",
+          );
         }
 
         const actions = [];
+        if (counts && counts.needsListing > 0) {
+          actions.push({
+            title: "Needs listing",
+            subtitle: "In-stock products not yet listed on eBay",
+            value: counts.needsListing,
+            link: "/products/list?ebay_status=not_listed",
+          });
+        }
+        if (counts && counts.readyToList > 0) {
+          actions.push({
+            title: "Needs relisting",
+            subtitle: "In-stock products that need relisting",
+            value: counts.readyToList,
+            link: "/products/list?ebay_status=ready_to_list",
+          });
+        }
+        if (counts && counts.needsPics > 0) {
+          actions.push({
+            title: "Needs pictures",
+            subtitle: "In-stock products awaiting photos",
+            value: counts.needsPics,
+            link: "/products/list?needs_pics=Y",
+          });
+        }
+        if (ebayPending > 0) {
+          actions.push({
+            title: "eBay updates",
+            subtitle: "Pending listing or quantity changes",
+            value: ebayPending,
+            link: "/report/ebay-updates",
+          });
+        }
         if (items && needs > 0) {
           actions.push({
-            title: "Devices need parts",
+            title: "Needs parts",
             subtitle: "Open refurb list filtered to needs parts",
             value: needs,
             link: "/refurb?parts=needs_parts",
@@ -917,31 +975,15 @@
         }
         if (items && awaiting > 0) {
           actions.push({
-            title: "Parts awaiting arrival",
+            title: "Awaiting parts",
             subtitle: "These are waiting on deliveries",
             value: awaiting,
             link: "/refurb?parts=awaiting_parts",
           });
         }
-        if (ebayPending > 0) {
-          actions.push({
-            title: "eBay updates pending",
-            subtitle: "Update listings / quantities when you get a minute",
-            value: ebayPending,
-            link: "/report/ebay-updates",
-          });
-        }
-        if (ebayNotListed > 0) {
-          actions.push({
-            title: "Products need listing on eBay",
-            subtitle: "Open products list filtered to not listed",
-            value: ebayNotListed,
-            link: "/products/list?ebay_status=not_listed",
-          });
-        }
         if (loss && loss.rows.length > 0) {
           actions.push({
-            title: "Loss-making products need review",
+            title: "Loss-making products",
             subtitle: "Reprice products currently priced at a loss",
             value: loss.rows.length,
             link: "/products/list?loss=1",
@@ -950,12 +992,48 @@
 
         const sourcesFailed = !items || ebayPending == null || !counts || !loss;
         renderActions(actions, { sourcesFailed });
+
+        const updated = $("lastUpdated");
+        if (updated) {
+          updated.textContent =
+            "Last updated: " + new Date().toLocaleString("en-GB");
+        }
+        if (sourcesFailed || !completeItems || !partsNeededItems) {
+          setLoadStatus("Some sections could not be loaded.");
+        } else {
+          setLoadStatus("Dashboard updated.");
+        }
+      }
+
+      async function refreshDashboard() {
+        if (loadInFlight) return;
+        loadInFlight = true;
+        const generation = ++loadGeneration;
+        setRefreshState(true);
+        setLoadStatus("Refreshing dashboard…");
+        try {
+          await loadDashboard(generation);
+        } catch (err) {
+          console.error("dashboard-refresh", err);
+          if (generation === loadGeneration) {
+            setLoadStatus("Dashboard refresh failed.");
+          }
+        } finally {
+          if (generation === loadGeneration) {
+            loadInFlight = false;
+            setRefreshState(false);
+          }
+        }
       }
 
       window.addEventListener("DOMContentLoaded", () => {
-        wirePipelineClicks();
-        wireKpiClicks();
-        loadDashboard().catch(console.error);
+        $("refreshBtn")?.addEventListener("click", () => {
+          refreshDashboard();
+        });
+        $("backupDownloadBtn")?.addEventListener("click", () => {
+          window.location.href = "/api/backup/download";
+        });
+        refreshDashboard().catch(console.error);
       });
     </script>
     <script src="/js/sidebar.js"></script>

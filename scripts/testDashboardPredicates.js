@@ -536,7 +536,10 @@ assert.deepEqual([...DASHBOARD_COUNT_FIELDS], [
 ]);
 
 console.log('--- dashboard destinations and isolation ---');
-assert.match(dashboardHtml, /<div class="label">Needs relisting<\/div>/);
+assert.match(dashboardHtml, /<span class="queue-label">Needs relisting<\/span>/);
+assert.match(dashboardHtml, /<span class="queue-label">Needs listing<\/span>/);
+assert.match(dashboardHtml, /<span class="queue-label">Needs pictures<\/span>/);
+assert.match(dashboardHtml, /<span class="queue-label">eBay updates<\/span>/);
 assert.equal(dashboardHtml.includes('Stock returned from 0'), false);
 assert.equal(/Ready to list/i.test(dashboardHtml), false);
 assert.equal(/ready to list/i.test(dashboardHtml), false);
@@ -571,12 +574,12 @@ assert.match(dashboardHtml, new RegExp(DASHBOARD_DESTINATIONS.needsListing.repla
 assert.match(dashboardHtml, new RegExp(DASHBOARD_DESTINATIONS.readyToList.replace('?', '\\?')));
 assert.match(dashboardHtml, new RegExp(DASHBOARD_DESTINATIONS.needsPics.replace('?', '\\?')));
 assert.match(dashboardHtml, new RegExp(DASHBOARD_DESTINATIONS.lossMaking.replace('?', '\\?')));
-assert.match(dashboardHtml, /\/refurb\?parts=needs_parts/);
-assert.match(dashboardHtml, /\/refurb\?parts=awaiting_parts/);
-assert.match(dashboardHtml, /data-go="parts:has_parts"/);
-assert.match(dashboardHtml, /data-go="parts:needs_parts"/);
-assert.match(dashboardHtml, /data-go="parts:awaiting_parts"/);
-assert.match(dashboardHtml, /data-go="status:refurb"/);
+assert.match(dashboardHtml, /href="\/refurb\?parts=needs_parts"/);
+assert.match(dashboardHtml, /href="\/refurb\?parts=awaiting_parts"/);
+assert.match(dashboardHtml, /href="\/refurb\?parts=has_parts"/);
+assert.match(dashboardHtml, /href="\/refurb\?status=refurb"/);
+assert.match(dashboardHtml, /href="\/refurb"/);
+assert.match(dashboardHtml, /href="\/refurb\/complete"/);
 assert.match(dashboardHtml, /\/api\/dashboard\/counts/);
 assert.equal(/fetch\(\s*["']\/api\/products["']/.test(dashboardHtml), false);
 assert.match(dashboardHtml, /Promise\.all/);
@@ -588,6 +591,39 @@ assert.match(dashboardHtml, /function requireArray/);
 assert.match(dashboardHtml, /function readDashboardCounts/);
 assert.equal(dashboardHtml.includes('Array.isArray(data) ? data : []'), false);
 assert.match(dashboardHtml, /requireArray\(await fetchJson\("\/api\/refurb\?view=active"\)\)/);
+assert.match(dashboardHtml, /class="queue-card"/);
+assert.match(dashboardHtml, /<button type="button" id="refreshBtn">/);
+assert.match(dashboardHtml, /id="backupDownloadBtn"/);
+assert.match(dashboardHtml, /id="maintenanceSection"/);
+assert.match(dashboardHtml, /\/api\/backup\/download/);
+assert.equal(/<a\b[^>]*href="\/api\/backup\/download"/.test(dashboardHtml), false);
+assert.equal(/<a\b[^>]*>\s*<button\b/i.test(dashboardHtml), false);
+assert.equal(/<button\b[^>]*>\s*<a\b/i.test(dashboardHtml), false);
+assert.equal(dashboardHtml.includes('wireKpiClicks'), false);
+assert.equal(dashboardHtml.includes('data-go='), false);
+assert.equal(dashboardHtml.includes('insertAdjacentHTML'), false);
+assert.equal(dashboardHtml.includes('document.write'), false);
+assert.equal(/\beval\s*\(/.test(dashboardHtml), false);
+assert.match(dashboardHtml, /title: "Needs relisting"/);
+assert.match(dashboardHtml, /title: "Needs pictures"/);
+assert.match(dashboardHtml, /partial-warning/);
+assert.match(
+  dashboardHtml,
+  /Some operational queues could not be loaded/
+);
+assert.match(
+  dashboardHtml,
+  /const sourcesFailed = !items \|\| ebayPending == null \|\| !counts \|\| !loss/
+);
+assert.match(dashboardHtml, /if \(generation !== loadGeneration\) return/);
+assert.match(dashboardHtml, /if \(loadInFlight\) return/);
+assert.match(dashboardHtml, /<span class="pipe-label">Active<\/span>/);
+assert.match(dashboardHtml, /<span class="pipe-label">Refurb<\/span>/);
+assert.match(dashboardHtml, /<span class="pipe-label">Needs parts<\/span>/);
+assert.match(dashboardHtml, /<span class="pipe-label">Awaiting parts<\/span>/);
+assert.match(dashboardHtml, /<span class="pipe-label">Has parts<\/span>/);
+assert.match(dashboardHtml, /<span class="pipe-label">Complete<\/span>/);
+assert.match(dashboardHtml, /aria-live="polite"/);
 assert.match(pgProductsSrc, /needsListing: Number\(row\.needs_listing\)/);
 assert.equal(pgProductsSrc.includes('listed: Number(row.listed)'), false);
 

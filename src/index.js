@@ -28,6 +28,8 @@ import {
   getNextRefurbSkuPG,
   applyProductEbayStatusPG,
   ebayStatusCountsPG,
+  dashboardCountsPG,
+  listLossMakingPG,
   getProductBySkuPG,
   findProductsByCodePG,
   listDuplicateReviewProductsPG,
@@ -62,6 +64,10 @@ import {
   getPostagePrice,
   resolvePostageAssignment,
 } from './postageAutoAssignment.js';
+import {
+  partsNeededListWhereSql,
+  refurbActiveStatusSql,
+} from './dashboardPredicates.js';
 import fs from 'node:fs';
 import multer from 'multer';
 import archiver from 'archiver';
@@ -247,27 +253,10 @@ async function findProductByLooseCodePG(codeNorm) {
 
 app.get('/api/dashboard/loss-making', async (req, res) => {
   try {
-    const { rows } = await pgQuery(`
-      SELECT
-        id,
-        sku,
-        name,
-        quantity,
-        retail,
-        cost,
-        fees,
-        postage,
-        (retail - cost - fees - postage) AS profit,
-        ((retail - cost - fees - postage) * quantity) AS total_profit
-      FROM products
-      WHERE quantity > 0
-        AND LEFT(UPPER(sku), 1) NOT IN ('H', 'L', 'M', 'V', 'T', 'K')
-        AND (retail - cost - fees - postage) <= 0
-      ORDER BY (retail - cost - fees - postage) ASC, sku ASC
-    `);
-
+    const rows = await listLossMakingPG();
     const totalLoss = rows.reduce((sum, row) => {
-      return sum + Number(row.total_profit || 0);
+      const n = Number(row.total_profit);
+      return Number.isFinite(n) ? sum + n : sum;
     }, 0);
 
     res.json({
@@ -277,7 +266,17 @@ app.get('/api/dashboard/loss-making', async (req, res) => {
     });
   } catch (err) {
     console.error('dashboard loss-making error:', err);
-    res.status(500).json({ error: err.message });
+    res.status(500).json({ error: 'Failed to load loss-making stock' });
+  }
+});
+
+app.get('/api/dashboard/counts', async (req, res) => {
+  try {
+    const counts = await dashboardCountsPG();
+    res.json(counts);
+  } catch (err) {
+    console.error('dashboard counts error:', err);
+    res.status(500).json({ error: 'Failed to load dashboard counts' });
   }
 });
 /* ---------- API: Products ---------- */
@@ -285,12 +284,14 @@ app.get('/api/dashboard/loss-making', async (req, res) => {
 app.get('/api/products', async (req, res) => {
   try {
     const ebay_status = req.query.ebay_status ? String(req.query.ebay_status) : undefined;
-    const rows = await listProductsPG({ ebay_status });
+    const needs_pics = req.query.needs_pics ? String(req.query.needs_pics) : undefined;
+    const loss = req.query.loss ? String(req.query.loss) : undefined;
+    const rows = await listProductsPG({ ebay_status, needs_pics, loss });
 
     res.json(rows);
   } catch (err) {
     console.error('PG listProducts error:', err);
-    res.status(500).json({ error: err.message });
+    res.status(500).json({ error: 'Failed to load products' });
   }
 });
 
@@ -609,7 +610,8 @@ app.get('/api/stats/ebay', async (req, res) => {
     const rows = await ebayStatusCountsPG();
     res.json(rows);
   } catch (err) {
-    res.status(500).json({ error: err.message });
+    console.error('eBay stats error:', err);
+    res.status(500).json({ error: 'Failed to load eBay stats' });
   }
 });
 
@@ -1028,7 +1030,7 @@ app.get('/api/refurb', async (req, res) => {
 if (!view || view === 'active') {
   const { rows } = await pgQuery(
     `SELECT * FROM refurb_items
-     WHERE status NOT IN ('scrapped', 'stripped', 'complete', 'sold', 'josh')
+     WHERE ${refurbActiveStatusSql()}
      ORDER BY id DESC;`
   );
   return res.json(rows);
@@ -1296,8 +1298,7 @@ app.get('/api/refurb/parts-needed-list', async (req, res) => {
         COALESCE(d.parts_cost, 0) AS parts_cost
       FROM refurb_items r
       LEFT JOIN refurb_details d ON d.refurb_id = r.id
-      WHERE r.parts_status = 'needs_parts'
-        AND r.status NOT IN ('scrapped', 'stripped', 'sold')
+      WHERE ${partsNeededListWhereSql('r')}
       ORDER BY r.id DESC;
       `
     );

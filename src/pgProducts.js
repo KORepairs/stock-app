@@ -1,7 +1,12 @@
 // src/pgProducts.js
 import { pgQuery } from './pg.js';
 import { memberKeyFromProductIds, productIdsFromGroupMembers } from './duplicateReview.js';
-import { ebayStatusCountsQuery, productsListWhere } from './needsListing.js';
+import {
+  dashboardCountsQuery,
+  ebayStatusCountsQuery,
+  lossMakingQuery,
+  productsListWhere,
+} from './dashboardPredicates.js';
 import {
   assertProductCreateSkuAllowed,
   canonicalSku,
@@ -13,8 +18,8 @@ import {
 
 
 // List products (used by /api/products)
-export async function listProductsPG({ ebay_status } = {}) {
-  const { params, where } = productsListWhere({ ebay_status });
+export async function listProductsPG({ ebay_status, needs_pics, loss } = {}) {
+  const { params, where } = productsListWhere({ ebay_status, needs_pics, loss });
 
   const { rows } = await pgQuery(
     `SELECT id, sku, code, name, quantity, notes, on_ebay,
@@ -427,6 +432,23 @@ export async function applyProductEbayStatusPG(
 
 export async function ebayStatusCountsPG() {
   const { text, params } = ebayStatusCountsQuery();
+  const { rows } = await pgQuery(text, params);
+  return rows;
+}
+
+export async function dashboardCountsPG() {
+  const { text, params } = dashboardCountsQuery();
+  const { rows } = await pgQuery(text, params);
+  const row = rows[0] || {};
+  return {
+    needsListing: Number(row.needs_listing),
+    readyToList: Number(row.ready_to_list),
+    needsPics: Number(row.needs_pics),
+  };
+}
+
+export async function listLossMakingPG() {
+  const { text, params } = lossMakingQuery();
   const { rows } = await pgQuery(text, params);
   return rows;
 }

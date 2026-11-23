@@ -535,7 +535,7 @@ assert.match(setEbayStatusFn, /applyProductEbayStatusPG/);
 assert.match(addSmartHandler, /setEbayStatus\((?:chosen|existing)\.id, 'ready_to_list'\)/);
 assert.equal(
   (addSmartHandler.match(/setEbayStatus\([^,]+, 'ready_to_list'\)/g) || []).length,
-  2,
+  1,
   'add-smart qty bump 0→positive uses postage-aware ready_to_list'
 );
 assert.match(stockInHandler, /setEbayStatus\(product\.id, 'ready_to_list'/);

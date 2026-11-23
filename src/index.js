@@ -65,6 +65,11 @@ import {
   resolvePostageAssignment,
 } from './postageAutoAssignment.js';
 import {
+  canonicalNotesIdentity,
+  planCategorySAddSmart,
+  uniqueViolationError,
+} from './categorySIdentity.js';
+import {
   partsNeededListWhereSql,
   refurbActiveStatusSql,
 } from './dashboardPredicates.js';
@@ -536,10 +541,11 @@ codeProvided,
     res.json(row);
   } catch (err) {
     console.error('PG updateProduct error:', err);
-    if (err && err.code === '23505' && err.constraint === 'products_code_uq') {
-      return res.status(409).json({
-        error: 'Part Number is already used by another product',
-      });
+    if (err && err.code === '23505') {
+      const uniqueError = uniqueViolationError(err.constraint);
+      if (uniqueError) {
+        return res.status(409).json({ error: uniqueError });
+      }
     }
     if (err && err.code === '23505' && err.constraint === 'products_sku_key') {
       return res.status(409).json({
@@ -772,6 +778,13 @@ if (prefix.startsWith('C')) {
 }
 const isUniqueItem = prefix === 'C' || prefix === 'E';
 
+if (prefix === 'S') {
+  const notesCheck = canonicalNotesIdentity(notes);
+  if (!notesCheck.ok) {
+    return res.status(400).json({ error: notesCheck.error });
+  }
+}
+
 // 1) Duplicate check by PART NUMBER (code)
 // C batteries and E servers should NOT merge duplicates
 let matches = [];
@@ -780,8 +793,28 @@ if (!isUniqueItem) {
   matches = await findProductsByCodePG(codeNorm);
 }
 
-    // MULTIPLE MATCHES -> require pick_id
-    if (matches.length > 1) {
+    let incrementTarget = null;
+    let createNotes = notes;
+
+    if (prefix === 'S') {
+      const plan = planCategorySAddSmart({
+        prefix,
+        code: codeNorm,
+        notes,
+        matches,
+      });
+      if (plan.kind === 'invalid_notes' || plan.kind === 'invalid_code') {
+        return res.status(400).json({ error: plan.error });
+      }
+      if (plan.kind === 'ambiguous') {
+        return res.status(409).json({ error: plan.error });
+      }
+      if (plan.kind === 'increment') {
+        incrementTarget = plan.product;
+      } else {
+        createNotes = plan.notes;
+      }
+    } else if (matches.length > 1) {
       const pickId = Number(pick_id);
 
       if (!Number.isFinite(pickId) || pickId <= 0) {
@@ -799,37 +832,13 @@ if (!isUniqueItem) {
 
       const chosen = matches.find(m => Number(m.id) === pickId);
       if (!chosen) return res.status(400).json({ error: 'pick_id not in candidates' });
-
-      const oldQty = Number(chosen.quantity) || 0;
-      const updated = await adjustQtyPG(chosen.id, qtyDelta);
-      const newQty = Number(updated.quantity) || 0;
-
-      // if stock comes back from 0, mark as RELIST
-      if (oldQty === 0 && newQty > 0) {
-        await setEbayStatus(chosen.id, 'ready_to_list');
-      }
-
-      // If it’s an eBay item, log it for later
-      if (Number(chosen.on_ebay) === 1) {
-        await logEbayUpdatePG({
-          sku: chosen.sku,
-          code: chosen.code || codeNorm,
-          delta: qtyDelta,
-          oldQty,
-          newQty,
-          note: notes || null,
-        });
-      }
-
-      return res.json({
-        message: `UPDATED: SKU ${chosen.sku} (qty ${oldQty} → ${newQty}) ✅`,
-      });
+      incrementTarget = chosen;
+    } else if (matches.length === 1) {
+      incrementTarget = matches[0];
     }
 
-    // SINGLE MATCH -> update it
-    if (matches.length === 1) {
-      const existing = matches[0];
-
+    if (incrementTarget) {
+      const existing = incrementTarget;
       const oldQty = Number(existing.quantity) || 0;
       const updated = await adjustQtyPG(existing.id, qtyDelta);
       const newQty = Number(updated.quantity) || 0;
@@ -863,7 +872,7 @@ if (!isUniqueItem) {
       sku: newSku,
       code: codeNorm,
       name: name || codeNorm,
-      notes,
+      notes: createNotes,
       on_ebay: onEbay ? 1 : 0,
       cost,
       retail,
@@ -903,8 +912,15 @@ server_hdd: server_hdd || null,
     if (isInvalidProductSkuError(err)) {
       return res.status(400).json({ error: INVALID_PRODUCT_SKU_ERROR });
     }
+    if (err && err.code === '23505') {
+      const uniqueError = uniqueViolationError(err.constraint);
+      if (uniqueError) {
+        return res.status(409).json({ error: uniqueError });
+      }
+      return res.status(409).json({ error: 'A product with this identity already exists' });
+    }
     console.error('add-smart failed:', err);
-    res.status(500).json({ error: err.message });
+    res.status(500).json({ error: 'Failed to add product' });
   }
 });
 

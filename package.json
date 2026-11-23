@@ -10,7 +10,8 @@
     "backup": "mkdir -p backups && sqlite3 data.db \".backup 'backups/db-$(date +%F-%H%M%S).sqlite3'\"",
     "dev:auth": "BASIC_USER=me BASIC_PASS=secret nodemon src/index.js",
     "db:bootstrap:dev": "node scripts/bootstrapDevDb.js",
-    "db:migrate:duplicate-review-decisions": "node scripts/createDuplicateReviewDecisions.js"
+    "db:migrate:duplicate-review-decisions": "node scripts/createDuplicateReviewDecisions.js",
+    "db:migrate:products-code-indexes": "node scripts/migrateProductsCodeIndexes.js"
   },
   "dependencies": {
     "adm-zip": "^0.5.17",

@@ -1,5 +1,9 @@
 // Canonical development schema. Used by the explicit bootstrap script
 // and by read-only assertSchema(). Must not be executed on app startup.
+import {
+  CREATE_PRODUCTS_CODE_NON_S_UQ_SQL,
+  CREATE_PRODUCTS_S_CODE_NOTES_UQ_SQL,
+} from './categorySIdentity.js';
 
 export const EXPECTED_TABLES = [
   'products',
@@ -171,7 +175,8 @@ export const CREATE_STATEMENTS = [
       server_hdd TEXT,
       created_at TIMESTAMPTZ DEFAULT NOW()
     )`,
-  `CREATE UNIQUE INDEX products_code_uq ON products(code) WHERE code IS NOT NULL`,
+  CREATE_PRODUCTS_CODE_NON_S_UQ_SQL,
+  CREATE_PRODUCTS_S_CODE_NOTES_UQ_SQL,
   `CREATE TABLE customers (
       id SERIAL PRIMARY KEY,
       name TEXT NOT NULL,

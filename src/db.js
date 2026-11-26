@@ -1,6 +1,20 @@
 // src/db.js
-import { pool, pgQuery } from './pg.js';
+import { pool, pgQuery, withTransaction } from './pg.js';
 import { EXPECTED_COLUMNS, EXPECTED_TABLES } from './schema.js';
+import {
+  CREATE_PRODUCTS_CODE_NON_S_UQ_SQL,
+  CREATE_PRODUCTS_S_CODE_NOTES_UQ_SQL,
+  LOCK_PRODUCTS_SQL,
+  MIXED_CODE_INDEX_INIT_ERROR,
+  VERIFY_CODE_INDEX_INIT_ERROR,
+} from './categorySIdentity.js';
+import {
+  INDEX_STATE,
+  inspectProductsCodeIndexes,
+  oidEqual,
+  planInitDbProductsCodeIndexes,
+  resolvePublicProductsTable,
+} from './productsCodeIndexState.js';
 
 /**
  * Read-only schema check for normal application startup.
@@ -94,7 +108,48 @@ await pgQuery(`
 
 
   await pgQuery(`ALTER TABLE products ADD COLUMN IF NOT EXISTS code TEXT;`);
-  await pgQuery(`CREATE UNIQUE INDEX IF NOT EXISTS products_code_uq ON products(code) WHERE code IS NOT NULL;`);
+
+  if (pool) {
+    await withTransaction(async (client) => {
+      const resolvedTable = await resolvePublicProductsTable(client);
+      if (!resolvedTable || String(resolvedTable.relkind) !== 'r' || resolvedTable.oid == null) {
+        throw new Error(MIXED_CODE_INDEX_INIT_ERROR);
+      }
+      const pinnedOid = resolvedTable.oid;
+
+      await client.query(LOCK_PRODUCTS_SQL);
+
+      const lockedTable = await resolvePublicProductsTable(client);
+      if (
+        !lockedTable ||
+        String(lockedTable.relkind) !== 'r' ||
+        !oidEqual(lockedTable.oid, pinnedOid)
+      ) {
+        throw new Error(MIXED_CODE_INDEX_INIT_ERROR);
+      }
+
+      const first = await inspectProductsCodeIndexes(client, pinnedOid);
+      if (!first.ok) {
+        throw new Error(MIXED_CODE_INDEX_INIT_ERROR);
+      }
+
+      const plan = planInitDbProductsCodeIndexes(first.state);
+      if (plan.action === 'noop') {
+        return;
+      }
+      if (plan.action !== 'create') {
+        throw new Error(plan.error || MIXED_CODE_INDEX_INIT_ERROR);
+      }
+
+      await client.query(CREATE_PRODUCTS_CODE_NON_S_UQ_SQL);
+      await client.query(CREATE_PRODUCTS_S_CODE_NOTES_UQ_SQL);
+
+      const verified = await inspectProductsCodeIndexes(client, pinnedOid);
+      if (!verified.ok || verified.state !== INDEX_STATE.NEW) {
+        throw new Error(VERIFY_CODE_INDEX_INIT_ERROR);
+      }
+    });
+  }
 
 
 // One-time backfill: map legacy on_ebay to new ebay_status

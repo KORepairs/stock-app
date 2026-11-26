@@ -159,6 +159,9 @@
 
             <label for="notes">Notes</label>
             <input id="notes" type="text" placeholder="optional" />
+            <p id="notesSHint" class="muted" style="display: none; margin: 6px 0 0">
+              Motherboards with different processors must use different Notes and will receive separate SKUs.
+            </p>
 
             <!-- Battery (C category) -->
             <div id="batteryFields" style="display: none">
@@ -395,12 +398,15 @@ $('#server_hdd').value = '';
         show("Waiting…");
       });
 
-      $('#category').addEventListener('change', () => {
-  const cat = $('#category').value;
+      function syncCategoryFields() {
+        const cat = $('#category').value;
+        $('#batteryFields').style.display = cat === 'C' ? 'block' : 'none';
+        $('#serverFields').style.display = cat === 'E' ? 'block' : 'none';
+        $('#notesSHint').style.display = cat === 'S' ? 'block' : 'none';
+      }
 
-  $('#batteryFields').style.display = cat === 'C' ? 'block' : 'none';
-  $('#serverFields').style.display = cat === 'E' ? 'block' : 'none';
-});
+      $('#category').addEventListener('change', syncCategoryFields);
+      syncCategoryFields();
 
       function escapeHtml(s = "") {
         return String(s).replace(
